@@ -124,18 +124,24 @@ static class Bootstrap
 	private static void ConfigureLogging(HostBuilderContext hostContext, ILoggingBuilder logging)
 	{
 		logging.ClearProviders();
-		logging.AddConsole();
+
+		// Disable console logging.
+		// logging.AddConsole();
 
 		// Set minimum log level based on debug setting.
 		var debugEnabled = hostContext.Configuration.GetValue<bool>("Debug");
-		if (debugEnabled)
-		{
-			logging.SetMinimumLevel(LogLevel.Debug);
-		}
-		else
-		{
-			logging.SetMinimumLevel(LogLevel.Information);
-		}
+		var minLevel = debugEnabled ? LogLevel.Debug : LogLevel.Information;
+		logging.SetMinimumLevel(minLevel);
+
+		// Create log directory.
+		var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+		Directory.CreateDirectory(logDir);
+
+		// Timestamped log file (daily rotation).
+		var logFile = Path.Combine(logDir, $"app-{DateTime.Now:yyyy-MM-dd}.log");
+
+		// Add file logger.
+		logging.AddProvider(new Logging.FileLoggerProvider(logFile, minLevel));
 	}
 
 	private static void ConfigureServices<TAppSettings, TMainState>(HostBuilderContext hostContext, IServiceCollection services)
