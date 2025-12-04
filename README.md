@@ -27,3 +27,15 @@ The largest caveat here is the licensing.  Llama isn't really open source, and t
 
 [Qwen2.5-0.5B](https://huggingface.co/Qwen/Qwen2.5-0.5B) has half the parameters of the Llama model (and twice the performance??), and it is released under the apache-2.0 license, which I am personally a lot more comfortable with.  Care should still be taken before creating anything commercial with this though.
 
+[Play with Qwen](https://qwen.ai/home)
+
+## Ollama
+
+The ollama server can run the model we need.  A problem here is that, as we are trying to embed this in a game of some kind, we don't want our users to first need to install and configure a server.  How can we streamline this process for them?
+
+[Download Ollama](https://ollama.com/download/linux)
+
+Ollama can be installed from Linux with a single curl command that runs a bash script.
+
+My initial stab at solving this (with lots of AI coding help) will first check to see if a local Ollama is installed.
+It will download the Ollama server, install it to a local app storage folder, then run it and download the qwen2.5-0.5b model into itself.
