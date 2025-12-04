@@ -37,5 +37,5 @@ The ollama server can run the model we need.  A problem here is that, as we are 
 
 Ollama can be installed from Linux with a single curl command that runs a bash script.
 
-My initial stab at solving this (with lots of AI coding help) will first check to see if a local Ollama is installed.
-It will download the Ollama server, install it to a local app storage folder, then run it and download the qwen2.5-0.5b model into itself.
+My initial stab at solving this (with lots of AI coding help) will first check to see if a local Ollama is installed.  It will download the Ollama server, install it to a local app storage folder, then run it and download the qwen2.5-0.5b model into itself.  You can review the code in the `features/01-ollama-management` branch to see this at work.
+
