@@ -1,14 +1,18 @@
 using System.Diagnostics;
+using AINPC.Gpu;
+using AINPC.Gpu.Services;
 
 namespace AINPC;
 
-public sealed class OllamaManager : IDisposable
+sealed class OllamaManager : IDisposable
 {
     #region Fields
 
+    private readonly IGpuDetectorService _gpuDetector;
     private readonly OllamaInstaller _installer;
-    private readonly Action<string>? _log;
+    private readonly Action<string>? _logger;
 
+    private readonly GpuVendor _gpuVendor;
     private string? _ollamaPath;
     private Process? _serverProcess;
     private OllamaProcess? _proc;
@@ -17,10 +21,12 @@ public sealed class OllamaManager : IDisposable
 
     #region Constructors
 
-    public OllamaManager(OllamaInstaller installer, Action<string>? logger = null)
+    public OllamaManager(IGpuDetectorService gpuDetector, OllamaInstaller installer, Action<string>? logger = null)
     {
-        _installer = installer;
-        _log = logger;
+        _gpuDetector = gpuDetector ?? throw new ArgumentNullException(nameof(gpuDetector));
+        _gpuVendor = _gpuDetector.GetVendor();
+        _installer = installer ?? throw new ArgumentNullException(nameof(installer));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     #endregion
@@ -43,8 +49,8 @@ public sealed class OllamaManager : IDisposable
         if (_ollamaPath == null)
             return false;
 
-        // Create shared process wrapper
-        _proc = new OllamaProcess(_ollamaPath, _log);
+        // Create shared process wrapper.
+        _proc = new OllamaProcess(_ollamaPath, _logger);
 
         return true;
     }
@@ -149,6 +155,9 @@ public sealed class OllamaManager : IDisposable
         if (_proc == null)
             throw new InvalidOperationException("Ollama not installed or Manager not initialized.");
 
+        // TODO: The "--gpu" argument appears to have been removed from the latest Ollama CLI.
+        // args = string.Concat($"--gpu {_gpuVendor.GetVendorString()} ", args);
+
         return _proc.RunAsync(args, null, ct);
     }
 
@@ -168,16 +177,17 @@ public sealed class OllamaManager : IDisposable
     // UTILITIES
     // ---------------------------
 
-    private void Log(string msg) => _log?.Invoke($"[OllamaManager] {msg}");
+    private void Log(string msg) => _logger?.Invoke($"[OllamaManager] {msg}");
 
     public void Dispose()
     {
         try
         {
-            if (IsRunning)
-                _serverProcess?.Kill();
+            if (IsRunning) _serverProcess?.Kill();
         }
-        catch { }
+        catch
+		{
+		}
 
         _serverProcess?.Dispose();
     }

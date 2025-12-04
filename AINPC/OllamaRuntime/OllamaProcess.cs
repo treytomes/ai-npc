@@ -1,18 +1,29 @@
 using System.Diagnostics;
 using System.Text;
+using AINPC.Gpu;
 
 namespace AINPC;
 
 public sealed class OllamaProcess
 {
+	#region Fields
+
 	private readonly string _ollamaPath;
-	private readonly Action<string>? _log;
+	private readonly Action<string>? _logger;
+
+	#endregion
+
+	#region Constructors
 
 	public OllamaProcess(string ollamaPath, Action<string>? logger = null)
 	{
 		_ollamaPath = ollamaPath;
-		_log = logger;
+		_logger = logger;
 	}
+
+	#endregion
+
+	#region Methods
 
 	/// <summary>
 	/// Runs a single Ollama command (e.g., "pull llama3:8b").
@@ -31,7 +42,8 @@ public sealed class OllamaProcess
 			Arguments = arguments,
 			RedirectStandardOutput = true,
 			RedirectStandardError = true,
-			UseShellExecute = false
+			UseShellExecute = false,
+			CreateNoWindow = true,
 		};
 
 		var process = new Process { StartInfo = psi, EnableRaisingEvents = false };
@@ -94,6 +106,8 @@ public sealed class OllamaProcess
 
 	private void Log(string msg)
 	{
-		_log?.Invoke($"[OllamaProcess] {msg}");
+		_logger?.Invoke($"[OllamaProcess] {msg}");
 	}
+
+	#endregion
 }

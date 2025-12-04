@@ -1,4 +1,7 @@
-﻿namespace AINPC;
+﻿using AINPC.Gpu.Services;
+using AINPC.Services;
+
+namespace AINPC;
 
 class Program
 {
@@ -9,11 +12,11 @@ class Program
         Console.WriteLine("AINPC Ollama Bootstrap Test");
         Console.WriteLine("----------------------------------");
 
-        var http = new HttpClient();
+        var httpClient = new HttpClient();
 
         // Initialize installer + manager
-        var installer = new OllamaInstaller(http, Log);
-        var manager = new OllamaManager(installer, Log);
+        var installer = new OllamaInstaller(httpClient, Log);
+        var manager = new OllamaManager(new GpuDetectorService(new ProcessService(), new GpuVendorFactory()), installer, Log);
 
         // Ensure Ollama exists
         if (!await manager.EnsureInstalledAsync())
