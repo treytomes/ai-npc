@@ -1,3 +1,5 @@
+using AINPC.Gpu.Services;
+using AINPC.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -146,6 +148,14 @@ static class Bootstrap
 		services.AddSingleton(sp => sp.GetRequiredService<IOptions<TAppSettings>>().Value);
 		services.AddSingleton<AppSettings>(sp => sp.GetRequiredService<TAppSettings>());
 		services.AddSingleton<IOptions<AppSettings>>(sp => sp.GetRequiredService<IOptions<TAppSettings>>());
+
+		services.AddSingleton<IProcessService, ProcessService>();
+		services.AddSingleton<IGpuVendorFactory, GpuVendorFactory>();
+		services.AddSingleton<IGpuDetectorService, GpuDetectorService>();
+		services.AddSingleton<HttpClient>();
+		services.AddSingleton<OllamaInstaller>();
+		services.AddSingleton<OllamaProcess>();
+		services.AddSingleton<OllamaManager>();
 
 		// Register game states.
 		services.AddTransient<TMainState>();

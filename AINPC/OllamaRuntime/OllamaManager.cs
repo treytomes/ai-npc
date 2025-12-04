@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using AINPC.Gpu;
 using AINPC.Gpu.Services;
+using Microsoft.Extensions.Logging;
 
 namespace AINPC;
 
@@ -10,22 +10,21 @@ sealed class OllamaManager : IDisposable
 
     private readonly IGpuDetectorService _gpuDetector;
     private readonly OllamaInstaller _installer;
-    private readonly Action<string>? _logger;
+    private readonly ILogger<OllamaManager> _logger;
 
-    private readonly GpuVendor _gpuVendor;
     private string? _ollamaPath;
     private Process? _serverProcess;
-    private OllamaProcess? _proc;
+    private OllamaProcess _proc;
     
     #endregion
 
     #region Constructors
 
-    public OllamaManager(IGpuDetectorService gpuDetector, OllamaInstaller installer, Action<string>? logger = null)
+    public OllamaManager(IGpuDetectorService gpuDetector, OllamaInstaller installer, OllamaProcess proc, ILogger<OllamaManager> logger)
     {
         _gpuDetector = gpuDetector ?? throw new ArgumentNullException(nameof(gpuDetector));
-        _gpuVendor = _gpuDetector.GetVendor();
         _installer = installer ?? throw new ArgumentNullException(nameof(installer));
+        _proc = proc ?? throw new ArgumentNullException(nameof(proc));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -46,12 +45,7 @@ sealed class OllamaManager : IDisposable
     public async Task<bool> EnsureInstalledAsync()
     {
         _ollamaPath = await _installer.EnsureInstalledAsync();
-        if (_ollamaPath == null)
-            return false;
-
-        // Create shared process wrapper.
-        _proc = new OllamaProcess(_ollamaPath, _logger);
-
+        if (_ollamaPath == null) return false;
         return true;
     }
 
@@ -72,7 +66,7 @@ sealed class OllamaManager : IDisposable
 
         try
         {
-            Log("Starting Ollama server…");
+            _logger.LogInformation("Starting Ollama server…");
 
             var psi = new ProcessStartInfo
             {
@@ -88,20 +82,20 @@ sealed class OllamaManager : IDisposable
 
             _serverProcess.OutputDataReceived += (_, e) =>
             {
-                if (e.Data != null) Log($"[ollama] {e.Data}");
+                if (e.Data != null) _logger.LogInformation($"[ollama] {e.Data}");
             };
             _serverProcess.ErrorDataReceived += (_, e) =>
             {
-                if (e.Data != null) Log($"[ollama] {e.Data}");
+                if (e.Data != null) _logger.LogError($"[ollama] {e.Data}");
             };
             _serverProcess.Exited += (_, __) =>
             {
-                Log("Ollama server exited.");
+                _logger.LogInformation("Ollama server exited.");
             };
 
             if (!_serverProcess.Start())
             {
-                Log("Failed to start Ollama server.");
+                _logger.LogError("Failed to start Ollama server.");
                 return false;
             }
 
@@ -112,16 +106,16 @@ sealed class OllamaManager : IDisposable
 
             if (!IsRunning)
             {
-                Log("Ollama server died immediately.");
+                _logger.LogError("Ollama server died immediately.");
                 return false;
             }
 
-            Log("Ollama server started.");
+            _logger.LogInformation("Ollama server started.");
             return true;
         }
         catch (Exception ex)
         {
-            Log($"Error starting server: {ex}");
+            _logger.LogError($"Error starting server: {ex}");
             return false;
         }
     }
@@ -132,14 +126,14 @@ sealed class OllamaManager : IDisposable
         {
             if (_serverProcess != null && !_serverProcess.HasExited)
             {
-                Log("Stopping Ollama server…");
+                _logger.LogInformation("Stopping Ollama server…");
                 _serverProcess.Kill();
                 _serverProcess.WaitForExit(1500);
             }
         }
         catch (Exception ex)
         {
-            Log($"Error stopping server: {ex}");
+            _logger.LogError($"Error stopping server: {ex}");
         }
 
         _serverProcess = null;
@@ -158,7 +152,7 @@ sealed class OllamaManager : IDisposable
         // TODO: The "--gpu" argument appears to have been removed from the latest Ollama CLI.
         // args = string.Concat($"--gpu {_gpuVendor.GetVendorString()} ", args);
 
-        return _proc.RunAsync(args, null, ct);
+        return _proc.RunAsync(_ollamaPath ?? throw new ApplicationException("This should have been populated."), args, null, ct);
     }
 
     public Task<string> PullModelAsync(string name, CancellationToken ct = default) =>
@@ -172,12 +166,6 @@ sealed class OllamaManager : IDisposable
 
     public Task<string> ShowInfoAsync(CancellationToken ct = default) =>
         ExecAsync("show", ct);
-
-    // ---------------------------
-    // UTILITIES
-    // ---------------------------
-
-    private void Log(string msg) => _logger?.Invoke($"[OllamaManager] {msg}");
 
     public void Dispose()
     {

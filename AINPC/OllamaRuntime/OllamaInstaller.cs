@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 namespace AINPC;
 
@@ -8,16 +9,16 @@ public sealed class OllamaInstaller
 	#region Fields
 
 	private readonly HttpClient _httpClient;
-	private readonly Action<string>? _log;
+	private readonly ILogger<OllamaInstaller> _logger;
 
 	#endregion
 
 	#region Constructors
 
-	public OllamaInstaller(HttpClient httpClient, Action<string>? logger = null)
+	public OllamaInstaller(HttpClient httpClient, ILogger<OllamaInstaller> logger)
 	{
-		_httpClient = httpClient;
-		_log = logger;
+		_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
 	#endregion
@@ -34,11 +35,11 @@ public sealed class OllamaInstaller
 
 		if (File.Exists(ollamaExe))
 		{
-			Log($"Ollama already installed at: {ollamaExe}");
+			_logger.LogInformation($"Ollama already installed at: {ollamaExe}");
 			return ollamaExe;
 		}
 
-		Log("Ollama not found. Installing…");
+		_logger.LogInformation("Ollama not found. Installing…");
 
 		Directory.CreateDirectory(installDir);
 
@@ -48,7 +49,7 @@ public sealed class OllamaInstaller
 		if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			return await InstallLinuxAsync(installDir);
 
-		Log("Unsupported OS.");
+		_logger.LogInformation("Unsupported OS.");
 		return null;
 	}
 
@@ -64,10 +65,10 @@ public sealed class OllamaInstaller
 
 		try
 		{
-			Log($"Downloading Ollama Windows build from: {URL}");
+			_logger.LogInformation($"Downloading Ollama Windows build from: {URL}");
 			await DownloadFileAsync(URL, zipPath);
 
-			Log("Extracting...");
+			_logger.LogInformation("Extracting...");
 			System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, installDir, overwriteFiles: true);
 
 			File.Delete(zipPath);
@@ -77,16 +78,16 @@ public sealed class OllamaInstaller
 
 			if (!File.Exists(exe))
 			{
-				Log("Install failed: ollama.exe missing.");
+				_logger.LogError("Install failed: ollama.exe missing.");
 				return null;
 			}
 
-			Log($"Ollama installed at: {exe}");
+			_logger.LogInformation($"Ollama installed at: {exe}");
 			return exe;
 		}
 		catch (Exception ex)
 		{
-			Log($"Windows install error: {ex}");
+			_logger.LogError($"Windows install error: {ex}");
 			return null;
 		}
 	}
@@ -103,15 +104,15 @@ public sealed class OllamaInstaller
 
 		try
 		{
-			Log($"Downloading Ollama Linux build from: {URL}");
+			_logger.LogInformation($"Downloading Ollama Linux build from: {URL}");
 			await DownloadFileAsync(URL, tgzPath);
 
-			Log("Extracting tarball…");
+			_logger.LogInformation("Extracting tarball…");
 
 			// Extract using system 'tar'
 			var result = RunProcess("tar", $"-xzf \"{tgzPath}\" -C \"{installDir}\"");
 			if (!string.IsNullOrWhiteSpace(result))
-				Log(result);
+				_logger.LogInformation(result);
 
 			File.Delete(tgzPath);
 
@@ -120,19 +121,19 @@ public sealed class OllamaInstaller
 
 			if (!File.Exists(exe))
 			{
-				Log("Install failed: ollama binary missing.");
+				_logger.LogError("Install failed: ollama binary missing.");
 				return null;
 			}
 
 			// Ensure executable permissions
 			RunProcess("chmod", $"+x \"{exe}\"");
 
-			Log($"Ollama installed at: {exe}");
+			_logger.LogInformation($"Ollama installed at: {exe}");
 			return exe;
 		}
 		catch (Exception ex)
 		{
-			Log($"Linux install error: {ex}");
+			_logger.LogError($"Linux install error: {ex}");
 			return null;
 		}
 	}
@@ -279,11 +280,6 @@ public sealed class OllamaInstaller
 		{
 			return ex.ToString();
 		}
-	}
-
-	private void Log(string message)
-	{
-		_log?.Invoke($"[OllamaInstaller] {message}");
 	}
 
 	private static string GetInstallDir()

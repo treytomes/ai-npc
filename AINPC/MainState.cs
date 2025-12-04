@@ -1,33 +1,44 @@
-
-using AINPC.Gpu.Services;
-using AINPC.Services;
+using Microsoft.Extensions.Logging;
 
 namespace AINPC;
 
 class MainState : AppState
 {
+    #region Fields
+
+    private readonly ILogger<MainState> _logger;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly OllamaManager _ollamaManager;
+
+    #endregion
+
+    #region Constructors
+
+    public MainState(ILogger<MainState> logger, IServiceProvider serviceProvider, OllamaManager ollamaManager)
+	{
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));	
+        _ollamaManager = ollamaManager ?? throw new ArgumentNullException(nameof(ollamaManager));
+	}
+
+    #endregion
+
+    #region Methods
+
 	public override async Task RunAsync()
 	{
-        void Log(string msg) => Console.WriteLine(msg);
-
         Console.WriteLine("AINPC Ollama Bootstrap Test");
         Console.WriteLine("----------------------------------");
 
-        var httpClient = new HttpClient();
-
-        // Initialize installer + manager
-        var installer = new OllamaInstaller(httpClient, Log);
-        var manager = new OllamaManager(new GpuDetectorService(new ProcessService(), new GpuVendorFactory()), installer, Log);
-
         // Ensure Ollama exists
-        if (!await manager.EnsureInstalledAsync())
+        if (!await _ollamaManager.EnsureInstalledAsync())
         {
             Console.WriteLine("Installation failed.");
             return;
         }
 
         // Start server
-        if (!await manager.StartServerAsync())
+        if (!await _ollamaManager.StartServerAsync())
         {
             Console.WriteLine("Failed to start Ollama server.");
             return;
@@ -37,21 +48,23 @@ class MainState : AppState
 
         // Pull a model (example)
         Console.WriteLine("\nPulling qwen2.5:0.5b...");
-        string pullOutput = await manager.PullModelAsync("qwen2.5:0.5b");
+        string pullOutput = await _ollamaManager.PullModelAsync("qwen2.5:0.5b");
         Console.WriteLine(pullOutput);
 
         // List installed models
         Console.WriteLine("\nListing models...");
-        string models = await manager.ListModelsAsync();
+        string models = await _ollamaManager.ListModelsAsync();
         Console.WriteLine(models);
 
         // List running models
         Console.WriteLine("\nOllama ps...");
-        string ps = await manager.ListRunningAsync();
+        string ps = await _ollamaManager.ListRunningAsync();
         Console.WriteLine(ps);
 
         // Stop server cleanly
-        await manager.StopServerAsync();
+        await _ollamaManager.StopServerAsync();
         Console.WriteLine("Server stopped.");
 	}
+    
+    #endregion
 }

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text;
-using AINPC.Gpu;
+using Microsoft.Extensions.Logging;
 
 namespace AINPC;
 
@@ -8,17 +8,15 @@ public sealed class OllamaProcess
 {
 	#region Fields
 
-	private readonly string _ollamaPath;
-	private readonly Action<string>? _logger;
+	private readonly ILogger<OllamaProcess> _logger;
 
 	#endregion
 
 	#region Constructors
 
-	public OllamaProcess(string ollamaPath, Action<string>? logger = null)
+	public OllamaProcess(ILogger<OllamaProcess> logger)
 	{
-		_ollamaPath = ollamaPath;
-		_logger = logger;
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
 	#endregion
@@ -31,6 +29,7 @@ public sealed class OllamaProcess
 	/// Fires optional line callbacks.
 	/// </summary>
 	public async Task<string> RunAsync(
+		string ollamaPath,
 		string arguments,
 		Action<string>? onLine = null,
 		CancellationToken ct = default,
@@ -38,7 +37,7 @@ public sealed class OllamaProcess
 	{
 		var psi = new ProcessStartInfo
 		{
-			FileName = _ollamaPath,
+			FileName = ollamaPath,
 			Arguments = arguments,
 			RedirectStandardOutput = true,
 			RedirectStandardError = true,
@@ -52,7 +51,7 @@ public sealed class OllamaProcess
 
 		try
 		{
-			Log($"Executing: ollama {arguments}");
+			_logger.LogInformation($"Executing: ollama {arguments}");
 			process.Start();
 
 			var outputTask = Task.Run(async () =>
@@ -63,7 +62,7 @@ public sealed class OllamaProcess
 					if (line == null) break;
 
 					sb.AppendLine(line);
-					Log($"[ollama] {line}");
+					_logger.LogInformation($"[ollama] {line}");
 					onLine?.Invoke(line);
 				}
 			}, ct);
@@ -76,7 +75,7 @@ public sealed class OllamaProcess
 					if (line == null) break;
 
 					sb.AppendLine(line);
-					Log($"[ollama] {line}");
+					_logger.LogInformation($"[ollama] {line}");
 					onLine?.Invoke(line);
 				}
 			}, ct);
@@ -94,7 +93,7 @@ public sealed class OllamaProcess
 		catch (Exception ex)
 		{
 			sb.AppendLine(ex.ToString());
-			Log($"Process error: {ex}");
+			_logger.LogError($"Process error: {ex}");
 		}
 		finally
 		{
@@ -102,11 +101,6 @@ public sealed class OllamaProcess
 		}
 
 		return sb.ToString().Trim();
-	}
-
-	private void Log(string msg)
-	{
-		_logger?.Invoke($"[OllamaProcess] {msg}");
 	}
 
 	#endregion
