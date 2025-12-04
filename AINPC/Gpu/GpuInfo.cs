@@ -1,4 +1,4 @@
-namespace AINPC.OllamaRuntime;
+namespace AINPC.Gpu;
 
 public sealed class GpuInfo
 {

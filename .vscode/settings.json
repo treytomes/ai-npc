@@ -1,10 +1,14 @@
 {
 	"cSpell.words": [
 		"AINPC",
+		"appsettings",
+		"cuda",
 		"glxinfo",
 		"Ollama",
+		"opencl",
 		"Qwen",
 		"radeon",
+		"rocm",
 		"vainfo"
 	]
 }
