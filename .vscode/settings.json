@@ -13,6 +13,7 @@
 		"opencl",
 		"Qwen",
 		"radeon",
+		"renderable",
 		"rocm",
 		"vainfo"
 	],

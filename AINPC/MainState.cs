@@ -38,15 +38,22 @@ class MainState : AppState
 	protected override async Task LoadStateAsync()
 	{
 		AnsiConsole.Write(
-			new Rule("[yellow]AINPC Ollama Test[/]")
-			{
-				Style = Style.Parse("yellow dim")
-			});
+			new FigletText("AINPC")
+				.LeftJustified()
+				.Color(Color.Cyan1));
+
+		AnsiConsole.MarkupLine("[grey]Booting system...[/]");
 
 		await _ollamaRepo.InitializeAsync();
-		await _ollamaRepo.SetModelAsync(_settings.ModelId);
 
-		AnsiConsole.MarkupLine("[green]Ollama server is running.[/]");
+		await AnsiConsole.Status()
+			.StartAsync("Selecting model...", async ctx =>
+			{
+				await _ollamaRepo.SetModelAsync(_settings.ModelId);
+			});
+
+		AnsiConsole.MarkupLine($"[green]✔ Ollama server is running using model:[/] [yellow]{_settings.ModelId}[/]");
+		AnsiConsole.WriteLine();
 	}
 
 	protected override async Task UnloadStateAsync()
@@ -62,8 +69,7 @@ class MainState : AppState
 		{
 			await LoadStateAsync();
 
-			var systemPrompt =
-@"You are a helpful assistant.
+			var systemPrompt = @"You are a helpful assistant.
 
 Your first priority is to use tools when they are relevant.
 Only answer from your own knowledge if no tool applies.
@@ -76,28 +82,28 @@ Keep responses short and direct unless the user requests more detail.
 
 			var chat = _ollamaRepo.CreateChat(systemPrompt);
 
-			IEnumerable<object> tools =
-			[
+			IEnumerable<object> tools = new object[]
+			{
 				new GetWeatherTool()
-			];
+			};
 
-			AnsiConsole.MarkupLine("[cyan]Beginning interactive chat.[/]");
+			AnsiConsole.MarkupLine("[bold]Type your message. Press ENTER on an empty line to quit.[/]\n");
 
 			while (true)
 			{
-				var message = AnsiConsole.Prompt(
-					new TextPrompt<string>("[bold yellow]You:[/] ")
+				var userMsg = AnsiConsole.Prompt(
+					new TextPrompt<string>("[cyan]You:[/] ")
 						.AllowEmpty());
 
-				if (string.IsNullOrWhiteSpace(message))
+				if (string.IsNullOrWhiteSpace(userMsg))
 					break;
 
-				AnsiConsole.Markup("[bold green]Assistant:[/] ");
+				AnsiConsole.Markup("[green]Assistant:[/] ");
 
-				// Stream output one token at a time.
-				await foreach (var token in chat.SendAsync(message, tools))
+				await foreach (var token in chat.SendAsync(userMsg, tools))
 				{
-					AnsiConsole.Markup(token.EscapeMarkup());
+					// Stream tokens directly to console
+					AnsiConsole.Write(token);
 				}
 
 				AnsiConsole.WriteLine();
