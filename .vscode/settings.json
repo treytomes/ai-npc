@@ -5,6 +5,7 @@
 		"cuda",
 		"finalizer",
 		"glxinfo",
+		"Invokable",
 		"JRPG",
 		"Ollama",
 		"ollamas",
