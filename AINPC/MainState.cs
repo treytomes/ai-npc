@@ -1,3 +1,4 @@
+using AINPC.Models;
 using AINPC.OllamaRuntime;
 using AINPC.Tools;
 using Microsoft.Extensions.Logging;
@@ -69,33 +70,18 @@ class MainState : AppState
 		{
 			await LoadStateAsync();
 
-			var systemPrompt = @"You are a helpful assistant.
+			var characters = new CharacterFactory();
+			var villages = new VillageFactory();
+			var roles = new RoleFactory(characters, villages);
 
-Use tools only when they are the best way to answer the user's request.
-Do not look for excuses to call a tool. Only call one when:
-- the user asks for information that the tool directly provides, or
-- the user explicitly requests the tool.
-
-For weather questions, call the GetWeather tool only when the user
-is clearly asking for actual weather information (current or forecast).
-If the user is speaking metaphorically or casually, do not call the tool.
-
-When no tool is appropriate, answer from your own knowledge.
-If you do not know something, say so briefly and continue.
-
-Keep responses short and direct unless the user asks for more detail.
-Avoid repeating the same information unless the user requests it.
-
-If the user asks you to think, reflect, explain, or discuss ideas,
-respond normally—tools are not needed for general conversation.
-";
+			var systemPrompt = roles.CreateGatekeeperPrompt();
 
 			var chat = _ollamaRepo.CreateChat(systemPrompt);
 
-			IEnumerable<object> tools = new object[]
-			{
+			IEnumerable<object> tools =
+			[
 				new GetWeatherTool()
-			};
+			];
 
 			AnsiConsole.MarkupLine("[bold]Type your message. Press ENTER on an empty line to quit.[/]\n");
 

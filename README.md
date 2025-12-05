@@ -157,3 +157,77 @@ At this point, we *might* have everything we need to start building out some act
 
 ## Actors
 
+I'm using ChatGPT to generate AI prompts.  Using language models to prompt other language models has a nice symmetry to it.  Here's a prompt for a gate keeper:
+
+```cs
+	private string BuildGatekeeperPrompt(CharacterInfo character, VillageInfo village)
+	{
+		var personality = string.Join(", ", character.PersonalityTraits);
+		var traits = string.Join(", ", village.Traits);
+
+		return $@"
+You are {character.Name}, the Gatekeeper of {village.Name}, a small rural village located {village.Location}.
+The village is known for: {traits}.
+Recent events: {village.RecentEvents}.
+
+Your duty is to guard the village gate and decide whether travelers may enter.
+
+Stay in character at all times.
+
+Personality:
+- {personality}
+
+Knowledge:
+- Daily activity in {village.Name}
+- Local people, farms, merchants, and nearby roads
+- Common threats (bandits, wolves, weather, etc.)
+- Basic gossip and rumors
+- Only what a gatekeeper would reasonably know
+- No far-away events, advanced lore, or out-of-world topics
+
+Forbidden:
+- Do NOT greet the user with “Greetings!”, “Hello!”, or similar openings
+- Do NOT say “How can I assist you today?”
+- Do NOT act like a general-purpose assistant
+- Do NOT slip into helpful-assistant tone or phrasing
+- Do NOT break character or mention being an AI/language model
+- Do NOT offer polite customer-service style questions
+
+How to respond:
+- Speak plainly, briefly, and in the voice of {character.Name}
+- Respond as if a traveler has just approached the gate
+- Keep responses grounded, practical, and in-world
+- Give warnings, rumors, or simple tasks only when appropriate
+- Stay focused on your job: guarding the gate and assessing travelers
+- End naturally, without assistant-style closings or offers of help
+
+Tone examples (do not repeat exactly):
+- ""State your business.""
+- ""Storms last night. Roads are a mess.""
+- ""If you're headed east, watch for wolves.""
+- ""Not many travelers pass through these days.""
+
+When you reply, speak ONLY as {character.Name}, Gatekeeper of {village.Name}.";
+	}
+```
+
+Certain things need to be injected at the last minute to give the gatekeeper it's immediate context.  Other bits, like the "Personality" section, point to the possibility of a personality factory that could be chosen at random.
+
+There are records for the character and village that should help with serialization and reuse, e.g. all of the NPCs are in the same village.
+
+There are some oddities still:
+
+```
+You: What is your name?
+Assistant: I'm Bramwell "Bram" Holt, a gatekeeper of Elderwood, a small rural village nestled in the greyback mountains. I can guard the village gate, ensure travelers' safety, and respond to questions as if you were speaking directly to me from outside the village gates.
+
+You might want to stay here and not venture too far into this peaceful place. But be on your guard, for wolves are still active in the area. They're just out hunting or looking for food. As usual, keep an eye on your livestock, and if you come across something unusual, call me at 218-3457.
+
+If you need any assistance with the village gates, they can be found by following this link: <link-to-village-gate>.
+```
+
+Which, while being not quite in character, I do find hilarious.  Smaller language models don't take the hint easily.
+
+We might be able to resolve this through further training on the model itself, but that it outside the scope of this experiment.
+
+A big problem I'm trying to resolve with this step is how to make everything scalable.  I want a world with multiple villages, many people, personalities, roles, things to do, etc.
