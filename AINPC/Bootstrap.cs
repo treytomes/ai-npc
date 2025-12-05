@@ -79,7 +79,7 @@ static class Bootstrap
 		}
 		catch (Exception ex)
 		{
-			Console.Error.WriteLine($"Error starting the game: {ex.Message}");
+			Console.Error.WriteLine($"Error starting the app: {ex.Message}");
 			Environment.Exit(1);
 		}
 	}

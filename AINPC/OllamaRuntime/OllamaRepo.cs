@@ -35,14 +35,14 @@ class OllamaRepo : IDisposable
 		// Ensure Ollama exists.
 		if (!await _manager.EnsureInstalledAsync())
 		{
-			Console.WriteLine("Installation failed.");
+			_logger.LogError("Installation failed.");
 			return;
 		}
 
 		// Start server.
 		if (!await _manager.StartServerAsync())
 		{
-			Console.WriteLine("Failed to start Ollama server.");
+			_logger.LogError("Failed to start Ollama server.");
 			return;
 		}
 
@@ -67,7 +67,7 @@ class OllamaRepo : IDisposable
 			_logger.LogInformation($"Pulling {modelName}.");
 			await foreach (var status in _client.PullModelAsync(modelName))
 			{
-				Console.WriteLine($"{status?.Percent}% {status?.Status}");
+				_logger.LogTrace($"{status?.Percent}% {status?.Status}");
 			}
 		}
 
@@ -77,30 +77,30 @@ class OllamaRepo : IDisposable
 	/// <summary>
 	/// Report installed models to the console.
 	/// </summary>
-	public async Task ReportInstalledModelsAsync()
+	public async Task ReportInstalledModelsAsync(Action<string> report)
 	{
 		if (_client == null) throw new ApplicationException("Ollama client is not initialized.");
 
-		Console.WriteLine("Installed models:");
+		report("Installed models:");
 		var models = await _client.ListLocalModelsAsync();
 		foreach (var model in models)
 		{
-			Console.WriteLine($"{model.Name} - Modified: {model.ModifiedAt}");
+			report($"{model.Name} - Modified: {model.ModifiedAt}");
 		}
 	}
 
 	/// <summary>
 	/// Report running models to the console.
 	/// </summary>
-	public async Task ReportRunningModelsAsync()
+	public async Task ReportRunningModelsAsync(Action<string> report)
 	{
 		if (_client == null) throw new ApplicationException("Ollama client is not initialized.");
 
-		Console.WriteLine("Running models:");
+		report("Running models:");
 		var running = await _client.ListRunningModelsAsync();
 		foreach (var model in running)
 		{
-			Console.WriteLine(model.Name);
+			report(model.Name);
 		}
 	}
 

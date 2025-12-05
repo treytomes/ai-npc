@@ -152,3 +152,5 @@ Server stopped.
 ```
 
 A custom base class for tools (BaseOllamaTool) helps with the boilerplate.  It's re-inventing the wheel a bit, but my wheel actually works for me.
+
+At this point, we *might* have everything we need to start building out some actors.

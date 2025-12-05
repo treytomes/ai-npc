@@ -153,13 +153,13 @@ public sealed class OllamaInstaller
 
 			try
 			{
-				Console.WriteLine($"[OllamaInstaller] Starting download attempt {attempt}/{maxRetries}");
+				_logger.LogInformation($"[OllamaInstaller] Starting download attempt {attempt}/{maxRetries}");
 
 				long existingSize = 0;
 				if (File.Exists(filePath))
 				{
 					existingSize = new FileInfo(filePath).Length;
-					Console.WriteLine($"[OllamaInstaller] Found partial file ({existingSize} bytes). Resuming…");
+					_logger.LogInformation($"[OllamaInstaller] Found partial file ({existingSize} bytes). Resuming…");
 				}
 
 				using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -173,16 +173,16 @@ public sealed class OllamaInstaller
 				long? totalSize = response.Content.Headers.ContentLength;
 				long totalBytesExpected = (totalSize.HasValue ? existingSize + totalSize.Value : -1);
 
-				Console.WriteLine($"[OllamaInstaller] Total file size: " +
+				_logger.LogInformation($"[OllamaInstaller] Total file size: " +
 								(totalBytesExpected > 0 ? $"{totalBytesExpected:N0} bytes" : "unknown"));
 
 				using var networkStream = await response.Content.ReadAsStreamAsync();
 				using var fileStream = new FileStream(
-					filePath, 
-					FileMode.Append, 
-					FileAccess.Write, 
-					FileShare.None, 
-					bufferSize, 
+					filePath,
+					FileMode.Append,
+					FileAccess.Write,
+					FileShare.None,
+					bufferSize,
 					useAsync: true
 				);
 
@@ -223,23 +223,23 @@ public sealed class OllamaInstaller
 							? $"{mbTotal:0.0} MB"
 							: "? MB";
 
-						Console.WriteLine(
+						_logger.LogInformation(
 							$"[OllamaInstaller] Downloading… {progressStr} of {totalStr} " +
 							$"({speedMbPerSec:0.0} MB/s)"
 						);
 					}
 				}
 
-				Console.WriteLine("[OllamaInstaller] Download completed successfully.");
+				_logger.LogInformation("[OllamaInstaller] Download completed successfully.");
 				return;
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"[OllamaInstaller] Download failed: {ex.Message}");
+				_logger.LogError($"[OllamaInstaller] Download failed: {ex.Message}");
 
 				if (attempt >= maxRetries)
 				{
-					Console.WriteLine("[OllamaInstaller] Max retries reached — deleting corrupted file.");
+					_logger.LogError("[OllamaInstaller] Max retries reached — deleting corrupted file.");
 					if (File.Exists(filePath))
 						File.Delete(filePath);
 
@@ -247,7 +247,7 @@ public sealed class OllamaInstaller
 				}
 
 				int delay = 1000 * attempt;
-				Console.WriteLine($"[OllamaInstaller] Retrying in {delay} ms…");
+				_logger.LogInformation($"[OllamaInstaller] Retrying in {delay} ms…");
 				await Task.Delay(delay);
 			}
 		}
