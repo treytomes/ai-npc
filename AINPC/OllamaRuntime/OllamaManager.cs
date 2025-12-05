@@ -16,6 +16,8 @@ sealed class OllamaManager : IDisposable
 	private Process? _serverProcess;
 	private OllamaProcess _proc;
 
+	private readonly string _pidFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ainpc", "ollama.pid");
+
 	#endregion
 
 	#region Constructors
@@ -26,6 +28,8 @@ sealed class OllamaManager : IDisposable
 		_installer = installer ?? throw new ArgumentNullException(nameof(installer));
 		_proc = proc ?? throw new ArgumentNullException(nameof(proc));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+		CleanupOrphanProcess();
 	}
 
 	#endregion
@@ -111,6 +115,7 @@ sealed class OllamaManager : IDisposable
 			}
 
 			_logger.LogInformation("Ollama server started.");
+			WritePid();
 			return true;
 		}
 		catch (Exception ex)
@@ -127,13 +132,17 @@ sealed class OllamaManager : IDisposable
 			if (_serverProcess != null && !_serverProcess.HasExited)
 			{
 				_logger.LogInformation("Stopping Ollama server…");
-				_serverProcess.Kill();
+				_serverProcess.Kill(entireProcessTree: true);
 				_serverProcess.WaitForExit(1500);
 			}
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError($"Error stopping server: {ex}");
+		}
+		finally
+		{
+			DeletePid();
 		}
 
 		_serverProcess = null;
@@ -168,10 +177,80 @@ sealed class OllamaManager : IDisposable
 
 	public Task<string> ShowInfoAsync(CancellationToken ct = default) => ExecAsync("show", ct);
 
+	private void CleanupOrphanProcess()
+	{
+		if (!File.Exists(_pidFile)) return;
+
+		try
+		{
+			var pidText = File.ReadAllText(_pidFile);
+			if (!int.TryParse(pidText, out int pid))
+			{
+				File.Delete(_pidFile);
+				return;
+			}
+
+			var proc = Process.GetProcessById(pid);
+
+			// Confirm it's ollama.
+			if (!proc.HasExited && proc.ProcessName.Contains("ollama", StringComparison.OrdinalIgnoreCase))
+			{
+				_logger.LogWarning("Killing orphan Ollama server process (PID {pid}).", pid);
+				proc.Kill(entireProcessTree: true);
+			}
+		}
+		catch (ArgumentException)
+		{
+			// Process does not exist.
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Failed cleaning orphan Ollama process.");
+		}
+		finally
+		{
+			try { File.Delete(_pidFile); } catch { }
+		}
+	}
+
+	private void WritePid()
+	{
+		try
+		{
+			if (_serverProcess == null) return;
+
+			var dir = Path.GetDirectoryName(_pidFile);
+			if (!Directory.Exists(dir)) Directory.CreateDirectory(dir!);
+
+			File.WriteAllText(_pidFile, _serverProcess.Id.ToString());
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Failed to write Ollama PID file.");
+		}
+	}
+
+	private void DeletePid()
+	{
+		try
+		{
+			if (File.Exists(_pidFile)) File.Delete(_pidFile);
+		}
+		catch
+		{
+		}
+	}
+
 	public void Dispose()
 	{
-		StopServer();
-		_serverProcess?.Dispose();
+		try
+		{
+			StopServer();
+			_serverProcess?.Dispose();
+		}
+		catch
+		{
+		}
 	}
 
 	#endregion

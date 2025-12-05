@@ -152,6 +152,8 @@ static class Bootstrap
 		// Register configuration.
 		services.Configure<AppSettings>(hostContext.Configuration);
 
+		services.AddHostedService<OllamaLifetimeHook>();
+
 		services.AddSingleton<IProcessService, ProcessService>();
 		services.AddSingleton<IGpuVendorFactory, GpuVendorFactory>();
 		services.AddSingleton<IGpuDetectorService, GpuDetectorService>();
