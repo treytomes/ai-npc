@@ -48,5 +48,6 @@ While I *can* write an entire API layer around the OllamaManager, I'd rather not
 
 In the `features/02-ollamasharp` branch I'm bringing in the OllamaSharp library, reimplementing the existing direct calls to Ollama with their OllamaSharp wrappers, and running some chat completions against the Qwen model.  The system is really simple to use.
 
-In another surprise, it looks like the Ollama server is managing the history of my ongoing chat with Qwen.  This is pretty neat, as it means I don't have to figure out how to stuff in the entire conversation context all at once.  On the other hand, I'm going to need to give some thought to how we will implement multiple actors with a single server.
+I'm wrapping up this feature branch with the OllamaRepo, which wraps the process management and OllamaSharp interaction under one hood.  There's more I could do with the Microsoft.Extensions.AI integration, but that would be outside the scope of this experiment.
 
+One problem that might come back to bite us in the future:  If the app catastrophically fails (e.g. the debugger suddenly stopped), the ollama server might be left running.

@@ -1,116 +1,98 @@
+using AINPC.OllamaRuntime;
 using Microsoft.Extensions.Logging;
-using OllamaSharp;
+using Microsoft.Extensions.Options;
 
 namespace AINPC;
 
 class MainState : AppState
 {
-	#region Constants
-
-	private const string OLLAMA_URL = "http://localhost:11434";
-	private const string LANGUAGE_MODEL = "qwen2.5:0.5b";
-
-	#endregion
-
 	#region Fields
 
+	private readonly AppSettings _settings;
 	private readonly ILogger<MainState> _logger;
 	private readonly IServiceProvider _serviceProvider;
-	private readonly OllamaManager _ollamaManager;
+	private readonly OllamaRepo _ollamaRepo;
 
 	#endregion
 
 	#region Constructors
 
-	public MainState(ILogger<MainState> logger, IServiceProvider serviceProvider, OllamaManager ollamaManager)
+	public MainState(IOptions<AppSettings> settings, ILogger<MainState> logger, IServiceProvider serviceProvider, OllamaRepo ollamaRepo)
 	{
+		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-		_ollamaManager = ollamaManager ?? throw new ArgumentNullException(nameof(ollamaManager));
+		_ollamaRepo = ollamaRepo ?? throw new ArgumentNullException(nameof(ollamaRepo));
 	}
 
 	#endregion
 
 	#region Methods
 
-	public override async Task RunAsync()
+	protected override async Task LoadStateAsync()
 	{
-		Console.WriteLine("AINPC Ollama Bootstrap Test");
+		Console.WriteLine("AINPC Ollama Test");
 		Console.WriteLine("----------------------------------");
 
-		// Ensure Ollama exists.
-		if (!await _ollamaManager.EnsureInstalledAsync())
-		{
-			Console.WriteLine("Installation failed.");
-			return;
-		}
-
-		// Start server.
-		if (!await _ollamaManager.StartServerAsync())
-		{
-			Console.WriteLine("Failed to start Ollama server.");
-			return;
-		}
+		await _ollamaRepo.InitializeAsync();
+		await _ollamaRepo.SetModelAsync(_settings.ModelId);
 
 		Console.WriteLine("Ollama server is running.");
+	}
 
-		// Set up the client, pointing to our Ollama server.
-		var uri = new Uri(OLLAMA_URL);
-		var ollama = new OllamaApiClient(uri);
-
-		// Select a model to use for operations.
-		ollama.SelectedModel = LANGUAGE_MODEL;
-
-		// Pull a model.
-		Console.WriteLine($"Pulling {LANGUAGE_MODEL}...");
-		await foreach (var status in ollama.PullModelAsync(LANGUAGE_MODEL))
-			Console.WriteLine($"{status?.Percent}% {status?.Status}");
-
-		// List installed models.
-		Console.WriteLine("Installed models:");
-		var models = await ollama.ListLocalModelsAsync();
-		foreach (var model in models)
-		{
-			Console.WriteLine($"{model.Name} - Modified: {model.ModifiedAt}");
-		}
-
-		// List running models.
-		Console.WriteLine("Running models:");
-		var running = await ollama.ListRunningModelsAsync();
-		foreach (var model in running)
-		{
-			Console.WriteLine(model.Name);
-		}
-
-		// Basic text generation.
-		Console.WriteLine("Testing: `How are you today?`");
-		await foreach (var stream in ollama.GenerateAsync("How are you today?"))
-			Console.Write(stream?.Response);
-		Console.WriteLine(); // Add an EOL once the generator is done.
-
-		// Interactive chat.
-		var chat = new Chat(ollama);
-
-		Console.WriteLine("Beginning interactive chat.");
-		while (true)
-		{
-			Console.Write("You: ");
-			var message = Console.ReadLine();
-			if (string.IsNullOrWhiteSpace(message))
-			{
-				break;
-			}
-
-			Console.Write("Assistant: ");
-			await foreach (var answerToken in chat.SendAsync(message))
-				Console.Write(answerToken);
-
-			Console.WriteLine();
-		}
-
+	protected override async Task UnloadStateAsync()
+	{
 		// Stop server cleanly.
-		await _ollamaManager.StopServerAsync();
+		_ollamaRepo.Dispose();
 		Console.WriteLine("Server stopped.");
+		await Task.CompletedTask;
+	}
+
+	public override async Task RunAsync()
+	{
+		try
+		{
+			await LoadStateAsync();
+
+			// await _ollamaRepo.ReportInstalledModelsAsync();
+			// await _ollamaRepo.ReportRunningModelsAsync();
+
+			// Basic text generation.
+			// Console.WriteLine("Testing: `My name is Trey. How are you today?`");
+			// var response = await _ollamaRepo.GenerateAsync("How are you today?");
+			// Console.WriteLine(response);
+
+			// Interactive chat.
+			var chat = _ollamaRepo.CreateChat();
+
+			Console.WriteLine("Beginning interactive chat.");
+			while (true)
+			{
+				Console.Write("You: ");
+				var message = Console.ReadLine();
+				if (string.IsNullOrWhiteSpace(message))
+				{
+					break;
+				}
+
+				Console.Write("Assistant: ");
+				await foreach (var answerToken in chat.SendAsync(message))
+				{
+					Console.Write(answerToken);
+				}
+
+				Console.WriteLine();
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, ex.Message);
+			throw;
+		}
+		finally
+		{
+			await UnloadStateAsync();
+		}
 	}
 
 	#endregion

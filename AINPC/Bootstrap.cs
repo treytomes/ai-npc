@@ -1,10 +1,12 @@
 using AINPC.Gpu.Services;
+using AINPC.OllamaRuntime;
 using AINPC.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OllamaSharp;
 using System.CommandLine;
 
 namespace AINPC;
@@ -145,15 +147,10 @@ static class Bootstrap
 	}
 
 	private static void ConfigureServices<TAppSettings, TMainState>(HostBuilderContext hostContext, IServiceCollection services)
-		where TAppSettings : AppSettings
 		where TMainState : AppState
 	{
 		// Register configuration.
-		services.Configure<TAppSettings>(hostContext.Configuration);
-
-		services.AddSingleton(sp => sp.GetRequiredService<IOptions<TAppSettings>>().Value);
-		services.AddSingleton<AppSettings>(sp => sp.GetRequiredService<TAppSettings>());
-		services.AddSingleton<IOptions<AppSettings>>(sp => sp.GetRequiredService<IOptions<TAppSettings>>());
+		services.Configure<AppSettings>(hostContext.Configuration);
 
 		services.AddSingleton<IProcessService, ProcessService>();
 		services.AddSingleton<IGpuVendorFactory, GpuVendorFactory>();
@@ -162,6 +159,7 @@ static class Bootstrap
 		services.AddSingleton<OllamaInstaller>();
 		services.AddSingleton<OllamaProcess>();
 		services.AddSingleton<OllamaManager>();
+		services.AddSingleton<OllamaRepo>();
 
 		// Register game states.
 		services.AddTransient<TMainState>();

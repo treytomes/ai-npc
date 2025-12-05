@@ -31,7 +31,6 @@ public sealed class OllamaProcess
 	public async Task<string> RunAsync(
 		string ollamaPath,
 		string arguments,
-		Action<string>? onLine = null,
 		CancellationToken ct = default,
 		int timeoutMs = 60000)
 	{
@@ -63,7 +62,6 @@ public sealed class OllamaProcess
 
 					sb.AppendLine(line);
 					_logger.LogInformation($"[ollama] {line}");
-					onLine?.Invoke(line);
 				}
 			}, ct);
 
@@ -76,7 +74,6 @@ public sealed class OllamaProcess
 
 					sb.AppendLine(line);
 					_logger.LogInformation($"[ollama] {line}");
-					onLine?.Invoke(line);
 				}
 			}, ct);
 
