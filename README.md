@@ -50,4 +50,4 @@ In the `features/02-ollamasharp` branch I'm bringing in the OllamaSharp library,
 
 I'm wrapping up this feature branch with the OllamaRepo, which wraps the process management and OllamaSharp interaction under one hood.  There's more I could do with the Microsoft.Extensions.AI integration, but that would be outside the scope of this experiment.
 
-One problem that might come back to bite us in the future:  If the app catastrophically fails (e.g. the debugger suddenly stopped), the ollama server might be left running.
+One problem that might come back to bite us in the future:  If the app catastrophically fails (e.g. the debugger suddenly stopped), the ollama server might be left running.  I might need a bash process that cleans up any lingering ollamas on it's way out.
