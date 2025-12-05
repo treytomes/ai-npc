@@ -2,6 +2,7 @@ using AINPC.OllamaRuntime;
 using AINPC.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Spectre.Console;
 
 namespace AINPC;
 
@@ -18,7 +19,11 @@ class MainState : AppState
 
 	#region Constructors
 
-	public MainState(IOptions<AppSettings> settings, ILogger<MainState> logger, IServiceProvider serviceProvider, OllamaRepo ollamaRepo)
+	public MainState(
+		IOptions<AppSettings> settings,
+		ILogger<MainState> logger,
+		IServiceProvider serviceProvider,
+		OllamaRepo ollamaRepo)
 	{
 		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -32,20 +37,22 @@ class MainState : AppState
 
 	protected override async Task LoadStateAsync()
 	{
-		Console.WriteLine("AINPC Ollama Test");
-		Console.WriteLine("----------------------------------");
+		AnsiConsole.Write(
+			new Rule("[yellow]AINPC Ollama Test[/]")
+			{
+				Style = Style.Parse("yellow dim")
+			});
 
 		await _ollamaRepo.InitializeAsync();
 		await _ollamaRepo.SetModelAsync(_settings.ModelId);
 
-		Console.WriteLine("Ollama server is running.");
+		AnsiConsole.MarkupLine("[green]Ollama server is running.[/]");
 	}
 
 	protected override async Task UnloadStateAsync()
 	{
-		// Stop server cleanly.
 		_ollamaRepo.Dispose();
-		Console.WriteLine("Server stopped.");
+		AnsiConsole.MarkupLine("[red]Server stopped.[/]");
 		await Task.CompletedTask;
 	}
 
@@ -55,16 +62,8 @@ class MainState : AppState
 		{
 			await LoadStateAsync();
 
-			// await _ollamaRepo.ReportInstalledModelsAsync();
-			// await _ollamaRepo.ReportRunningModelsAsync();
-
-			// Basic text generation.
-			// Console.WriteLine("Testing: `My name is Trey. How are you today?`");
-			// var response = await _ollamaRepo.GenerateAsync("How are you today?");
-			// Console.WriteLine(response);
-
-			// Interactive chat.
-			var systemPrompt = @"You are a helpful assistant.
+			var systemPrompt =
+@"You are a helpful assistant.
 
 Your first priority is to use tools when they are relevant.
 Only answer from your own knowledge if no tool applies.
@@ -74,29 +73,34 @@ When the user asks about the weather, ALWAYS call the GetWeather tool. Do not gu
 
 Keep responses short and direct unless the user requests more detail.
 ";
+
 			var chat = _ollamaRepo.CreateChat(systemPrompt);
 
-			IEnumerable<object> tools = [
+			IEnumerable<object> tools =
+			[
 				new GetWeatherTool()
 			];
 
-			Console.WriteLine("Beginning interactive chat.");
+			AnsiConsole.MarkupLine("[cyan]Beginning interactive chat.[/]");
+
 			while (true)
 			{
-				Console.Write("You: ");
-				var message = Console.ReadLine();
+				var message = AnsiConsole.Prompt(
+					new TextPrompt<string>("[bold yellow]You:[/] ")
+						.AllowEmpty());
+
 				if (string.IsNullOrWhiteSpace(message))
-				{
 					break;
-				}
 
-				Console.Write("Assistant: ");
-				await foreach (var answerToken in chat.SendAsync(message, tools))
+				AnsiConsole.Markup("[bold green]Assistant:[/] ");
+
+				// Stream output one token at a time.
+				await foreach (var token in chat.SendAsync(message, tools))
 				{
-					Console.Write(answerToken);
+					AnsiConsole.Markup(token.EscapeMarkup());
 				}
 
-				Console.WriteLine();
+				AnsiConsole.WriteLine();
 			}
 		}
 		catch (Exception ex)
