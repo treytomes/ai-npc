@@ -67,5 +67,12 @@ respond normally—tools are not needed for general conversation.
 		);
 	}
 
+	public string CreateShopkeeperPrompt()
+	{
+		var character = _characters.GetMarloweReed();
+		var village = _villages.GetElderwood();
+		return _engine.Render(NPCTemplates.Shopkeeper, MakeValueMap());
+	}
+
 	#endregion
 }

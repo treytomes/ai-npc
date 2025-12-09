@@ -19,4 +19,20 @@ class CharacterFactory
 			]
 		};
 	}
+
+	public CharacterInfo GetMarloweReed()
+	{
+		return new CharacterInfo
+		{
+			Name = "Marlowe Reed",
+			PersonalityTraits =
+			[
+				"Cheerful and talkative",
+				"Knows every rumor in town",
+				"Always trying to make a sale",
+				"Shrewd but friendly",
+				"Speaks with a folksy charm"
+			]
+		};
+	}
 }
