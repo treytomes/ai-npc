@@ -9,6 +9,7 @@ public sealed class OllamaProcess
 	#region Fields
 
 	private readonly ILogger<OllamaProcess> _logger;
+	private Process? _process = null;
 
 	#endregion
 
@@ -21,6 +22,12 @@ public sealed class OllamaProcess
 
 	#endregion
 
+	#region Properties
+
+	public int ProcessId => _process?.Id ?? -1;
+
+	#endregion
+
 	#region Methods
 
 	/// <summary>
@@ -28,12 +35,7 @@ public sealed class OllamaProcess
 	/// Collects all stdout/stderr into a single string buffer.
 	/// Fires optional line callbacks.
 	/// </summary>
-	public async Task<string> RunAsync(
-		string ollamaPath,
-		string arguments,
-		Action<string>? onLine = null,
-		CancellationToken ct = default,
-		int timeoutMs = 60000)
+	public async Task<string> RunAsync(string ollamaPath, string arguments, CancellationToken ct = default, int timeoutMs = 60000)
 	{
 		var psi = new ProcessStartInfo
 		{
@@ -45,48 +47,46 @@ public sealed class OllamaProcess
 			CreateNoWindow = true,
 		};
 
-		var process = new Process { StartInfo = psi, EnableRaisingEvents = false };
+		_process = new Process { StartInfo = psi, EnableRaisingEvents = false };
 
 		var sb = new StringBuilder();
 
 		try
 		{
 			_logger.LogInformation($"Executing: ollama {arguments}");
-			process.Start();
+			_process.Start();
 
 			var outputTask = Task.Run(async () =>
 			{
-				while (!process.HasExited)
+				while (!_process.HasExited)
 				{
-					var line = await process.StandardOutput.ReadLineAsync();
+					var line = await _process.StandardOutput.ReadLineAsync();
 					if (line == null) break;
 
 					sb.AppendLine(line);
 					_logger.LogInformation($"[ollama] {line}");
-					onLine?.Invoke(line);
 				}
 			}, ct);
 
 			var errorTask = Task.Run(async () =>
 			{
-				while (!process.HasExited)
+				while (!_process.HasExited)
 				{
-					var line = await process.StandardError.ReadLineAsync();
+					var line = await _process.StandardError.ReadLineAsync();
 					if (line == null) break;
 
 					sb.AppendLine(line);
 					_logger.LogInformation($"[ollama] {line}");
-					onLine?.Invoke(line);
 				}
 			}, ct);
 
-			var waitTask = Task.Run(() => process.WaitForExit(timeoutMs), ct);
+			var waitTask = Task.Run(() => _process.WaitForExit(timeoutMs), ct);
 
 			await Task.WhenAll(outputTask, errorTask, waitTask);
 
-			if (!process.HasExited)
+			if (!_process.HasExited)
 			{
-				try { process.Kill(); } catch { }
+				try { _process.Kill(); } catch { }
 				sb.AppendLine("Process timed out.");
 			}
 		}
@@ -97,7 +97,8 @@ public sealed class OllamaProcess
 		}
 		finally
 		{
-			process.Dispose();
+			_process.Dispose();
+			_process = null;
 		}
 
 		return sb.ToString().Trim();

@@ -1,70 +1,120 @@
+using AINPC.Models;
+using AINPC.OllamaRuntime;
+using AINPC.Tools;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Spectre.Console;
 
 namespace AINPC;
 
 class MainState : AppState
 {
-    #region Fields
+	#region Fields
 
-    private readonly ILogger<MainState> _logger;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly OllamaManager _ollamaManager;
+	private readonly AppSettings _settings;
+	private readonly ILogger<MainState> _logger;
+	private readonly IServiceProvider _serviceProvider;
+	private readonly OllamaRepo _ollamaRepo;
 
-    #endregion
+	#endregion
 
-    #region Constructors
+	#region Constructors
 
-    public MainState(ILogger<MainState> logger, IServiceProvider serviceProvider, OllamaManager ollamaManager)
+	public MainState(
+		IOptions<AppSettings> settings,
+		ILogger<MainState> logger,
+		IServiceProvider serviceProvider,
+		OllamaRepo ollamaRepo)
 	{
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));	
-        _ollamaManager = ollamaManager ?? throw new ArgumentNullException(nameof(ollamaManager));
+		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+		_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+		_ollamaRepo = ollamaRepo ?? throw new ArgumentNullException(nameof(ollamaRepo));
 	}
 
-    #endregion
+	#endregion
 
-    #region Methods
+	#region Methods
+
+	protected override async Task LoadStateAsync()
+	{
+		AnsiConsole.Write(
+			new FigletText("AINPC")
+				.LeftJustified()
+				.Color(Color.Cyan1));
+
+		AnsiConsole.MarkupLine("[grey]Booting system...[/]");
+
+		await _ollamaRepo.InitializeAsync();
+
+		await AnsiConsole.Status()
+			.StartAsync("Selecting model...", async ctx =>
+			{
+				await _ollamaRepo.SetModelAsync(_settings.ModelId);
+			});
+
+		AnsiConsole.MarkupLine($"[green]✔ Ollama server is running using model:[/] [yellow]{_settings.ModelId}[/]");
+		AnsiConsole.WriteLine();
+	}
+
+	protected override async Task UnloadStateAsync()
+	{
+		_ollamaRepo.Dispose();
+		AnsiConsole.MarkupLine("[red]Server stopped.[/]");
+		await Task.CompletedTask;
+	}
 
 	public override async Task RunAsync()
 	{
-        Console.WriteLine("AINPC Ollama Bootstrap Test");
-        Console.WriteLine("----------------------------------");
+		try
+		{
+			await LoadStateAsync();
 
-        // Ensure Ollama exists
-        if (!await _ollamaManager.EnsureInstalledAsync())
-        {
-            Console.WriteLine("Installation failed.");
-            return;
-        }
+			var characters = new CharacterFactory();
+			var villages = new VillageFactory();
+			var roles = new RoleFactory(characters, villages);
 
-        // Start server
-        if (!await _ollamaManager.StartServerAsync())
-        {
-            Console.WriteLine("Failed to start Ollama server.");
-            return;
-        }
+			var systemPrompt = roles.CreateGatekeeperPrompt();
 
-        Console.WriteLine("Ollama server is running.");
+			var chat = _ollamaRepo.CreateChat(systemPrompt);
 
-        // Pull a model (example)
-        Console.WriteLine("\nPulling qwen2.5:0.5b...");
-        string pullOutput = await _ollamaManager.PullModelAsync("qwen2.5:0.5b");
-        Console.WriteLine(pullOutput);
+			IEnumerable<object> tools =
+			[
+				new GetWeatherTool()
+			];
 
-        // List installed models
-        Console.WriteLine("\nListing models...");
-        string models = await _ollamaManager.ListModelsAsync();
-        Console.WriteLine(models);
+			AnsiConsole.MarkupLine("[bold]Type your message. Press ENTER on an empty line to quit.[/]\n");
 
-        // List running models
-        Console.WriteLine("\nOllama ps...");
-        string ps = await _ollamaManager.ListRunningAsync();
-        Console.WriteLine(ps);
+			while (true)
+			{
+				var userMsg = AnsiConsole.Prompt(
+					new TextPrompt<string>("[cyan]You:[/] ")
+						.AllowEmpty());
 
-        // Stop server cleanly
-        await _ollamaManager.StopServerAsync();
-        Console.WriteLine("Server stopped.");
+				if (string.IsNullOrWhiteSpace(userMsg))
+					break;
+
+				AnsiConsole.Markup("[green]Assistant:[/] ");
+
+				await foreach (var token in chat.SendAsync(userMsg, tools))
+				{
+					// Stream tokens directly to console
+					AnsiConsole.Write(token);
+				}
+
+				AnsiConsole.WriteLine();
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, ex.Message);
+			throw;
+		}
+		finally
+		{
+			await UnloadStateAsync();
+		}
 	}
-    
-    #endregion
+
+	#endregion
 }
