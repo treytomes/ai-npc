@@ -1,6 +1,6 @@
-namespace AINPC.Models;
+namespace AINPC.ValueObjects;
 
-record Item
+record ItemInfo
 {
 	public required string Name { get; init; }
 	public required string Description { get; init; }

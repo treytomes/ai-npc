@@ -1,10 +1,10 @@
-using AINPC.Models;
+using AINPC.ValueObjects;
 
 namespace AINPC;
 
 class ItemFactory
 {
-	public IReadOnlyList<Item> GetGeneralStoreItems()
+	public IReadOnlyList<ItemInfo> GetGeneralStoreItems()
 	{
 		return
 		[
