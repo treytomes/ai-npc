@@ -4,5 +4,5 @@ record ItemInfo
 {
 	public required string Name { get; init; }
 	public required string Description { get; init; }
-	public int Cost { get; init; }
+	public required Currency Cost { get; init; }
 }

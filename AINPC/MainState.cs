@@ -1,4 +1,6 @@
+using AINPC.Entities;
 using AINPC.OllamaRuntime;
+using AINPC.Tools;
 using AINPC.ValueObjects;
 using Microsoft.Extensions.Logging;
 using OllamaSharp;
@@ -16,9 +18,12 @@ class MainState : AppState
 	private readonly CharacterFactory _characters;
 	private readonly VillageFactory _villages;
 	private readonly RoleFactory _roles;
+	private readonly ToolFactory _tools;
+	private readonly ItemFactory _items;
+	private readonly ActorFactory _actors;
+	private readonly IIntentClassifier _intentClassifier;
 
-	private RoleInfo _role;
-	private Chat? _chat;
+	private Actor _actor;
 
 	#endregion
 
@@ -36,8 +41,13 @@ class MainState : AppState
 		_characters = new();
 		_villages = new();
 		_roles = new(_characters, _villages);
+		_tools = new();
+		_items = new();
+		_intentClassifier = new SimpleIntentClassifier();
+		_actors = new(_roles, _tools, _items, _intentClassifier);
 
-		_role = _roles.CreateGatekeeperPrompt();
+		// _actor = _actors.CreateGatekeeper();
+		_actor = _actors.CreateShopkeeperPrompt();
 	}
 
 	#endregion
@@ -46,13 +56,14 @@ class MainState : AppState
 
 	public override async Task LoadAsync()
 	{
-		_chat = _ollamaRepo.CreateChat(_role.SystemPrompt) ?? throw new NullReferenceException("Unable to initialize chat.");
+		await _actor.LoadAsync(_ollamaRepo);
 
 		AnsiConsole.MarkupLine("[bold]Type your message. Press ENTER on an empty line to quit.[/]\n");
 	}
 
 	public override async Task UnloadAsync()
 	{
+		await _actor.UnloadAsync();
 	}
 
 	public override async Task UpdateAsync()
@@ -67,11 +78,11 @@ class MainState : AppState
 			return;
 		}
 
-		AnsiConsole.Markup($"[green]{_role.Name}:[/] ");
+		AnsiConsole.Markup($"[green]{_actor.Name}:[/] ");
 
-		await foreach (var token in _chat!.SendAsync(userMsg, _role.Tools))
+		await foreach (var token in await _actor.ChatAsync(userMsg))
 		{
-			// Stream tokens directly to console
+			// Stream tokens directly to console.
 			AnsiConsole.Write(token);
 		}
 

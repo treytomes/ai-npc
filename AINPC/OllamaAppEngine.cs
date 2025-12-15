@@ -53,6 +53,7 @@ class OllamaAppEngine : AppEngine
 	{
 		_ollamaRepo.Dispose();
 		AnsiConsole.MarkupLine("[red]Server stopped.[/]");
+		await Task.CompletedTask;
 	}
 
 	#endregion

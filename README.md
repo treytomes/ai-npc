@@ -231,3 +231,7 @@ Which, while being not quite in character, I do find hilarious.  Smaller languag
 We might be able to resolve this through further training on the model itself, but that it outside the scope of this experiment.
 
 A big problem I'm trying to resolve with this step is how to make everything scalable.  I want a world with multiple villages, many people, personalities, roles, things to do, etc.
+
+## Advanced Tool Use
+
+The shop keeper needs lots of tools, which the `qwen2.5-0.5B` model is struggling with.  I'm switching to the `qwen2.5:0.5b-instruct` model.

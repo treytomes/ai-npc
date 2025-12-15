@@ -28,31 +28,11 @@ class RoleFactory
 
 	public RoleInfo CreateHelpfulAssistantPrompt()
 	{
-		var systemPrompt = @"You are a helpful assistant.
-
-Use tools only when they are the best way to answer the user's request.
-Do not look for excuses to call a tool. Only call one when:
-- the user asks for information that the tool directly provides, or
-- the user explicitly requests the tool.
-
-For weather questions, call the GetWeather tool only when the user
-is clearly asking for actual weather information (current or forecast).
-If the user is speaking metaphorically or casually, do not call the tool.
-
-When no tool is appropriate, answer from your own knowledge.
-If you do not know something, say so briefly and continue.
-
-Keep responses short and direct unless the user asks for more detail.
-Avoid repeating the same information unless the user requests it.
-
-If the user asks you to think, reflect, explain, or discuss ideas,
-respond normally—tools are not needed for general conversation.
-";
-
-		return new RoleInfo("Assistant", systemPrompt, [new GetWeatherTool()]);
+		var systemPrompt = _engine.Render(NPCTemplates.HelpfulAssistant);
+		return new RoleInfo("Assistant", systemPrompt);
 	}
 
-	public RoleInfo CreateGatekeeperPrompt()
+	public RoleInfo CreateGatekeeper()
 	{
 		var character = _characters.GetBramwellHolt();
 		var village = _villages.GetElderwood();
@@ -73,12 +53,24 @@ respond normally—tools are not needed for general conversation.
 		return new(character.Name, systemPrompt);
 	}
 
-	// public string CreateShopkeeperPrompt()
-	// {
-	// 	var character = _characters.GetMarloweReed();
-	// 	var village = _villages.GetElderwood();
-	// 	return _engine.Render(NPCTemplates.Shopkeeper, MakeValueMap());
-	// }
+	public RoleInfo CreateShopkeeperPrompt()
+	{
+		var character = _characters.GetMarloweReed();
+		var village = _villages.GetElderwood();
+
+		var systemPrompt = _engine.Render(NPCTemplates.Shopkeeper,
+			new Dictionary<string, string>
+			{
+				["CharacterName"] = character.Name,
+				["PersonalityTraits"] = string.Join(", ", character.PersonalityTraits),
+				["VillageName"] = village.Name,
+				["VillageLocation"] = village.Location,
+				["VillageTraits"] = string.Join(", ", village.Traits),
+				["VillageEvents"] = village.RecentEvents
+			});
+
+		return new(character.Name, systemPrompt);
+	}
 
 	#endregion
 }

@@ -2,37 +2,69 @@ using AINPC.ValueObjects;
 
 namespace AINPC.Tools;
 
-public class GetWeatherTool : BaseOllamaTool
+/// <summary>
+/// Tool used to retrieve the current weather for a specific location.
+/// </summary>
+internal sealed class GetWeatherTool : BaseOllamaTool
 {
+	#region Constants
+
+	public const string NAME = "get_current_weather";
+	public const string INTENT = "weather.query";
+
+	#endregion
+
+	#region Constructors
+
 	public GetWeatherTool()
-		: base("GetWeather", "Gets the current weather for a given location.")
+		: base(
+			name: NAME,
+			description: "Get the current weather conditions for a specific location.",
+			intent: INTENT)
 	{
 		DefineParameter(
 			name: "location",
 			type: "string",
-			description: "The location or city to get the weather for",
+			description: "Name of the city or location",
 			required: true);
 
 		DefineParameter(
 			name: "unit",
 			type: "string",
-			description: "The unit to measure the temperature in",
-			enumValues: new[] { "Celsius", "Fahrenheit" },
+			description: "Temperature unit",
+			enumValues: ["celsius", "fahrenheit"],
 			required: true);
 	}
 
-	protected override object? InvokeInternal(IDictionary<string, object?> args)
+	#endregion
+
+	#region Methods
+
+	protected override async Task<object?> InvokeInternalAsync(
+		IDictionary<string, object?> args)
 	{
-		var location = (string?)args["location"] ?? "";
-		var unitStr = (string?)args["unit"] ?? "Celsius";
+		await Task.CompletedTask;
 
-		var unit = Enum.Parse<TemperatureUnit>(unitStr, ignoreCase: true);
+		var location = (string?)args["location"] ?? "unknown location";
+		var unitRaw = (string?)args["unit"] ?? "celsius";
 
+		var unit = unitRaw.Equals("fahrenheit", StringComparison.OrdinalIgnoreCase)
+			? TemperatureUnit.Fahrenheit
+			: TemperatureUnit.Celsius;
+
+		// Stubbed data for now — deterministic output matters more than realism.
 		return unit switch
 		{
-			TemperatureUnit.Fahrenheit => $"It's cold at only 3.14159° {unit} in {location}.",
-			TemperatureUnit.Celsius => $"It's warm at only 23 degrees {unit} in {location}, but is {location} a real place?",
-			_ => "I don't really know.",
+			TemperatureUnit.Fahrenheit =>
+				$"Current weather in {location}: 38°F, overcast.",
+
+			TemperatureUnit.Celsius =>
+				$"Current weather in {location}: 3°C, overcast.",
+
+			_ =>
+				$"Current weather in {location}: unavailable."
 		};
 	}
+
+	#endregion
 }

@@ -13,11 +13,10 @@ record RoleInfo
 
 	#region Constructors
 
-	public RoleInfo(string name, string systemPrompt, IEnumerable<BaseOllamaTool>? tools = null)
+	public RoleInfo(string name, string systemPrompt)
 	{
 		Name = name ?? DEFAULT_NAME;
 		SystemPrompt = systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-		Tools = (tools ?? []).ToList().AsReadOnly();
 	}
 
 	#endregion
@@ -27,8 +26,6 @@ record RoleInfo
 	public string Name { get; }
 
 	public string SystemPrompt { get; }
-
-	public IReadOnlyList<BaseOllamaTool> Tools { get; }
 
 	#endregion
 }

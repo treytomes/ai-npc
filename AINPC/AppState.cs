@@ -5,7 +5,6 @@ abstract class AppState
 	#region Fields
 
 	private readonly IStateManager _states;
-	private bool _disposedValue;
 
 	#endregion
 
