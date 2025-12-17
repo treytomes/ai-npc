@@ -1,10 +1,11 @@
+using System.ComponentModel;
+using System.Reflection;
 using AINPC.ValueObjects;
 
 namespace AINPC.Tools;
 
-/// <summary>
-/// Tool used to retrieve the current weather for a specific location.
-/// </summary>
+[DisplayName(NAME)]
+[Description("Get the current weather conditions for a specific location.")]
 internal sealed class GetWeatherTool : BaseOllamaTool
 {
 	#region Constants
@@ -19,7 +20,7 @@ internal sealed class GetWeatherTool : BaseOllamaTool
 	public GetWeatherTool()
 		: base(
 			name: NAME,
-			description: "Get the current weather conditions for a specific location.",
+			description: typeof(GetWeatherTool).GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty,
 			intent: INTENT)
 	{
 		DefineParameter(

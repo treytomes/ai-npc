@@ -15,7 +15,10 @@ internal sealed class SimpleIntentClassifier : IIntentClassifier
 
 		if (msg.Contains("buy") || msg.Contains("sale") || msg.Contains("sell") || msg.Contains("price") || msg.Contains("inventory"))
 			intents.Add("shop.inventory.list");
-		// Console.WriteLine("intents: " + string.Join(',', intents));
+
+		if (msg.ContainsAny("describe", "tell"))
+			intents.Add("item.describe");
+
 		return intents;
 	}
 }

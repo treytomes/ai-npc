@@ -4,7 +4,7 @@ namespace AINPC.Tools;
 
 internal class ToolFactory
 {
-	public IEnumerable<IOllamaTool> CreateTools(Actor actor, IEnumerable<string>? toolNames)
+	public IEnumerable<IActorTool> CreateTools(Actor actor, IEnumerable<string>? toolNames)
 	{
 		if (toolNames == null)
 		{
@@ -17,12 +17,13 @@ internal class ToolFactory
 		}
 	}
 
-	public IOllamaTool CreateTool(Actor actor, string toolName)
+	public IActorTool CreateTool(Actor actor, string toolName)
 	{
 		return toolName switch
 		{
-			GetWeatherTool.NAME => new GetWeatherTool(),
+			// GetWeatherTool.NAME => new GetWeatherTool(),
 			GetShopInventoryTool.NAME => new GetShopInventoryTool(actor),
+			DescribeItemTool.NAME => new DescribeItemTool(actor),
 			_ => throw new ArgumentException($"Unknown tool: {toolName}", nameof(toolName)),
 		};
 	}

@@ -22,6 +22,7 @@ class MainState : AppState
 	private readonly ItemFactory _items;
 	private readonly ActorFactory _actors;
 	private readonly IIntentClassifier _intentClassifier;
+	private readonly ItemResolver _itemResolver;
 
 	private Actor _actor;
 
@@ -44,7 +45,8 @@ class MainState : AppState
 		_tools = new();
 		_items = new();
 		_intentClassifier = new SimpleIntentClassifier();
-		_actors = new(_roles, _tools, _items, _intentClassifier);
+		_itemResolver = new();
+		_actors = new(_roles, _tools, _items, _intentClassifier, _itemResolver);
 
 		// _actor = _actors.CreateGatekeeper();
 		_actor = _actors.CreateShopkeeperPrompt();
