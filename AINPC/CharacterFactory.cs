@@ -1,4 +1,4 @@
-using AINPC.Models;
+using AINPC.ValueObjects;
 
 namespace AINPC;
 

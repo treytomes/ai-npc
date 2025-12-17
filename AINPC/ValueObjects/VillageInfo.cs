@@ -1,4 +1,4 @@
-namespace AINPC.Models;
+namespace AINPC.ValueObjects;
 
 record VillageInfo
 {

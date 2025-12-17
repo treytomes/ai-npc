@@ -13,8 +13,16 @@ sealed class OllamaManager : IDisposable
 	private readonly ILogger<OllamaManager> _logger;
 
 	private string? _ollamaPath;
+
+	/// <summary>
+	/// One process to manage the server thread.
+	/// </summary>
 	private Process? _serverProcess;
-	private OllamaProcess _proc;
+
+	/// <summary>
+	/// A second process to manage Ollama CLI calls.
+	/// </summary>
+	private OllamaProcess _clientProcess;
 
 	private readonly string _pidFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ainpc", "ollama.pid");
 
@@ -22,11 +30,11 @@ sealed class OllamaManager : IDisposable
 
 	#region Constructors
 
-	public OllamaManager(IGpuDetectorService gpuDetector, OllamaInstaller installer, OllamaProcess proc, ILogger<OllamaManager> logger)
+	public OllamaManager(IGpuDetectorService gpuDetector, OllamaInstaller installer, OllamaProcess clientProcess, ILogger<OllamaManager> logger)
 	{
 		_gpuDetector = gpuDetector ?? throw new ArgumentNullException(nameof(gpuDetector));
 		_installer = installer ?? throw new ArgumentNullException(nameof(installer));
-		_proc = proc ?? throw new ArgumentNullException(nameof(proc));
+		_clientProcess = clientProcess ?? throw new ArgumentNullException(nameof(clientProcess));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 		CleanupOrphanProcess();
@@ -160,13 +168,13 @@ sealed class OllamaManager : IDisposable
 
 	private Task<string> ExecAsync(string args, CancellationToken ct = default)
 	{
-		if (_proc == null)
+		if (_clientProcess == null)
 			throw new InvalidOperationException("Ollama not installed or Manager not initialized.");
 
 		// TODO: The "--gpu" argument appears to have been removed from the latest Ollama CLI.
 		// args = string.Concat($"--gpu {_gpuVendor.GetVendorString()} ", args);
 
-		return _proc.RunAsync(_ollamaPath ?? throw new ApplicationException("This should have been populated."), args, ct);
+		return _clientProcess.RunAsync(_ollamaPath ?? throw new ApplicationException("This should have been populated."), args, ct);
 	}
 
 	public Task<string> PullModelAsync(string name, CancellationToken ct = default) => ExecAsync($"pull {name}", ct);

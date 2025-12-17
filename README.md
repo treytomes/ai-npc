@@ -231,3 +231,47 @@ Which, while being not quite in character, I do find hilarious.  Smaller languag
 We might be able to resolve this through further training on the model itself, but that it outside the scope of this experiment.
 
 A big problem I'm trying to resolve with this step is how to make everything scalable.  I want a world with multiple villages, many people, personalities, roles, things to do, etc.
+
+### Tool Use Issues
+
+The shop keeper needs lots of tools, and they need to be executed deterministically.  Right now they only execute when the model feels like it, which it generally does not.  Tool use is "expensive", and the model prefers the path of least resistance.
+
+The path forward that I've landed on is to execute the tools based intent after the user enters a message, and before the LLM responds.
+
+In Actor.cs:
+
+```cs
+public async Task<IAsyncEnumerable<string>> ChatAsync(string message, CancellationToken cancellationToken = default)
+{
+	var intents = _intentClassifier.Classify(message, this);
+
+	// Determine required tools based on user intent.
+	var requiredTools = _tools
+		.Where(t => intents.Contains(t.Intent))
+		.ToList();
+
+	// Phase 1: Execute required tools deterministically
+	foreach (var tool in requiredTools)
+	{
+		var result = await tool.InvokeMethodAsync(null);
+		if (result != null)
+		{
+			var resultText = result!.ToString();
+			if (!string.IsNullOrWhiteSpace(resultText))
+			{
+				_chat!.Messages.Add(new Message(
+					ChatRole.System,
+					$"*This is what you're thinking: {resultText}*"
+				));
+			}
+		}
+	}
+
+	// Phase 2: Ask the model to narrate
+	return _chat!.SendAsync(message, cancellationToken: cancellationToken);
+}
+```
+
+This works for a simple command, like dumping and querying the actor's inventory.
+
+This system does mean that the current method of describing tools and defining parameters is no longer relevant.  I don't want to remove the `BaseOllamaTool` class from the project just yet, so we're gonna differentiate our deterministic tools with an `IActorTool` interface.

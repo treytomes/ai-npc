@@ -1,47 +1,31 @@
 namespace AINPC;
 
-abstract class AppState : IDisposable
+abstract class AppState
 {
 	#region Fields
 
-	private bool _disposedValue;
+	private readonly IStateManager _states;
+
+	#endregion
+
+	#region Constructors
+
+	public AppState(IStateManager states)
+	{
+		_states = states ?? throw new ArgumentNullException(nameof(states));
+	}
 
 	#endregion
 
 	#region Methods
 
-	public abstract Task RunAsync();
+	public abstract Task LoadAsync();
+	public abstract Task UnloadAsync();
+	public abstract Task UpdateAsync();
 
-	protected abstract Task LoadStateAsync();
-	protected abstract Task UnloadStateAsync();
-
-	protected virtual void Dispose(bool disposing)
+	protected async Task LeaveAsync()
 	{
-		if (!_disposedValue)
-		{
-			if (disposing)
-			{
-				// TODO: dispose managed state (managed objects)
-			}
-
-			// TODO: free unmanaged resources (unmanaged objects) and override finalizer
-			// TODO: set large fields to null
-			_disposedValue = true;
-		}
-	}
-
-	// // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-	// ~AppState()
-	// {
-	//     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-	//     Dispose(disposing: false);
-	// }
-
-	public void Dispose()
-	{
-		// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-		Dispose(disposing: true);
-		GC.SuppressFinalize(this);
+		await _states.LeaveStateAsync();
 	}
 
 	#endregion

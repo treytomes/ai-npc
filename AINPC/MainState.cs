@@ -1,8 +1,9 @@
-using AINPC.Models;
+using AINPC.Entities;
 using AINPC.OllamaRuntime;
 using AINPC.Tools;
+using AINPC.ValueObjects;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using OllamaSharp;
 using Spectre.Console;
 
 namespace AINPC;
@@ -11,109 +12,83 @@ class MainState : AppState
 {
 	#region Fields
 
-	private readonly AppSettings _settings;
 	private readonly ILogger<MainState> _logger;
-	private readonly IServiceProvider _serviceProvider;
 	private readonly OllamaRepo _ollamaRepo;
+
+	private readonly CharacterFactory _characters;
+	private readonly VillageFactory _villages;
+	private readonly RoleFactory _roles;
+	private readonly ToolFactory _tools;
+	private readonly ItemFactory _items;
+	private readonly ActorFactory _actors;
+	private readonly IIntentClassifier _intentClassifier;
+	private readonly ItemResolver _itemResolver;
+
+	private Actor _actor;
 
 	#endregion
 
 	#region Constructors
 
 	public MainState(
-		IOptions<AppSettings> settings,
+		IStateManager states,
 		ILogger<MainState> logger,
-		IServiceProvider serviceProvider,
 		OllamaRepo ollamaRepo)
+		: base(states)
 	{
-		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-		_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 		_ollamaRepo = ollamaRepo ?? throw new ArgumentNullException(nameof(ollamaRepo));
+
+		_characters = new();
+		_villages = new();
+		_roles = new(_characters, _villages);
+		_tools = new();
+		_items = new();
+		_intentClassifier = new SimpleIntentClassifier();
+		_itemResolver = new();
+		_actors = new(_roles, _tools, _items, _intentClassifier, _itemResolver);
+
+		// _actor = _actors.CreateGatekeeper();
+		_actor = _actors.CreateShopkeeperPrompt();
 	}
 
 	#endregion
 
 	#region Methods
 
-	protected override async Task LoadStateAsync()
+	public override async Task LoadAsync()
 	{
-		AnsiConsole.Write(
-			new FigletText("AINPC")
-				.LeftJustified()
-				.Color(Color.Cyan1));
+		await _actor.LoadAsync(_ollamaRepo);
 
-		AnsiConsole.MarkupLine("[grey]Booting system...[/]");
+		AnsiConsole.MarkupLine("[bold]Type your message. Press ENTER on an empty line to quit.[/]\n");
+	}
 
-		await _ollamaRepo.InitializeAsync();
+	public override async Task UnloadAsync()
+	{
+		await _actor.UnloadAsync();
+	}
 
-		await AnsiConsole.Status()
-			.StartAsync("Selecting model...", async ctx =>
-			{
-				await _ollamaRepo.SetModelAsync(_settings.ModelId);
-			});
+	public override async Task UpdateAsync()
+	{
+		var userMsg = AnsiConsole.Prompt(
+			new TextPrompt<string>("[cyan]You:[/] ")
+				.AllowEmpty());
 
-		AnsiConsole.MarkupLine($"[green]✔ Ollama server is running using model:[/] [yellow]{_settings.ModelId}[/]");
+		if (string.IsNullOrWhiteSpace(userMsg))
+		{
+			await LeaveAsync();
+			return;
+		}
+
+		AnsiConsole.Markup($"[green]{_actor.Name}:[/] ");
+
+		await foreach (var token in await _actor.ChatAsync(userMsg))
+		{
+			// Stream tokens directly to console.
+			AnsiConsole.Write(token);
+		}
+
 		AnsiConsole.WriteLine();
-	}
-
-	protected override async Task UnloadStateAsync()
-	{
-		_ollamaRepo.Dispose();
-		AnsiConsole.MarkupLine("[red]Server stopped.[/]");
-		await Task.CompletedTask;
-	}
-
-	public override async Task RunAsync()
-	{
-		try
-		{
-			await LoadStateAsync();
-
-			var characters = new CharacterFactory();
-			var villages = new VillageFactory();
-			var roles = new RoleFactory(characters, villages);
-
-			var systemPrompt = roles.CreateGatekeeperPrompt();
-
-			var chat = _ollamaRepo.CreateChat(systemPrompt);
-
-			IEnumerable<object> tools =
-			[
-				new GetWeatherTool()
-			];
-
-			AnsiConsole.MarkupLine("[bold]Type your message. Press ENTER on an empty line to quit.[/]\n");
-
-			while (true)
-			{
-				var userMsg = AnsiConsole.Prompt(
-					new TextPrompt<string>("[cyan]You:[/] ")
-						.AllowEmpty());
-
-				if (string.IsNullOrWhiteSpace(userMsg))
-					break;
-
-				AnsiConsole.Markup("[green]Assistant:[/] ");
-
-				await foreach (var token in chat.SendAsync(userMsg, tools))
-				{
-					// Stream tokens directly to console
-					AnsiConsole.Write(token);
-				}
-
-				AnsiConsole.WriteLine();
-			}
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, ex.Message);
-			throw;
-		}
-		finally
-		{
-			await UnloadStateAsync();
-		}
 	}
 
 	#endregion

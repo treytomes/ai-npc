@@ -5,16 +5,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using OllamaSharp;
 using System.CommandLine;
 
 namespace AINPC;
 
 static class Bootstrap
 {
-	public static async Task<int> Start<TAppSettings, TMainState>(string[] args)
+	public static async Task<int> Start<TAppSettings, TAppEngine, TMainState>(string[] args)
 		where TAppSettings : AppSettings
+		where TAppEngine : AppEngine
 		where TMainState : AppState
 	{
 		// Define command-line options.
@@ -50,7 +49,7 @@ static class Bootstrap
 		// Set handler for processing the command.
 		rootCommand.SetHandler(static async (configFile, debug, fullscreen, width, height) =>
 			{
-				await RunGameAsync<TAppSettings, TMainState>(new()
+				await RunGameAsync<TAppSettings, TAppEngine, TMainState>(new()
 				{
 					ConfigFile = configFile,
 					Debug = debug,
@@ -65,17 +64,19 @@ static class Bootstrap
 		return await rootCommand.InvokeAsync(args);
 	}
 
-	static async Task RunGameAsync<TAppSettings, TMainState>(CommandLineProps props)
+	static async Task RunGameAsync<TAppSettings, TAppEngine, TMainState>(CommandLineProps props)
 		where TAppSettings : AppSettings
+		where TAppEngine : AppEngine
 		where TMainState : AppState
 	{
 		try
 		{
 			// Build host with DI container.
-			using var host = CreateHostBuilder<TAppSettings, TMainState>(props).Build();
+			using var host = CreateHostBuilder<TAppSettings, TAppEngine, TMainState>(props).Build();
 
-			// Start the game.
-			await host.Services.GetRequiredService<TMainState>().RunAsync();
+			// Start the app.
+			var engine = host.Services.GetRequiredService<IAppEngine>();
+			await engine.RunAsync<TMainState>();
 		}
 		catch (Exception ex)
 		{
@@ -84,14 +85,15 @@ static class Bootstrap
 		}
 	}
 
-	static IHostBuilder CreateHostBuilder<TAppSettings, TMainState>(CommandLineProps props)
+	static IHostBuilder CreateHostBuilder<TAppSettings, TAppEngine, TMainState>(CommandLineProps props)
 		where TAppSettings : AppSettings
+		where TAppEngine : AppEngine
 		where TMainState : AppState
 	{
 		return Host.CreateDefaultBuilder()
 			.ConfigureAppConfiguration((hostContext, config) => ConfigureAppConfiguration(config, props))
 			.ConfigureLogging(ConfigureLogging)
-			.ConfigureServices(ConfigureServices<TAppSettings, TMainState>);
+			.ConfigureServices(ConfigureServices<TAppSettings, TAppEngine, TMainState>);
 	}
 
 	private static void ConfigureAppConfiguration(IConfigurationBuilder config, CommandLineProps props)
@@ -146,7 +148,8 @@ static class Bootstrap
 		logging.AddProvider(new Logging.FileLoggerProvider(logFile, minLevel));
 	}
 
-	private static void ConfigureServices<TAppSettings, TMainState>(HostBuilderContext hostContext, IServiceCollection services)
+	private static void ConfigureServices<TAppSettings, TAppEngine, TMainState>(HostBuilderContext hostContext, IServiceCollection services)
+		where TAppEngine : AppEngine
 		where TMainState : AppState
 	{
 		// Register configuration.
@@ -162,6 +165,9 @@ static class Bootstrap
 		services.AddSingleton<OllamaProcess>();
 		services.AddSingleton<OllamaManager>();
 		services.AddSingleton<OllamaRepo>();
+		services.AddSingleton<TAppEngine>();
+		services.AddTransient<IAppEngine>(sp => sp.GetRequiredService<OllamaAppEngine>());
+		services.AddTransient<IStateManager>(sp => sp.GetRequiredService<TAppEngine>());
 
 		// Register game states.
 		services.AddTransient<TMainState>();
