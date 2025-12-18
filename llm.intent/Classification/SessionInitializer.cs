@@ -5,7 +5,7 @@ using NRules;
 
 namespace LLM.Intent.Classification;
 
-internal sealed class ShopkeeperSessionInitializer
+internal sealed class SessionInitializer
 	: ISessionInitializer<Actor>
 {
 	public void Initialize(
@@ -15,7 +15,7 @@ internal sealed class ShopkeeperSessionInitializer
 		RecentIntent? recentIntent)
 	{
 		session.Insert(new UserUtterance(utterance));
-		session.Insert(new ActorRole("shopkeeper"));
+		session.Insert(new ActorRole(actor.Role));
 
 		if (recentIntent != null)
 		{

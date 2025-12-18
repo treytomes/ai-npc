@@ -10,7 +10,7 @@ internal sealed class ShopkeeperIntentClassifier
 	#region Fields
 
 	private readonly IActorSessionFactory _actorSessionFactory = new ActorSessionFactory();
-	private readonly ISessionInitializer<Actor> _initializer = new ShopkeeperSessionInitializer();
+	private readonly ISessionInitializer<Actor> _initializer = new SessionInitializer();
 	private readonly IIntentLexiconFactory _intentLexiconFactory = new IntentLexiconFactory();
 	private readonly IIntentAggregator _aggregator = new HighestConfidenceIntentAggregator();
 	private readonly IReadOnlyList<IEvidenceProvider<Actor>> _providers;
