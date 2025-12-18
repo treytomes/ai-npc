@@ -1,14 +1,24 @@
 using LLM.Intent.FuzzySearch;
 using Spectre.Console;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace LLM.Intent.Demo;
 
 /// <summary>
 /// Unit tests for the fuzzy search functionality with Spectre.Console output.
 /// </summary>
-public static class FuzzySearchTests
+public class FuzzySearchTests
 {
+	#region Fields
+
+	private readonly List<string> _failedAssertions = new();
+
+	#endregion
+
+	#region Methods
+
 	public static async Task<int> RunAsync()
 	{
 		AnsiConsole.Write(
@@ -16,13 +26,8 @@ public static class FuzzySearchTests
 				.RuleStyle("grey")
 				.LeftJustified());
 
-		var tests = new List<(string Name, Func<Task> Test)>
-		{
-			("Exact Match Test", TestExactMatch),
-			("Fuzzy Match Test", TestFuzzyMatch),
-			("ID Search Test", TestIdSearch),
-			("Empty Query Test", TestEmptyQuery)
-		};
+		var testRunner = new FuzzySearchTests();
+		var tests = testRunner.DiscoverTests();
 
 		var table = new Table()
 			.Border(TableBorder.Rounded)
@@ -30,70 +35,103 @@ public static class FuzzySearchTests
 			.AddColumn("Result")
 			.AddColumn("Details");
 
-		foreach (var (name, test) in tests)
+		foreach (var (name, description, testMethod) in tests)
 		{
-			var stopwatch = Stopwatch.StartNew();
-			var (success, details) = await RunTest(test);
-			stopwatch.Stop();
+			var result = await testRunner.RunTestAsync(name, testMethod);
 
 			table.AddRow(
-				name,
-				success ? "[green]✓ PASS[/]" : "[red]✗ FAIL[/]",
-				$"{details} [grey]({stopwatch.ElapsedMilliseconds}ms)[/]");
+				$"[bold]{name}[/]\n[grey]{description}[/]",
+				result.Success ? "[green]✓ PASS[/]" : "[red]✗ FAIL[/]",
+				$"{result.Details} [grey]({result.Duration}ms)[/]");
 		}
 
 		AnsiConsole.Write(table);
 		return 0;
 	}
 
-	private static async Task<(bool Success, string Details)> RunTest(Func<Task> test)
+	private List<(string Name, string Description, Func<Task> Test)> DiscoverTests()
 	{
+		var tests = new List<(string, string, Func<Task>)>();
+		var methods = GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+		foreach (var method in methods)
+		{
+			var descriptionAttr = method.GetCustomAttribute<DescriptionAttribute>();
+			if (descriptionAttr != null && method.ReturnType == typeof(Task) && method.GetParameters().Length == 0)
+			{
+				var testDelegate = (Func<Task>)Delegate.CreateDelegate(typeof(Func<Task>), this, method);
+				tests.Add((method.Name, descriptionAttr.Description, testDelegate));
+			}
+		}
+
+		return tests;
+	}
+
+	private async Task<TestResult> RunTestAsync(string name, Func<Task> test)
+	{
+		_failedAssertions.Clear();
+		var stopwatch = Stopwatch.StartNew();
+
 		try
 		{
-			var results = new List<string>();
 			await test();
-			return (results.Count == 0, results.Count == 0 ? "All assertions passed" : string.Join("; ", results));
+			stopwatch.Stop();
+
+			return new TestResult
+			{
+				Name = name,
+				Success = _failedAssertions.Count == 0,
+				Details = _failedAssertions.Count == 0 ? "All assertions passed" : string.Join("; ", _failedAssertions),
+				Duration = stopwatch.ElapsedMilliseconds
+			};
 		}
 		catch (Exception ex)
 		{
-			return (false, $"Exception: {ex.Message}");
+			stopwatch.Stop();
+			return new TestResult
+			{
+				Name = name,
+				Success = false,
+				Details = $"Exception: {ex.Message}",
+				Duration = stopwatch.ElapsedMilliseconds
+			};
 		}
 	}
 
-	/// <summary>
-	/// Tests exact match scenarios.
-	/// </summary>
-	public static async Task TestExactMatch()
+	[Description("Tests that exact matches return with the highest score")]
+	private async Task TestExactMatch()
 	{
 		var items = new[] { "test", "testing", "tested" };
 		var engine = new FuzzySearchEngine(items);
 
 		var results = await engine.SearchAsync("test");
-		var topResult = results.First();
+		var topResult = results.FirstOrDefault();
 
-		Assert(topResult.Text == "test", "Exact match should be first");
-		Assert(topResult.Score > 0.99, "Exact match should have near-perfect score");
+		Assert(() => topResult != null, "Should return results");
+		if (topResult == null) return;
+
+		Assert(() => topResult.Text == "test", "Exact match should be first");
+		Assert(() => topResult.Score > 0.99, "Exact match should have near-perfect score");
 	}
 
-	/// <summary>
-	/// Tests fuzzy matching with typos.
-	/// </summary>
-	public static async Task TestFuzzyMatch()
+	[Description("Tests fuzzy matching with typos and similar strings")]
+	private async Task TestFuzzyMatch()
 	{
 		var items = new[] { "Microsoft", "Minecraft", "Microwave" };
 		var engine = new FuzzySearchEngine(items);
 
 		var results = await engine.SearchAsync("Microsft"); // Missing 'o'
-		var topResult = results.First();
+		var topResult = results.FirstOrDefault();
 
-		Assert(topResult.Text == "Microsoft", "Should match despite typo");
-		Assert(topResult.Score > 0.7, "Should have high similarity score");
+		Assert(() => topResult != null, "Should return results for fuzzy match");
+		if (topResult == null) return;
+
+		Assert(() => topResult.Text == "Microsoft", "Should match despite typo");
+		Assert(() => topResult.Score > 0.7, "Should have high similarity score");
 	}
 
-	/// <summary>
-	/// Tests ID-based search.
-	/// </summary>
-	public static async Task TestIdSearch()
+	[Description("Tests searching by numeric ID")]
+	private async Task TestIdSearch()
 	{
 		var items = new[] { "First", "Second", "Third" };
 		var engine = new FuzzySearchEngine(items);
@@ -101,15 +139,15 @@ public static class FuzzySearchTests
 		var results = await engine.SearchAsync("1");
 		var result = results.FirstOrDefault();
 
-		Assert(result != null, "Should find item by ID");
-		Assert(result!.Text == "Second", "Should match correct item");
-		Assert(result.Score == 1.0, "ID match should have perfect score");
+		Assert(() => result != null, "Should find item by ID");
+		if (result == null) return;
+
+		Assert(() => result.Text == "Second", "Should match correct item");
+		Assert(() => result.Score == 1.0, "ID match should have perfect score");
 	}
 
-	/// <summary>
-	/// Tests empty and null query handling.
-	/// </summary>
-	public static async Task TestEmptyQuery()
+	[Description("Tests handling of empty, null, and whitespace queries")]
+	private async Task TestEmptyQuery()
 	{
 		var items = new[] { "Test" };
 		var engine = new FuzzySearchEngine(items);
@@ -118,19 +156,33 @@ public static class FuzzySearchTests
 		var results2 = await engine.SearchAsync(null);
 		var results3 = await engine.SearchAsync("   ");
 
-		Assert(!results1.Any(), "Empty query should return no results");
-		Assert(!results2.Any(), "Null query should return no results");
-		Assert(!results3.Any(), "Whitespace query should return no results");
+		Assert(() => !results1.Any(), "Empty query should return no results");
+		Assert(() => !results2.Any(), "Null query should return no results");
+		Assert(() => !results3.Any(), "Whitespace query should return no results");
 	}
 
-	private static readonly List<string> _failedAssertions = new();
-
-	private static void Assert(bool condition, string message)
+	private void Assert(Func<bool> condition, string message)
 	{
-		if (!condition)
+		try
+		{
+			if (!condition())
+			{
+				_failedAssertions.Add(message);
+			}
+		}
+		catch
 		{
 			_failedAssertions.Add(message);
-			AnsiConsole.MarkupLine($"[red]✗[/] {message}");
 		}
+	}
+
+	#endregion
+
+	private class TestResult
+	{
+		public string Name { get; init; } = string.Empty;
+		public bool Success { get; init; }
+		public string Details { get; init; } = string.Empty;
+		public long Duration { get; init; }
 	}
 }

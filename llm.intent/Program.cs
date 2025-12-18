@@ -16,9 +16,9 @@ internal static class Program
 			var result = choice switch
 			{
 				MenuChoice.ShopkeeperIntent => await ShopkeeperDemo.RunAsync(),
-				MenuChoice.InteractiveFuzzySearch => await CharacterVectorTest.RunAsync(),
+				MenuChoice.InteractiveFuzzySearch => await CharacterVectorDemo.RunAsync(),
 				MenuChoice.FuzzySearchTests => await FuzzySearchTests.RunAsync(),
-				MenuChoice.FuzzySearchExamples => await FuzzySearchExamples.RunAsync(),
+				MenuChoice.FuzzySearchExamples => await FuzzySearchDemo.RunAsync(),
 				MenuChoice.About => DisplayAbout(),
 				MenuChoice.Exit => -1,
 				_ => 0

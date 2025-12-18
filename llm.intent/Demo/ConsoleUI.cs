@@ -1,11 +1,11 @@
 using Spectre.Console;
 
-namespace LLM.Intent;
+namespace LLM.Intent.Demo;
 
 /// <summary>
 /// Provides consistent UI elements and styling for the application.
 /// </summary>
-public static class ConsoleUI
+internal static class ConsoleUI
 {
 	public static class Colors
 	{
