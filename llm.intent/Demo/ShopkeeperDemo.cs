@@ -30,7 +30,7 @@ internal static class ShopkeeperDemo
 					Inventory = inventory,
 				};
 
-				var engine = new ShopkeeperIntentEngine();
+				var engine = new IntentEngine();
 
 				ctx.Status("Ready!");
 				await Task.Delay(500);

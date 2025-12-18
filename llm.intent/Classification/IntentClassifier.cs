@@ -5,7 +5,7 @@ using LLM.Intent.Lexicons;
 
 namespace LLM.Intent.Classification;
 
-internal sealed class ShopkeeperIntentClassifier
+internal sealed class IntentClassifier : IIntentClassifier
 {
 	#region Fields
 
@@ -19,7 +19,7 @@ internal sealed class ShopkeeperIntentClassifier
 
 	#region Constructors
 
-	public ShopkeeperIntentClassifier()
+	public IntentClassifier()
 	{
 		_providers = [
 			new NegativeIntentEvidenceProvider(_intentLexiconFactory),

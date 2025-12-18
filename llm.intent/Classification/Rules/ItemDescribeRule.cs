@@ -26,48 +26,10 @@ internal sealed class ItemDescribeRule : Rule
 		Then()
 			.Do(ctx => ctx.Insert(new RuleFired(nameof(ItemDescribeRule))))
 			.Do(ctx => ctx.Insert(
-				new Intent(
+				new Facts.Intent(
 					"item.describe",
 					Math.Min(1.0, intentHint.Confidence + itemMatch.Score)
 				).WithSlot("item_name", itemMatch.ItemName)
 			));
 	}
 }
-
-
-// public sealed class ItemDescribeRule : Rule
-// {
-// 	public override void Define()
-// 	{
-// 		UserUtterance utterance = default!;
-// 		IEnumerable<FuzzyItemMatch> matches = default!;
-
-// 		When()
-// 			.Match(() => utterance)
-// 			.Collect(() => matches,
-// 				m => m.Score >= 0.35);
-
-// 		Then()
-// 			.Do(ctx => EmitIntent(ctx, matches));
-// 	}
-
-// 	private static void EmitIntent(IContext ctx, IEnumerable<FuzzyItemMatch> matches)
-// 	{
-// 		var items = matches
-// 			.OrderByDescending(m => m.Score)
-// 			.Select(m => m.ItemName)
-// 			.Distinct()
-// 			.ToList();
-
-// 		if (!items.Any())
-// 			return;
-
-// 		ctx.Insert(new Intent(
-// 			name: "item.describe",
-// 			confidence: matches.Max(m => m.Score),
-// 			slots: new Dictionary<string, IReadOnlyList<string>>
-// 			{
-// 				["items"] = items
-// 			}));
-// 	}
-// }

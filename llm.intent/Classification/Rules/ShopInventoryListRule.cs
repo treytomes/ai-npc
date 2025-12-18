@@ -18,7 +18,7 @@ internal sealed class ShopInventoryListRule : Rule
 					 h.Confidence > 0.6);
 		Then()
 			.Do(ctx => ctx.Insert(new RuleFired(nameof(ShopInventoryListRule))))
-			.Do(ctx => ctx.Insert(new Intent(
+			.Do(ctx => ctx.Insert(new Facts.Intent(
 				"shop.inventory.list",
 				hint.Confidence
 			)));

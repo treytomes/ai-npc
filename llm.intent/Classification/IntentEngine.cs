@@ -3,12 +3,12 @@ using LLM.Intent.Entities;
 
 namespace LLM.Intent.Classification;
 
-internal sealed class ShopkeeperIntentEngine
+internal sealed class IntentEngine
 	: IIntentEngine<Actor>
 {
 	#region Fields
 
-	private readonly ShopkeeperIntentClassifier _classifier = new();
+	private readonly IIntentClassifier _classifier = new IntentClassifier();
 
 	#endregion
 

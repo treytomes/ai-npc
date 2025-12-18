@@ -7,8 +7,8 @@ public sealed class PreferItemDescribeOverInventoryRule : Rule
 {
 	public override void Define()
 	{
-		Intent inventory = default!;
-		Intent describe = default!;
+		Facts.Intent inventory = default!;
+		Facts.Intent describe = default!;
 
 		When()
 			.Match(() => inventory,

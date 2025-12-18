@@ -7,7 +7,7 @@ public sealed class SuppressIntentOnNegativeEvidenceRule : Rule
 {
 	public override void Define()
 	{
-		Intent intent = default!;
+		Facts.Intent intent = default!;
 		NegativeIntentHint neg = default!;
 
 		When()

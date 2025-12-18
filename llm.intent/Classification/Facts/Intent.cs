@@ -1,4 +1,4 @@
-namespace LLM.Intent;
+namespace LLM.Intent.Classification.Facts;
 
 internal sealed class Intent(string name, double confidence)
 {
