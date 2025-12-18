@@ -1,4 +1,3 @@
-using System.Text;
 using AINPC.Enums;
 using AINPC.Models;
 using AINPC.OllamaRuntime;
@@ -13,6 +12,7 @@ internal class Actor : Entity, IHasInventory
 {
 	#region Fields
 
+	private string _name;
 	private int _gold = 0;
 	private Inventory _inventory = new();
 	private readonly RoleInfo _role;
@@ -25,8 +25,14 @@ internal class Actor : Entity, IHasInventory
 
 	#region Constructors
 
-	public Actor(ToolFactory toolFactory, IIntentClassifier intentClassifier, ItemResolver itemResolver, RoleInfo role, IEnumerable<string>? toolNames = null)
+	public Actor(ToolFactory toolFactory, IIntentClassifier intentClassifier, ItemResolver itemResolver, string name, RoleInfo role, IEnumerable<string>? toolNames = null)
 	{
+		if (string.IsNullOrWhiteSpace(name))
+		{
+			throw new ArgumentNullException(nameof(name));
+		}
+		_name = name;
+
 		_intentClassifier = intentClassifier ?? throw new ArgumentNullException(nameof(intentClassifier));
 		_itemResolver = itemResolver ?? throw new ArgumentNullException(nameof(itemResolver));
 		_role = role ?? throw new ArgumentNullException(nameof(role));
@@ -37,7 +43,8 @@ internal class Actor : Entity, IHasInventory
 
 	#region Properties
 
-	public string Name => _role.Name;
+	public string Name => _name;
+	public RoleInfo Role => _role;
 	public int Gold => _gold;
 	public IReadOnlyList<ItemInfo> Inventory => _inventory.ToList().AsReadOnly();
 

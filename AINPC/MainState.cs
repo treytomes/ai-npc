@@ -1,9 +1,7 @@
 using AINPC.Entities;
 using AINPC.OllamaRuntime;
 using AINPC.Tools;
-using AINPC.ValueObjects;
 using Microsoft.Extensions.Logging;
-using OllamaSharp;
 using Spectre.Console;
 
 namespace AINPC;
@@ -41,12 +39,12 @@ class MainState : AppState
 
 		_characters = new();
 		_villages = new();
-		_roles = new(_characters, _villages);
+		_roles = new(_villages);
 		_tools = new();
 		_items = new();
 		_intentClassifier = new SimpleIntentClassifier();
 		_itemResolver = new();
-		_actors = new(_roles, _tools, _items, _intentClassifier, _itemResolver);
+		_actors = new(_characters, _roles, _tools, _items, _intentClassifier, _itemResolver);
 
 		// _actor = _actors.CreateGatekeeper();
 		_actor = _actors.CreateShopkeeperPrompt();

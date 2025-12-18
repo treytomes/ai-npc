@@ -1,5 +1,4 @@
 using AINPC.Templates;
-using AINPC.Tools;
 using AINPC.ValueObjects;
 
 namespace AINPC;
@@ -8,7 +7,6 @@ class RoleFactory
 {
 	#region Fields
 
-	private readonly CharacterFactory _characters;
 	private readonly VillageFactory _villages;
 	private readonly TemplateEngine _engine = new();
 
@@ -16,9 +14,8 @@ class RoleFactory
 
 	#region Constructors
 
-	public RoleFactory(CharacterFactory characters, VillageFactory villages)
+	public RoleFactory(VillageFactory villages)
 	{
-		_characters = characters ?? throw new ArgumentNullException(nameof(characters));
 		_villages = villages ?? throw new ArgumentNullException(nameof(villages));
 	}
 
@@ -32,9 +29,8 @@ class RoleFactory
 		return new RoleInfo("Assistant", systemPrompt);
 	}
 
-	public RoleInfo CreateGatekeeper()
+	public RoleInfo CreateGatekeeper(CharacterInfo character)
 	{
-		var character = _characters.GetBramwellHolt();
 		var village = _villages.GetElderwood();
 
 		var systemPrompt = _engine.Render(
@@ -53,9 +49,8 @@ class RoleFactory
 		return new(character.Name, systemPrompt);
 	}
 
-	public RoleInfo CreateShopkeeperPrompt()
+	public RoleInfo CreateShopkeeperPrompt(CharacterInfo character)
 	{
-		var character = _characters.GetMarloweReed();
 		var village = _villages.GetElderwood();
 
 		var systemPrompt = _engine.Render(NPCTemplates.Shopkeeper,

@@ -51,7 +51,7 @@ class ItemFactory
 			new ItemInfo
 			{
 				Name = "Small Knife",
-				Aliases = ["knife", "small knife", "dagger"],
+				Aliases = ["knife", "knives", "small knife", "dagger"],
 				Description = "Simple but reliable.",
 				Cost = new Currency(6)
 			},

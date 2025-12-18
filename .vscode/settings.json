@@ -7,7 +7,8 @@
 		"glxinfo",
 		"Invokable",
 		"JRPG",
-		"Ngram",
+		"Jaccard",
+		"ngram",
 		"Ngrams",
 		"Ollama",
 		"ollamas",
@@ -37,5 +38,5 @@
 		}
 	},
 	"csharp.debug.expressionEvaluationOptions.allowImplicitFuncEval": true,
-	"dotnet.defaultSolution": "a-npc.sln",
+	"dotnet.defaultSolution": "ai-npc.sln",
 }

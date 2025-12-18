@@ -1,12 +1,10 @@
-using AINPC.Tools;
-
 namespace AINPC.ValueObjects;
 
 record RoleInfo
 {
 	#region Constants
 
-	private const string DEFAULT_NAME = "Gus";
+	private const string DEFAULT_NAME = "idiot";
 	private const string DEFAULT_SYSTEM_PROMPT = "You are the village idiot.";
 
 	#endregion
