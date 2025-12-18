@@ -2,7 +2,7 @@ using LLM.Intent.FuzzySearch;
 using Spectre.Console;
 using System.Diagnostics;
 
-namespace LLM.Intent;
+namespace LLM.Intent.Demo;
 
 /// <summary>
 /// Unit tests for the fuzzy search functionality with Spectre.Console output.

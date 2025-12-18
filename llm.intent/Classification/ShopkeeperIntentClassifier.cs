@@ -1,9 +1,7 @@
+using LLM.Intent.Classification.Factories;
 using LLM.Intent.Classification.Facts;
-using LLM.Intent.Classification.Rules;
 using LLM.Intent.Entities;
-using NRules;
-using NRules.Fluent;
-using NRules.RuleModel;
+using LLM.Intent.Lexicons;
 
 namespace LLM.Intent.Classification;
 
@@ -11,14 +9,11 @@ internal sealed class ShopkeeperIntentClassifier
 {
 	#region Fields
 
-	private readonly ISessionFactory _sessionFactory;
+	private readonly IActorSessionFactory _actorSessionFactory = new ActorSessionFactory();
 	private readonly ISessionInitializer<Actor> _initializer = new ShopkeeperSessionInitializer();
-	private readonly IReadOnlyList<IEvidenceProvider<Actor>> _providers = [
-		new NegativeIntentEvidenceProvider(),
-		new FuzzyIntentEvidenceProvider(),
-		new ItemEvidenceProvider(),
-	];
+	private readonly IIntentLexiconFactory _intentLexiconFactory = new IntentLexiconFactory();
 	private readonly IIntentAggregator _aggregator = new HighestConfidenceIntentAggregator();
+	private readonly IReadOnlyList<IEvidenceProvider<Actor>> _providers;
 
 	#endregion
 
@@ -26,19 +21,11 @@ internal sealed class ShopkeeperIntentClassifier
 
 	public ShopkeeperIntentClassifier()
 	{
-		var ruleFactory = new RuleDefinitionFactory();
-
-		var rules = new RuleSet("shopkeeper");
-		rules.Add(ruleFactory.Create(new BiasItemDescribeAfterInventoryRule()));
-		rules.Add(ruleFactory.Create(new ItemDescribeRule()));
-		rules.Add(ruleFactory.Create(new PreferItemDescribeOverInventoryRule()));
-		rules.Add(ruleFactory.Create(new ShopInventoryListRule()));
-		rules.Add(ruleFactory.Create(new SuppressIntentOnNegativeEvidenceRule()));
-
-		var repository = new RuleRepository();
-		repository.Add(rules);
-
-		_sessionFactory = repository.Compile();
+		_providers = [
+			new NegativeIntentEvidenceProvider(_intentLexiconFactory),
+			new PositiveIntentEvidenceProvider(_intentLexiconFactory),
+			new ItemEvidenceProvider(),
+		];
 	}
 
 	#endregion
@@ -47,7 +34,7 @@ internal sealed class ShopkeeperIntentClassifier
 
 	public IntentClassificationResult Classify(string utterance, Actor actor, RecentIntent? recentIntent = null)
 	{
-		var session = _sessionFactory.CreateSession();
+		var session = _actorSessionFactory.CreateSession(actor.Role);
 
 		_initializer.Initialize(session, utterance, actor, recentIntent);
 

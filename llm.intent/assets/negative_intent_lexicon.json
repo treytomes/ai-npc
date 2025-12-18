@@ -1,0 +1,21 @@
+{
+	"intents": [
+		{
+			"name": "item.describe",
+			"patterns": [
+				"not buying",
+				"just looking",
+				"don't need details",
+				"no need to explain"
+			]
+		},
+		{
+			"name": "shop.inventory.list",
+			"patterns": [
+				"not shopping",
+				"just browsing",
+				"not interested in buying"
+			]
+		}
+	]
+}

@@ -1,0 +1,27 @@
+{
+	"intents": [
+		{
+			"name": "item.describe",
+			"patterns": [
+				"tell me about",
+				"describe",
+				"what is",
+				"what does it do",
+				"what's that",
+				"details about"
+			]
+		},
+		{
+			"name": "shop.inventory.list",
+			"patterns": [
+				"what do you sell",
+				"what's for sale",
+				"show me your stock",
+				"what do you have",
+				"inventory",
+				"wares",
+				"goods for sale"
+			]
+		}
+	]
+}

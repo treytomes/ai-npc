@@ -26,7 +26,8 @@ internal static class ShopkeeperDemo
 
 				var actor = new Actor
 				{
-					Inventory = inventory
+					Role = "shopkeeper",
+					Inventory = inventory,
 				};
 
 				var engine = new ShopkeeperIntentEngine();

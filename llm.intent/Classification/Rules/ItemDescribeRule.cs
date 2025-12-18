@@ -28,7 +28,7 @@ internal sealed class ItemDescribeRule : Rule
 			.Do(ctx => ctx.Insert(
 				new Intent(
 					"item.describe",
-					intentHint.Confidence + itemMatch.Score
+					Math.Min(1.0, intentHint.Confidence + itemMatch.Score)
 				).WithSlot("item_name", itemMatch.ItemName)
 			));
 	}

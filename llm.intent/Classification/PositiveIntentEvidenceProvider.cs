@@ -1,6 +1,7 @@
 using LLM.Intent.Classification.Facts;
 using LLM.Intent.Entities;
 using LLM.Intent.FuzzySearch;
+using LLM.Intent.Lexicons;
 using NRules;
 
 namespace LLM.Intent.Classification;
@@ -8,14 +9,13 @@ namespace LLM.Intent.Classification;
 /// <summary>
 /// This will attempt to make a fuzzy guess on what the user intended based on what they said.
 /// </summary>
-internal sealed class FuzzyIntentEvidenceProvider
+internal sealed class PositiveIntentEvidenceProvider(IIntentLexiconFactory intentLexiconFactory)
 	: IEvidenceProvider<Actor>
 {
 	public void Provide(ISession session, string utterance, Actor actor)
 	{
-		var intentPhrases = ShopkeeperIntentLexicon.Intents
-			.SelectMany(kvp => kvp.Value.Select(p => (Intent: kvp.Key, Phrase: p)))
-			.ToList();
+		var intentPhrases = intentLexiconFactory.GetLexicon("positive_intent_lexicon.json").Intents
+			.SelectMany(i => i.Patterns.Select(p => (Intent: i.Name, Phrase: p)));
 
 		var intentEngine = intentPhrases
 			.Select(p => p.Phrase)

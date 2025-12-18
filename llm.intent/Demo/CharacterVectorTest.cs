@@ -1,7 +1,7 @@
 using LLM.Intent.FuzzySearch;
 using Spectre.Console;
 
-namespace LLM.Intent;
+namespace LLM.Intent.Demo;
 
 /// <summary>
 /// Provides an interactive test harness for the character vector-based fuzzy search functionality.

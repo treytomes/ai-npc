@@ -1,6 +1,7 @@
 using LLM.Intent.Classification.Facts;
 using LLM.Intent.Entities;
 using LLM.Intent.FuzzySearch;
+using LLM.Intent.Lexicons;
 using NRules;
 
 namespace LLM.Intent.Classification;
@@ -8,14 +9,13 @@ namespace LLM.Intent.Classification;
 /// <summary>
 /// Fuzzy matching on negative intent.
 /// </summary>
-internal sealed class NegativeIntentEvidenceProvider
+internal sealed class NegativeIntentEvidenceProvider(IIntentLexiconFactory intentLexiconFactory)
 	: IEvidenceProvider<Actor>
 {
 	public void Provide(ISession session, string utterance, Actor actor)
 	{
-		var negativePhrases = ShopkeeperNegativeIntentLexicon.Intents
-			.SelectMany(kvp => kvp.Value.Select(p => (Intent: kvp.Key, Phrase: p)))
-			.ToList();
+		var negativePhrases = intentLexiconFactory.GetLexicon("negative_intent_lexicon.json").Intents
+			.SelectMany(i => i.Patterns.Select(p => (Intent: i.Name, Phrase: p)));
 
 		var negativeEngine = negativePhrases
 			.Select(p => p.Phrase)

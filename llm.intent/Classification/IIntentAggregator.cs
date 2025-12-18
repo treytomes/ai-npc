@@ -2,7 +2,7 @@ using NRules;
 
 namespace LLM.Intent.Classification;
 
-interface IIntentAggregator
+internal interface IIntentAggregator
 {
 	IReadOnlyList<Intent> Aggregate(ISession session);
 }

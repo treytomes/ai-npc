@@ -1,5 +1,4 @@
-﻿using LLM.Intent.Classification;
-using LLM.Intent.Items.Factories;
+﻿using LLM.Intent.Demo;
 using Spectre.Console;
 
 namespace LLM.Intent;
