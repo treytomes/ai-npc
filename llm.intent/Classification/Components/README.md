@@ -1,0 +1,1 @@
+The intent classifier is built up from a series of components that initialize the rules engine, provide facts to execute against, and aggregate results.
