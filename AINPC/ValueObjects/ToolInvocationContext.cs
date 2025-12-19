@@ -2,5 +2,5 @@ namespace AINPC.ValueObjects;
 
 internal record ToolInvocationContext
 {
-	public ItemInfo? ResolvedItem { get; init; }
+	public IEnumerable<ItemResolutionResult>? ResolvedItemResults { get; init; }
 }

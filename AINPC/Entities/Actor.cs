@@ -1,4 +1,6 @@
 using AINPC.Enums;
+using AINPC.Intent.Classification;
+using AINPC.Intent.Classification.Facts;
 using AINPC.Models;
 using AINPC.OllamaRuntime;
 using AINPC.Tools;
@@ -17,15 +19,15 @@ internal class Actor : Entity, IHasInventory
 	private Inventory _inventory = new();
 	private readonly RoleInfo _role;
 	private readonly IReadOnlyCollection<IActorTool> _tools;
-	private readonly IIntentClassifier _intentClassifier;
-	private readonly ItemResolver _itemResolver;
+	private readonly IIntentEngine<Actor> _intentEngine;
+	private readonly IItemResolver _itemResolver;
 	private Chat? _chat = null;
 
 	#endregion
 
 	#region Constructors
 
-	public Actor(ToolFactory toolFactory, IIntentClassifier intentClassifier, ItemResolver itemResolver, string name, RoleInfo role, IEnumerable<string>? toolNames = null)
+	public Actor(ToolFactory toolFactory, IIntentEngine<Actor> intentEngine, IItemResolver itemResolver, string name, RoleInfo role, IEnumerable<string>? toolNames = null)
 	{
 		if (string.IsNullOrWhiteSpace(name))
 		{
@@ -33,7 +35,7 @@ internal class Actor : Entity, IHasInventory
 		}
 		_name = name;
 
-		_intentClassifier = intentClassifier ?? throw new ArgumentNullException(nameof(intentClassifier));
+		_intentEngine = intentEngine ?? throw new ArgumentNullException(nameof(intentEngine));
 		_itemResolver = itemResolver ?? throw new ArgumentNullException(nameof(itemResolver));
 		_role = role ?? throw new ArgumentNullException(nameof(role));
 		_tools = toolFactory.CreateTools(this, toolNames).ToList().AsReadOnly();
@@ -67,80 +69,96 @@ internal class Actor : Entity, IHasInventory
 		await Task.CompletedTask;
 	}
 
-	public async Task<IAsyncEnumerable<string>> ChatAsync(string message, CancellationToken cancellationToken = default)
+	private RecentIntent? _recentIntent = null;
+
+	public async Task<IAsyncEnumerable<string>> ChatAsync(
+		string message,
+		CancellationToken cancellationToken = default)
 	{
-		var intents = _intentClassifier.Classify(message, this);
+		var intentResult = _intentEngine.Process(
+			message,
+			this,
+			new IntentEngineContext
+			{
+				RecentIntent = _recentIntent
+			});
 
-		// Step 1: resolve item if needed
-		ItemResolutionResult? itemResolution = null;
+		_recentIntent = intentResult.UpdatedRecentIntent;
 
-		if (intents.Contains("item.describe"))
+		var intents = intentResult.Intents;
+		var intentNames = intents.Select(i => i.Name).ToHashSet();
+
+		// --------------------------------------------------
+		// Step 1: Resolve item if required
+		// --------------------------------------------------
+
+		var itemResolutionResults = intents
+			.Where(i => i.HasSlot("item_name"))
+			.Select(i => i.Slots["item_name"])
+			.Select(itemName => _itemResolver.Resolve(itemName, Inventory));
+		foreach (var result in itemResolutionResults)
 		{
-			// var itemNames = string.Join(',', Inventory.Select(x => x.Name));
-			// var stream = _chat!.Client.GenerateAsync($"The user said \"{message}\".  You have these items: {itemNames}.  What is the user probably wanting to know more about?  Respond by simply stating the name of the item.");
-			// var response = new StringBuilder();
-			// await foreach (var chunk in stream)
-			// {
-			// 	if (chunk == null) continue;
-			// 	response.Append(chunk.Response);
-			// }
-			// Console.WriteLine($"***item completion: {response}***");
-			itemResolution = _itemResolver.Resolve(message, Inventory);
-			Console.WriteLine($"***item.describe: {itemResolution}***");
-		}
-
-		// Step 2: handle resolution outcomes BEFORE tool execution
-		if (itemResolution != null)
-		{
-			switch (itemResolution.Status)
+			switch (result.Status)
 			{
 				case ItemResolutionStatus.NotFound:
 					_chat!.Messages.Add(new Message(
 						ChatRole.System,
-						"*You do not have an item matching that description.*"
+						"FACT: The shop does not carry an item matching the customer's description."
 					));
-					return _chat.SendAsync(message, cancellationToken);
+					break;
 
 				case ItemResolutionStatus.Ambiguous:
-					var names = string.Join(", ",
-						itemResolution.Candidates.Select(i => i.Name));
+					var options = string.Join(", ",
+						result.Candidates.Select(i => i.Name));
 
 					_chat!.Messages.Add(new Message(
 						ChatRole.System,
-						$"*The customer could mean any of these items: {names}.*"
+						$"FACT: The customer could be referring to any of these items: {options}."
 					));
-					return _chat.SendAsync(message, cancellationToken);
+					break;
+
+				case ItemResolutionStatus.ExactMatch:
+				case ItemResolutionStatus.SingleAliasMatch:
+				case ItemResolutionStatus.SingleFuzzyMatch:
+					_chat!.Messages.Add(new Message(
+						ChatRole.System,
+						$"FACT: The customer mentioned {result.Item!.Name}, {result.Item!.Description}, {result.Item!.Cost}"
+					));
+					break;
 			}
 		}
 
-		// Step 3: Determine required tools based on user intent.
-		var requiredTools = _tools.Where(t => intents.Contains(t.Intent));
+		// --------------------------------------------------
+		// Step 2: Execute tools deterministically
+		// --------------------------------------------------
 
-		var context = new ToolInvocationContext
+		var toolsToRun = _tools
+			.Where(t => intentNames.Contains(t.Intent));
+		// .OrderBy(t => t.ExecutionOrder); // TODO: Should I care about tool execution order?
+
+		var toolContext = new ToolInvocationContext
 		{
-			ResolvedItem = itemResolution?.Item
+			ResolvedItemResults = itemResolutionResults
 		};
 
-		// Phase 1: Execute required tools deterministically.
-		foreach (var tool in requiredTools)
+		foreach (var tool in toolsToRun)
 		{
-			var result = await tool.InvokeAsync(context);
+			var toolResult = await tool.InvokeAsync(toolContext);
 
-			if (result != null)
+			if (!string.IsNullOrWhiteSpace(toolResult?.ToString()))
 			{
-				var resultText = result!.ToString();
-				if (!string.IsNullOrWhiteSpace(resultText))
-				{
-					_chat!.Messages.Add(new Message(
-						ChatRole.System,
-						$"*This is what you're thinking: {resultText}*"
-					));
-				}
+				_chat!.Messages.Add(new Message(
+					ChatRole.System,
+					$"FACT: {toolResult}"
+				));
 			}
 		}
 
-		// Phase 2: Ask the model to narrate.
-		return _chat!.SendAsync(message, cancellationToken: cancellationToken);
+		// --------------------------------------------------
+		// Step 3: Narration
+		// --------------------------------------------------
+
+		return _chat!.SendAsync(message, cancellationToken);
 	}
 
 	public void ReceiveItems(IEnumerable<ItemInfo> items)

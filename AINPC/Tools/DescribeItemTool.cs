@@ -5,8 +5,8 @@ using AINPC.ValueObjects;
 namespace AINPC.Tools;
 
 [DisplayName(NAME)]
-[Description("List all items currently for sale in the shop, including prices.")]
-internal class DescribeItemTool : IActorTool
+[Description("Describe one or more items currently for sale.")]
+internal sealed class DescribeItemTool : IActorTool
 {
 	#region Constants
 
@@ -39,13 +39,33 @@ internal class DescribeItemTool : IActorTool
 
 	#region Methods
 
-	public async Task<string> InvokeAsync(ToolInvocationContext context)
+	public Task<string> InvokeAsync(ToolInvocationContext context)
 	{
-		var item = context.ResolvedItem;
-		if (item == null)
-			return await Task.FromResult("You don't carry that.");
+		if (context.ResolvedItemResults == null)
+			return Task.FromResult("You don't carry anything like that.");
 
-		return await Task.FromResult($"{item.Name} is described as \"{item.Description}\"");
+		var items = context.ResolvedItemResults
+			.Where(r => r.Item != null)
+			.Select(r => r.Item!)
+			.ToList();
+
+		if (items.Count == 0)
+			return Task.FromResult("You don't carry anything like that.");
+
+		if (items.Count == 1)
+		{
+			var item = items[0];
+			return Task.FromResult(
+				$"{item.Name}: {item.Description} Costs {item.Cost}."
+			);
+		}
+
+		// Multiple items
+		var lines = items.Select(item =>
+			$"{item.Name}: {item.Description} Costs {item.Cost}.");
+
+		return Task.FromResult(string.Join(" ", lines));
 	}
+
 	#endregion
 }

@@ -18,5 +18,7 @@ internal sealed class Intent(string name, double confidence)
 		return this;
 	}
 
+	public bool HasSlot(string slotName) => Slots.ContainsKey(slotName);
+
 	#endregion
 }

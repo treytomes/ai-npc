@@ -3,7 +3,7 @@ using AINPC.ValueObjects;
 
 namespace AINPC;
 
-class RoleFactory
+internal class RoleFactory
 {
 	#region Fields
 
@@ -26,7 +26,7 @@ class RoleFactory
 	public RoleInfo CreateHelpfulAssistantPrompt()
 	{
 		var systemPrompt = _engine.Render(NPCTemplates.HelpfulAssistant);
-		return new RoleInfo("Assistant", systemPrompt);
+		return new RoleInfo("assistant", systemPrompt);
 	}
 
 	public RoleInfo CreateGatekeeper(CharacterInfo character)
@@ -46,7 +46,7 @@ class RoleFactory
 			}
 		);
 
-		return new(character.Name, systemPrompt);
+		return new("gatekeeper", systemPrompt);
 	}
 
 	public RoleInfo CreateShopkeeperPrompt(CharacterInfo character)
@@ -64,7 +64,7 @@ class RoleFactory
 				["VillageEvents"] = village.RecentEvents
 			});
 
-		return new(character.Name, systemPrompt);
+		return new("shopkeeper", systemPrompt);
 	}
 
 	#endregion

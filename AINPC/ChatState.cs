@@ -21,7 +21,7 @@ class ChatState : AppState
 	private readonly ItemFactory _items;
 	private readonly ActorFactory _actors;
 	private readonly IIntentEngine<Actor> _intentEngine;
-	private readonly ItemResolver _itemResolver;
+	private readonly IItemResolver _itemResolver;
 
 	private Actor _actor;
 
@@ -41,7 +41,7 @@ class ChatState : AppState
 		_tools = new();
 		_items = new();
 		_intentEngine = new IntentEngine();
-		_itemResolver = new();
+		_itemResolver = new ItemResolver();
 		_actors = new(_characters, _roles, _tools, _items, _intentEngine, _itemResolver);
 
 		// _actor = _actors.CreateGatekeeper();

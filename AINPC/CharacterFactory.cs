@@ -2,7 +2,7 @@ using AINPC.ValueObjects;
 
 namespace AINPC;
 
-class CharacterFactory
+internal class CharacterFactory
 {
 	public CharacterInfo GetBramwellHolt()
 	{

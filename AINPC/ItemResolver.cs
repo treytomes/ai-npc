@@ -4,14 +4,12 @@ using System.Text;
 
 namespace AINPC;
 
-internal sealed class ItemResolver
+internal sealed class ItemResolver : IItemResolver
 {
 	private const double TokenOverlapThreshold = 0.6;
 	private const int MaxEditDistance = 2;
 
-	public ItemResolutionResult Resolve(
-		string userInput,
-		IReadOnlyCollection<ItemInfo> inventory)
+	public ItemResolutionResult Resolve(string userInput, IReadOnlyCollection<ItemInfo> inventory)
 	{
 		if (string.IsNullOrWhiteSpace(userInput))
 			return NotFound();
