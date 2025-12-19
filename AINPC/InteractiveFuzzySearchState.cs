@@ -1,22 +1,44 @@
 using AINPC.Intent.FuzzySearch;
+using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
-namespace AINPC.Intent.Demo;
+namespace AINPC;
 
 /// <summary>
-/// Provides an interactive test harness for the character vector-based fuzzy search functionality.
+/// Runs an interactive test of the fuzzy search functionality using Windows system files.
 /// </summary>
-internal static class CharacterVectorDemo
+internal class InteractiveFuzzySearchState : AppState
 {
-	private const int MaxSearchLength = 100;
-	private const int MaxResultsToShow = 10;
-	private static readonly string[] SafeFileExtensions = { ".exe", ".ini", ".log", ".xml", ".txt", ".config", ".manifest" };
+	#region Constants
 
-	/// <summary>
-	/// Runs an interactive test of the fuzzy search functionality using Windows system files.
-	/// </summary>
-	public static async Task<int> RunAsync()
+	private const int MAX_SEARCH_LENGTH = 100;
+	private const int MAX_RESULTS_TO_SHOW = 10;
+	private static readonly string[] SAFE_FILE_EXTENSIONS = { ".exe", ".ini", ".log", ".xml", ".txt", ".config", ".manifest" };
+
+	#endregion
+
+	#region Fields
+
+	private readonly ILogger<InteractiveFuzzySearchState> _logger;
+	private IFuzzySearchEngine? _searcher = null;
+
+	#endregion
+
+	#region Constructors
+
+	public InteractiveFuzzySearchState(IStateManager states, ILogger<InteractiveFuzzySearchState> logger)
+		: base(states)
 	{
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	}
+
+	#endregion
+
+	#region Methods
+
+	public override async Task OnLoadAsync()
+	{
+		AnsiConsole.Clear();
 		AnsiConsole.Write(
 			new FigletText("Fuzzy Search")
 				.LeftJustified()
@@ -34,26 +56,77 @@ internal static class CharacterVectorDemo
 			if (!files.Any())
 			{
 				AnsiConsole.MarkupLine("[red]No files loaded. Exiting.[/]");
-				return 1;
+				await LeaveAsync();
 			}
 
 			AnsiConsole.MarkupLine($"[green]✓ Loaded {files.Count} files[/]");
+
+			var options = ConfigureSearchOptions();
+			_searcher = new FuzzySearchEngine(files, options);
+
+			var panel = new Panel(
+				$"[green]Loaded {files.Count} files[/]\n" +
+				"• Type a search term to find matching files\n" +
+				"• Enter a number to search by ID\n" +
+				"• Type 'exit' or press Ctrl+C to quit\n" +
+				$"• Maximum search length: {MAX_SEARCH_LENGTH} characters")
+				.Header("[yellow]Interactive Fuzzy Search[/]")
+				.Border(BoxBorder.Rounded);
+
+			AnsiConsole.Write(panel);
 		}
 		catch (Exception ex)
 		{
 			AnsiConsole.WriteException(ex);
-			return 1;
+			await LeaveAsync();
 		}
-
-		var options = ConfigureSearchOptions();
-		var searcher = new FuzzySearchEngine(files, options);
-
-		await RunInteractiveSearch(searcher, files.Count);
-
-		return 0;
 	}
 
-	private static async Task<List<string>> LoadWindowsFiles()
+	public override async Task OnUnloadAsync()
+	{
+		AnsiConsole.Clear();
+		AnsiConsole.MarkupLine("\n[yellow]Thanks for using Fuzzy Search![/]");
+		Thread.Sleep(500);
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnEnterAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnLeaveAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnUpdateAsync()
+	{
+		if (_searcher == null) throw new InvalidOperationException("State is not initialized.");
+
+		var searchText = AnsiConsole.Prompt(
+			new TextPrompt<string>($"[blue]Search:[/]")
+				.AllowEmpty());
+
+		if (string.Equals(searchText, "exit", StringComparison.OrdinalIgnoreCase))
+		{
+			await LeaveAsync();
+			return;
+		}
+
+		if (string.IsNullOrWhiteSpace(searchText))
+			return;
+
+		if (searchText.Length > MAX_SEARCH_LENGTH)
+		{
+			AnsiConsole.MarkupLine($"[red]Search term too long. Maximum {MAX_SEARCH_LENGTH} characters.[/]");
+			return;
+		}
+
+		await PerformSearch(_searcher, searchText);
+	}
+
+	private async Task<List<string>> LoadWindowsFiles()
 	{
 		var files = new List<string>();
 		var windowsPath = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
@@ -99,7 +172,7 @@ internal static class CharacterVectorDemo
 		return files;
 	}
 
-	private static bool IsUserSafeFile(string filePath)
+	private bool IsUserSafeFile(string filePath)
 	{
 		try
 		{
@@ -107,7 +180,7 @@ internal static class CharacterVectorDemo
 			var fileName = Path.GetFileName(filePath).ToLowerInvariant();
 
 			// Only include specific safe extensions
-			if (!SafeFileExtensions.Contains(extension))
+			if (!SAFE_FILE_EXTENSIONS.Contains(extension))
 				return false;
 
 			// Exclude known sensitive files
@@ -133,7 +206,7 @@ internal static class CharacterVectorDemo
 		}
 	}
 
-	private static List<string> LoadSampleFiles()
+	private List<string> LoadSampleFiles()
 	{
 		return new List<string>
 		{
@@ -160,7 +233,7 @@ internal static class CharacterVectorDemo
 		};
 	}
 
-	private static SearchOptions ConfigureSearchOptions()
+	private SearchOptions ConfigureSearchOptions()
 	{
 		var useDefaults = AnsiConsole.Confirm("Use default search options?", true);
 
@@ -198,53 +271,7 @@ internal static class CharacterVectorDemo
 		};
 	}
 
-	private static async Task RunInteractiveSearch(FuzzySearchEngine searcher, int fileCount)
-	{
-		var panel = new Panel(
-			$"[green]Loaded {fileCount} files[/]\n" +
-			"• Type a search term to find matching files\n" +
-			"• Enter a number to search by ID\n" +
-			"• Type 'exit' or press Ctrl+C to quit\n" +
-			$"• Maximum search length: {MaxSearchLength} characters")
-			.Header("[yellow]Interactive Fuzzy Search[/]")
-			.Border(BoxBorder.Rounded);
-
-		AnsiConsole.Write(panel);
-
-		var searchCount = 0;
-		const int maxSearches = 100;
-
-		while (searchCount < maxSearches)
-		{
-			var searchText = AnsiConsole.Prompt(
-				new TextPrompt<string>($"[blue]Search ({searchCount + 1}/{maxSearches}):[/]")
-					.AllowEmpty());
-
-			if (string.Equals(searchText, "exit", StringComparison.OrdinalIgnoreCase))
-				break;
-
-			if (string.IsNullOrWhiteSpace(searchText))
-				continue;
-
-			if (searchText.Length > MaxSearchLength)
-			{
-				AnsiConsole.MarkupLine($"[red]Search term too long. Maximum {MaxSearchLength} characters.[/]");
-				continue;
-			}
-
-			searchCount++;
-			await PerformSearch(searcher, searchText);
-		}
-
-		if (searchCount >= maxSearches)
-		{
-			AnsiConsole.MarkupLine($"\n[yellow]Maximum number of searches ({maxSearches}) reached.[/]");
-		}
-
-		AnsiConsole.MarkupLine("\n[yellow]Thanks for using Fuzzy Search![/]");
-	}
-
-	private static async Task PerformSearch(FuzzySearchEngine searcher, string searchText)
+	private async Task PerformSearch(IFuzzySearchEngine searcher, string searchText)
 	{
 		try
 		{
@@ -256,9 +283,9 @@ internal static class CharacterVectorDemo
 					var results = await searcher.SearchAsync(searchText);
 					stopwatch.Stop();
 
-					var resultsList = results.Take(MaxResultsToShow + 1).ToList();
+					var resultsList = results.Take(MAX_RESULTS_TO_SHOW + 1).ToList();
 					var totalCount = resultsList.Count;
-					var hasMore = totalCount > MaxResultsToShow;
+					var hasMore = totalCount > MAX_RESULTS_TO_SHOW;
 
 					if (!resultsList.Any())
 					{
@@ -273,7 +300,7 @@ internal static class CharacterVectorDemo
 						.AddColumn("Filename")
 						.AddColumn("Match", c => c.Width(15));
 
-					foreach (var result in resultsList.Take(MaxResultsToShow))
+					foreach (var result in resultsList.Take(MAX_RESULTS_TO_SHOW))
 					{
 						var matchQuality = GetMatchQuality(result.Score);
 
@@ -287,11 +314,11 @@ internal static class CharacterVectorDemo
 
 					if (hasMore)
 					{
-						AnsiConsole.MarkupLine($"[grey]...more results available (showing top {MaxResultsToShow})[/]");
+						AnsiConsole.MarkupLine($"[grey]...more results available (showing top {MAX_RESULTS_TO_SHOW})[/]");
 					}
 
 					// Show statistics
-					var stats = new Rule($"[grey]Found {(hasMore ? $"{MaxResultsToShow}+" : totalCount.ToString())} results in {stopwatch.ElapsedMilliseconds}ms[/]")
+					var stats = new Rule($"[grey]Found {(hasMore ? $"{MAX_RESULTS_TO_SHOW}+" : totalCount.ToString())} results in {stopwatch.ElapsedMilliseconds}ms[/]")
 						.RuleStyle("grey")
 						.LeftJustified();
 					AnsiConsole.Write(stats);
@@ -303,7 +330,7 @@ internal static class CharacterVectorDemo
 		}
 	}
 
-	private static string GetMatchQuality(double score) => score switch
+	private string GetMatchQuality(double score) => score switch
 	{
 		1.0 => "[green]Perfect[/]",
 		>= 0.8 => "[green]Excellent[/]",
@@ -311,4 +338,6 @@ internal static class CharacterVectorDemo
 		>= 0.4 => "[orange1]Fair[/]",
 		_ => "[red]Poor[/]"
 	};
+
+	#endregion
 }

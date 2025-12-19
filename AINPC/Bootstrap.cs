@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.CommandLine;
+using System.Reflection;
 
 namespace AINPC;
 
@@ -170,7 +171,16 @@ static class Bootstrap
 		services.AddTransient<IStateManager>(sp => sp.GetRequiredService<TAppEngine>());
 
 		// Register game states.
-		services.AddTransient<TMainState>();
-	}
+		var stateTypes = Assembly.GetExecutingAssembly().GetTypes()
+			.Where(x => !x.IsAbstract)
+			.Where(x => x.IsAssignableTo(typeof(AppState)));
 
+		// Console.WriteLine("BEGIN REGISTERING STATES");
+		foreach (var stateType in stateTypes)
+		{
+			// Console.WriteLine($"Registering {stateType.Name}...");
+			services.AddTransient(stateType);
+		}
+		// Console.WriteLine("DONE");
+	}
 }

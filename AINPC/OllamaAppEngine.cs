@@ -47,6 +47,7 @@ class OllamaAppEngine : AppEngine
 
 		AnsiConsole.MarkupLine($"[green]✔ Ollama server is running using model:[/] [yellow]{_settings.ModelId}[/]");
 		AnsiConsole.WriteLine();
+		Thread.Sleep(500);
 	}
 
 	protected override async Task DestroyAsync()

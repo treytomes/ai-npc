@@ -1,48 +1,90 @@
-using AINPC.Intent.FuzzySearch;
-using Spectre.Console;
 using System.Diagnostics;
+using AINPC.Intent.FuzzySearch;
+using Microsoft.Extensions.Logging;
+using Spectre.Console;
 
-namespace AINPC.Intent.Demo;
+namespace AINPC;
 
 /// <summary>
-/// Example usage and additional test scenarios with Spectre.Console visualization.
+/// Runs an interactive test of the fuzzy search functionality using Windows system files.
 /// </summary>
-internal static class FuzzySearchDemo
+internal class FuzzySearchExamplesState : AppState
 {
-	public static async Task<int> RunAsync()
+	#region Constants
+
+	#endregion
+
+	#region Fields
+
+	private readonly ILogger<FuzzySearchExamplesState> _logger;
+
+	#endregion
+
+	#region Constructors
+
+	public FuzzySearchExamplesState(IStateManager states, ILogger<FuzzySearchExamplesState> logger)
+		: base(states)
+	{
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	}
+
+	#endregion
+
+	#region Methods
+
+	public override async Task OnLoadAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnUnloadAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnEnterAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnLeaveAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnUpdateAsync()
 	{
 		var choice = AnsiConsole.Prompt(
 			new SelectionPrompt<string>()
 				.Title("Which example would you like to run?")
-				.AddChoices(new[]
-				{
+				.AddChoices(
+				[
 					"📝 Basic Fuzzy Search",
 					"⚙️ Custom Configuration",
 					"🚀 Performance Test",
 					"🔙 Back to Main Menu"
-				}));
+				]));
 
 		try
 		{
-			return choice switch
+			await (choice switch
 			{
-				"📝 Basic Fuzzy Search" => await BasicExample(),
-				"⚙️ Custom Configuration" => await CustomConfigurationExample(),
-				"🚀 Performance Test" => await PerformanceExample(),
-				_ => 0
-			};
+				"📝 Basic Fuzzy Search" => BasicExample(),
+				"⚙️ Custom Configuration" => CustomConfigurationExample(),
+				"🚀 Performance Test" => PerformanceExample(),
+				_ => LeaveAsync(),
+			});
 		}
 		catch (Exception ex)
 		{
 			AnsiConsole.WriteException(ex);
-			return -1;
 		}
 	}
 
 	/// <summary>
 	/// Demonstrates basic fuzzy search usage.
 	/// </summary>
-	public static async Task<int> BasicExample()
+	public async Task BasicExample()
 	{
 		AnsiConsole.Write(
 			new Rule("[yellow]Basic Fuzzy Search Example[/]")
@@ -113,14 +155,12 @@ internal static class FuzzySearchDemo
 
 			AnsiConsole.Write(table);
 		}
-
-		return 0;
 	}
 
 	/// <summary>
 	/// Demonstrates custom configuration options.
 	/// </summary>
-	public static async Task<int> CustomConfigurationExample()
+	public async Task CustomConfigurationExample()
 	{
 		AnsiConsole.Write(
 			new Rule("[yellow]Custom Configuration Example[/]")
@@ -202,14 +242,12 @@ internal static class FuzzySearchDemo
 
 			AnsiConsole.Write(resultsTable);
 		}
-
-		return 0;
 	}
 
 	/// <summary>
 	/// Demonstrates performance with large datasets.
 	/// </summary>
-	public static async Task<int> PerformanceExample()
+	public async Task PerformanceExample()
 	{
 		AnsiConsole.Write(
 			new Rule("[yellow]Performance Test[/]")
@@ -312,15 +350,15 @@ internal static class FuzzySearchDemo
 
 			AnsiConsole.Write(table);
 		}
-
-		return 0;
 	}
 
-	private static async Task<long> MeasureTime(Func<Task> action)
+	private async Task<long> MeasureTime(Func<Task> action)
 	{
 		var stopwatch = Stopwatch.StartNew();
 		await action();
 		stopwatch.Stop();
 		return stopwatch.ElapsedMilliseconds;
 	}
+
+	#endregion
 }

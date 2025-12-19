@@ -4,6 +4,6 @@ class Program
 {
 	static async Task Main(params string[] args)
 	{
-		await Bootstrap.Start<AppSettings, OllamaAppEngine, MainState>(args);
+		await Bootstrap.Start<AppSettings, OllamaAppEngine, MainMenuState>(args);
 	}
 }

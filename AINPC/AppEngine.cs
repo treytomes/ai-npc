@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Spectre.Console;
 
 namespace AINPC;
 
@@ -38,52 +39,74 @@ class AppEngine : IAppEngine
 			while (_states.Count > 0)
 			{
 				var currentState = _states.Peek();
-				await currentState.UpdateAsync();
+				await currentState.OnUpdateAsync();
 			}
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error in RunAsync.");
+			AnsiConsole.WriteException(ex);
 		}
 		finally
 		{
 			// Unload any remaining active states.
 			while (_states.TryPop(out var state))
 			{
-				await state.UnloadAsync();
+				await state.OnUnloadAsync();
 			}
 
 			await DestroyAsync();
 		}
 	}
 
+	/// <summary>
+	/// Enter a new state, but leave the old one loaded.
+	/// </summary>
+	/// <typeparam name="TAppState"></typeparam>
+	/// <returns></returns>
 	public async Task EnterStateAsync<TAppState>()
 		where TAppState : AppState
 	{
 		try
 		{
+			if (_states.TryPeek(out var oldState))
+			{
+				await oldState.OnLeaveAsync();
+			}
 			var newState = _serviceProvider.GetRequiredService<TAppState>();
-			await newState.LoadAsync();
+			await newState.OnLoadAsync();
+			await newState.OnEnterAsync();
 			_states.Push(newState);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Failed to enter state: {AppState}", typeof(TAppState).Name);
+			AnsiConsole.WriteException(ex);
 		}
 	}
 
+	/// <summary>
+	/// Leave and unload the current state, returning to the previous state.
+	/// </summary>
+	/// <returns></returns>
 	public async Task LeaveStateAsync()
 	{
 		try
 		{
-			if (_states.TryPop(out var state))
+			if (_states.TryPop(out var oldState))
 			{
-				await state.UnloadAsync();
+				await oldState.OnLeaveAsync();
+				await oldState.OnUnloadAsync();
+			}
+			if (_states.TryPeek(out var newState))
+			{
+				await newState.OnEnterAsync();
 			}
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Failed to leave current state.");
+			AnsiConsole.WriteException(ex);
 		}
 	}
 
@@ -93,12 +116,13 @@ class AppEngine : IAppEngine
 		{
 			if (_states.TryPeek(out var state))
 			{
-				await state.UpdateAsync();
+				await state.OnUpdateAsync();
 			}
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Failed to update current state.");
+			AnsiConsole.WriteException(ex);
 		}
 	}
 

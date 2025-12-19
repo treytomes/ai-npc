@@ -1,32 +1,61 @@
 using AINPC.Intent.FuzzySearch;
+using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 
-namespace AINPC.Intent.Demo;
+namespace AINPC;
 
-/// <summary>
-/// Unit tests for the fuzzy search functionality with Spectre.Console output.
-/// </summary>
-public class FuzzySearchTests
+internal class FuzzySearchTestState : AppState
 {
 	#region Fields
 
+	private readonly ILogger<FuzzySearchTestState> _logger;
 	private readonly List<string> _failedAssertions = new();
+
+	#endregion
+
+	#region Constructors
+
+	public FuzzySearchTestState(IStateManager states, ILogger<FuzzySearchTestState> logger)
+		: base(states)
+	{
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	}
 
 	#endregion
 
 	#region Methods
 
-	public static async Task<int> RunAsync()
+	public override async Task OnLoadAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnUnloadAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnEnterAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnLeaveAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnUpdateAsync()
 	{
 		AnsiConsole.Write(
 			new Rule("[yellow]Fuzzy Search Tests[/]")
 				.RuleStyle("grey")
 				.LeftJustified());
 
-		var testRunner = new FuzzySearchTests();
+		var testRunner = this;
 		var tests = testRunner.DiscoverTests();
 
 		var table = new Table()
@@ -46,7 +75,12 @@ public class FuzzySearchTests
 		}
 
 		AnsiConsole.Write(table);
-		return 0;
+
+		AnsiConsole.Prompt(
+			new TextPrompt<string>($"[blue]Press enter to continue.[/]")
+				.AllowEmpty());
+
+		await LeaveAsync();
 	}
 
 	private List<(string Name, string Description, Func<Task> Test)> DiscoverTests()

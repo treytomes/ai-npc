@@ -1,4 +1,5 @@
 using AINPC.Entities;
+using AINPC.Intent.Classification;
 using AINPC.OllamaRuntime;
 using AINPC.Tools;
 using Microsoft.Extensions.Logging;
@@ -6,11 +7,11 @@ using Spectre.Console;
 
 namespace AINPC;
 
-class MainState : AppState
+class ChatState : AppState
 {
 	#region Fields
 
-	private readonly ILogger<MainState> _logger;
+	private readonly ILogger<ChatState> _logger;
 	private readonly OllamaRepo _ollamaRepo;
 
 	private readonly CharacterFactory _characters;
@@ -19,7 +20,7 @@ class MainState : AppState
 	private readonly ToolFactory _tools;
 	private readonly ItemFactory _items;
 	private readonly ActorFactory _actors;
-	private readonly IIntentClassifier _intentClassifier;
+	private readonly IIntentEngine<Actor> _intentEngine;
 	private readonly ItemResolver _itemResolver;
 
 	private Actor _actor;
@@ -28,10 +29,7 @@ class MainState : AppState
 
 	#region Constructors
 
-	public MainState(
-		IStateManager states,
-		ILogger<MainState> logger,
-		OllamaRepo ollamaRepo)
+	public ChatState(IStateManager states, ILogger<ChatState> logger, OllamaRepo ollamaRepo)
 		: base(states)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -42,9 +40,9 @@ class MainState : AppState
 		_roles = new(_villages);
 		_tools = new();
 		_items = new();
-		_intentClassifier = new SimpleIntentClassifier();
+		_intentEngine = new IntentEngine();
 		_itemResolver = new();
-		_actors = new(_characters, _roles, _tools, _items, _intentClassifier, _itemResolver);
+		_actors = new(_characters, _roles, _tools, _items, _intentEngine, _itemResolver);
 
 		// _actor = _actors.CreateGatekeeper();
 		_actor = _actors.CreateShopkeeperPrompt();
@@ -54,19 +52,29 @@ class MainState : AppState
 
 	#region Methods
 
-	public override async Task LoadAsync()
+	public override async Task OnLoadAsync()
 	{
 		await _actor.LoadAsync(_ollamaRepo);
 
 		AnsiConsole.MarkupLine("[bold]Type your message. Press ENTER on an empty line to quit.[/]\n");
 	}
 
-	public override async Task UnloadAsync()
+	public override async Task OnUnloadAsync()
 	{
 		await _actor.UnloadAsync();
 	}
 
-	public override async Task UpdateAsync()
+	public override async Task OnEnterAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnLeaveAsync()
+	{
+		await Task.CompletedTask;
+	}
+
+	public override async Task OnUpdateAsync()
 	{
 		var userMsg = AnsiConsole.Prompt(
 			new TextPrompt<string>("[cyan]You:[/] ")
