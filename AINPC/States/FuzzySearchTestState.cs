@@ -5,7 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 
-namespace AINPC;
+namespace AINPC.States;
 
 internal class FuzzySearchTestState : AppState
 {

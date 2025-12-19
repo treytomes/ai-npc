@@ -1,4 +1,5 @@
 using AINPC.Entities;
+using AINPC.Factories;
 using AINPC.Intent.Classification;
 using AINPC.Intent.Classification.Facts;
 using AINPC.Tools;
@@ -7,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
-namespace AINPC;
+namespace AINPC.States;
 
 internal class ShopkeeperIntentState : AppState
 {

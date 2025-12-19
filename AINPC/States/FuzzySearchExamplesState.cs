@@ -1,9 +1,9 @@
-using System.Diagnostics;
 using AINPC.Intent.FuzzySearch;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
+using System.Diagnostics;
 
-namespace AINPC;
+namespace AINPC.States;
 
 /// <summary>
 /// Runs an interactive test of the fuzzy search functionality using Windows system files.

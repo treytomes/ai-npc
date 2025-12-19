@@ -1,6 +1,6 @@
 using AINPC.ValueObjects;
 
-namespace AINPC;
+namespace AINPC.Factories;
 
 class VillageFactory
 {

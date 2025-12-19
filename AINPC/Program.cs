@@ -1,4 +1,6 @@
-﻿namespace AINPC;
+﻿using AINPC.States;
+
+namespace AINPC;
 
 class Program
 {

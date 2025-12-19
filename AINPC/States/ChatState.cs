@@ -1,11 +1,12 @@
 using AINPC.Entities;
+using AINPC.Factories;
 using AINPC.Intent.Classification;
 using AINPC.OllamaRuntime;
 using AINPC.Tools;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
-namespace AINPC;
+namespace AINPC.States;
 
 class ChatState : AppState
 {

@@ -22,6 +22,8 @@ internal class Actor : Entity, IHasInventory
 	private readonly IIntentEngine<Actor> _intentEngine;
 	private readonly IItemResolver _itemResolver;
 	private Chat? _chat = null;
+	private RecentIntent? _recentIntent = null;
+
 
 	#endregion
 
@@ -68,8 +70,6 @@ internal class Actor : Entity, IHasInventory
 		// TODO: This is where we might save the chat to a file.
 		await Task.CompletedTask;
 	}
-
-	private RecentIntent? _recentIntent = null;
 
 	public async Task<IAsyncEnumerable<string>> ChatAsync(
 		string message,

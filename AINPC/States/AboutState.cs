@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
-namespace AINPC;
+namespace AINPC.States;
 
 internal class AboutState : AppState
 {

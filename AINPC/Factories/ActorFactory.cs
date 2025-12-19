@@ -2,7 +2,7 @@ using AINPC.Entities;
 using AINPC.Intent.Classification;
 using AINPC.Tools;
 
-namespace AINPC;
+namespace AINPC.Factories;
 
 class ActorFactory
 {
