@@ -1,3 +1,4 @@
+using AINPC.Renderables;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
@@ -86,16 +87,7 @@ internal class MainMenuState : AppState
 
 	private void DisplayHeader()
 	{
-		AnsiConsole.Write(
-			new FigletText("AINPC Demo")
-				.Centered()
-				.Color(Color.Blue));
-
-		AnsiConsole.Write(
-			new Rule("[grey]Natural Language Understanding & Fuzzy Search[/]")
-				.RuleStyle("blue"));
-
-		AnsiConsole.WriteLine();
+		new HeaderRenderable("AINPC Demo", "Natural Language Understanding & Fuzzy Search").Render();
 	}
 
 	private MenuChoice DisplayMainMenu()

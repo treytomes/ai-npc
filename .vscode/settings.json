@@ -6,8 +6,8 @@
 		"finalizer",
 		"glxinfo",
 		"Invokable",
-		"JRPG",
 		"Jaccard",
+		"JRPG",
 		"ngram",
 		"Ngrams",
 		"Ollama",
@@ -17,6 +17,7 @@
 		"Qwen",
 		"radeon",
 		"renderable",
+		"Renderables",
 		"rocm",
 		"vainfo"
 	],

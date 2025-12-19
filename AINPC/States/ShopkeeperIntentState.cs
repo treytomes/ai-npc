@@ -2,6 +2,7 @@ using AINPC.Entities;
 using AINPC.Factories;
 using AINPC.Intent.Classification;
 using AINPC.Intent.Classification.Facts;
+using AINPC.Renderables;
 using AINPC.Tools;
 using AINPC.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -22,8 +23,18 @@ internal class ShopkeeperIntentState : AppState
 	#region Fields
 
 	private readonly ILogger<ShopkeeperIntentState> _logger;
+
+	private readonly CharacterFactory _characters;
+	private readonly VillageFactory _villages;
+	private readonly RoleFactory _roles;
+	private readonly ToolFactory _tools;
+	private readonly ItemFactory _items;
+	private readonly ActorFactory _actors;
+	private readonly IIntentEngine<Actor> _intentEngine;
+	private readonly IItemResolver _itemResolver;
+
 	private IntentEngine? _engine;
-	private Actor? _actor;
+	private Actor _actor;
 	private RecentIntent? _recentIntent = null;
 	private Panel _helpPanel;
 
@@ -35,6 +46,17 @@ internal class ShopkeeperIntentState : AppState
 		: base(states)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+		_characters = new();
+		_villages = new();
+		_roles = new(_villages);
+		_tools = new();
+		_items = new();
+		_intentEngine = new IntentEngine();
+		_itemResolver = new ItemResolver();
+		_actors = new(_characters, _roles, _tools, _items, _intentEngine, _itemResolver);
+
+		_actor = _actors.CreateShopkeeperPrompt();
 
 		_helpPanel = new Panel(
 			"Ask about:\n" +
@@ -69,7 +91,7 @@ internal class ShopkeeperIntentState : AppState
 				.RuleStyle("grey")
 				.LeftJustified());
 
-		(_engine, _actor) = await InitializeShopkeeper();
+		_engine = await InitializeIntentEngine();
 
 		DisplayInventory(_actor);
 
@@ -121,7 +143,7 @@ internal class ShopkeeperIntentState : AppState
 		AnsiConsole.WriteLine();
 	}
 
-	private static async Task<IntentEngineResult> ProcessQuery(IntentEngine engine, Actor actor, string query, RecentIntent? recentIntent)
+	private async Task<IntentEngineResult> ProcessQuery(IntentEngine engine, Actor actor, string query, RecentIntent? recentIntent)
 	{
 		return await AnsiConsole.Status()
 			.Spinner(Spinner.Known.Dots2)
@@ -135,23 +157,17 @@ internal class ShopkeeperIntentState : AppState
 						RecentIntent = recentIntent
 					});
 
-				await Task.Delay(100); // Brief delay for realism
+				await Task.Delay(100); // Brief delay for realism.
 				return result;
 			});
 	}
 
-	private static void DisplayResults(string query, IntentEngineResult result)
+	private void DisplayResults(string query, IntentEngineResult result)
 	{
 		// Display fired rules if any
 		if (result.FiredRules.Any())
 		{
-			var rulePanel = new Panel(
-				string.Join("\n", result.FiredRules.Select(r => $"• {r}")))
-				.Header("[cyan]Processing Rules[/]")
-				.Border(BoxBorder.Rounded)
-				.BorderColor(Color.Cyan1);
-
-			AnsiConsole.Write(rulePanel);
+			new BulletListPanelRenderable("Processing Rules", result.FiredRules).Render();
 		}
 
 		// Handle no intents found
@@ -166,7 +182,7 @@ internal class ShopkeeperIntentState : AppState
 			};
 
 			var response = responses[Math.Abs(query.GetHashCode()) % responses.Length];
-			AnsiConsole.MarkupLine($"[red]{response}[/]");
+			TextRenderable.Error(response).Render();
 			return;
 		}
 
@@ -178,9 +194,8 @@ internal class ShopkeeperIntentState : AppState
 
 		var bestIntent = intentsToShow.First();
 
-		// Show primary intent
-		var primaryPanel = CreateIntentPanel(bestIntent, query, isPrimary: true);
-		AnsiConsole.Write(primaryPanel);
+		// Show primary intent.
+		new IntentPanelRenderable(bestIntent, query, true).Render();
 
 		// Show alternative interpretations if confidence is low
 		if (bestIntent.Confidence < 0.8 && intentsToShow.Count > 1)
@@ -189,8 +204,7 @@ internal class ShopkeeperIntentState : AppState
 
 			foreach (var intent in intentsToShow.Skip(1))
 			{
-				var altPanel = CreateIntentPanel(intent, query, isPrimary: false);
-				AnsiConsole.Write(altPanel);
+				new IntentPanelRenderable(intent, query, false).Render();
 			}
 		}
 
@@ -208,55 +222,7 @@ internal class ShopkeeperIntentState : AppState
 		}
 	}
 
-	private static Panel CreateIntentPanel(Intent.Classification.Facts.Intent intent, string query, bool isPrimary)
-	{
-		var confidence = intent.Confidence;
-		var confidenceColor = confidence switch
-		{
-			>= 0.8 => "green",
-			>= 0.5 => "yellow",
-			_ => "red"
-		};
-
-		var rows = new List<IRenderable>
-		{
-			new Markup($"[blue]Intent:[/] {intent.Name}"),
-			new Markup($"[{confidenceColor}]Confidence:[/] {confidence:P0}")
-		};
-
-		if (intent.Slots.Any())
-		{
-			rows.Add(new Rule().RuleStyle("grey"));
-			rows.Add(new Markup("[blue]Extracted Information:[/]"));
-
-			var slotTable = new Table()
-				.Border(TableBorder.None)
-				.HideHeaders()
-				.AddColumn("Key")
-				.AddColumn("Value");
-
-			foreach (var slot in intent.Slots.OrderBy(s => s.Key))
-			{
-				slotTable.AddRow(
-					$"[grey]{slot.Key}:[/]",
-					$"[yellow]{Markup.Escape(slot.Value)}[/]");
-			}
-
-			rows.Add(slotTable);
-		}
-
-		var title = isPrimary
-			? $"[yellow]Understanding: \"{Markup.Escape(query)}\"[/]"
-			: "[grey]Alternative[/]";
-
-		return new Panel(new Rows(rows))
-			.Header(title)
-			.Border(BoxBorder.Rounded)
-			.BorderColor(isPrimary ? Color.Yellow : Color.Grey)
-			.Expand();
-	}
-
-	private static string GenerateResponse(Intent.Classification.Facts.Intent intent)
+	private string GenerateResponse(Intent.Classification.Facts.Intent intent)
 	{
 		return intent.Name switch
 		{
@@ -283,23 +249,7 @@ internal class ShopkeeperIntentState : AppState
 		};
 	}
 
-	private static Actor CreateActor()
-	{
-		var _characters = new CharacterFactory();
-		var _villages = new VillageFactory();
-		var _roles = new RoleFactory(_villages);
-		var _tools = new ToolFactory();
-		var _items = new ItemFactory();
-		var _intentEngine = new IntentEngine();
-		var _itemResolver = new ItemResolver();
-		var _actors = new ActorFactory(_characters, _roles, _tools, _items, _intentEngine, _itemResolver);
-
-		// var _actor = _actors.CreateGatekeeper();
-		var _actor = _actors.CreateShopkeeperPrompt();
-		return _actor;
-	}
-
-	private static async Task<(IntentEngine, Actor)> InitializeShopkeeper()
+	private async Task<IntentEngine> InitializeIntentEngine()
 	{
 		return await AnsiConsole.Status()
 			.Spinner(Spinner.Known.Star)
@@ -313,19 +263,17 @@ internal class ShopkeeperIntentState : AppState
 					throw new InvalidOperationException("Failed to load inventory items");
 				}
 
-				var actor = CreateActor();
-
 				ctx.Status("Initializing intent engine...");
 				var engine = new IntentEngine();
 
 				ctx.Status("Ready!");
-				await Task.Delay(300); // Brief pause for visibility
+				await Task.Delay(300); // Brief pause for visibility.
 
-				return (engine, actor);
+				return engine;
 			});
 	}
 
-	private static void DisplayInventory(Actor actor)
+	private void DisplayInventory(Actor actor)
 	{
 		// Categorize items properly
 		var categories = CategorizeItems(actor.Inventory);
@@ -367,7 +315,7 @@ internal class ShopkeeperIntentState : AppState
 		AnsiConsole.WriteLine();
 	}
 
-	private static Dictionary<string, List<ItemInfo>> CategorizeItems(IReadOnlyList<ItemInfo> inventory)
+	private Dictionary<string, List<ItemInfo>> CategorizeItems(IReadOnlyList<ItemInfo> inventory)
 	{
 		var categories = new Dictionary<string, List<ItemInfo>>();
 
@@ -389,7 +337,7 @@ internal class ShopkeeperIntentState : AppState
 						.ToDictionary(c => c.Key, c => c.Value);
 	}
 
-	private static string DetermineCategory(ItemInfo item)
+	private string DetermineCategory(ItemInfo item)
 	{
 		var name = item.Name.ToLowerInvariant();
 
@@ -411,7 +359,7 @@ internal class ShopkeeperIntentState : AppState
 		return "General Goods";
 	}
 
-	private static string GetCategoryColor(string category) => category switch
+	private string GetCategoryColor(string category) => category switch
 	{
 		"Weapons" => "red",
 		"Food & Drink" => "yellow",
