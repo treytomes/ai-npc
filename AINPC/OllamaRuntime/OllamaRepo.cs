@@ -74,6 +74,8 @@ class OllamaRepo : IDisposable
 		_client.SelectedModel = modelName;
 	}
 
+	// TODO: The Report* methods don't belong here.
+
 	/// <summary>
 	/// Report installed models to the console.
 	/// </summary>

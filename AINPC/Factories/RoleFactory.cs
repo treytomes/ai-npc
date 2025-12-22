@@ -53,9 +53,12 @@ internal class RoleFactory
 	{
 		var village = _villages.GetElderwood();
 
+		var roleName = "shopkeeper";
+
 		var systemPrompt = _engine.Render(NPCTemplates.Shopkeeper,
 			new Dictionary<string, string>
 			{
+				["RoleName"] = roleName,
 				["CharacterName"] = character.Name,
 				["PersonalityTraits"] = string.Join(", ", character.PersonalityTraits),
 				["VillageName"] = village.Name,
@@ -64,7 +67,7 @@ internal class RoleFactory
 				["VillageEvents"] = village.RecentEvents
 			});
 
-		return new("shopkeeper", systemPrompt);
+		return new(roleName, systemPrompt);
 	}
 
 	#endregion

@@ -1,10 +1,14 @@
+using System.Text;
 using AINPC.Entities;
+using AINPC.Enums;
 using AINPC.Factories;
 using AINPC.Intent.Classification;
 using AINPC.OllamaRuntime;
+using AINPC.Renderables;
 using AINPC.Tools;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 namespace AINPC.States;
 
@@ -87,13 +91,81 @@ class ChatState : AppState
 			return;
 		}
 
-		AnsiConsole.Markup($"[green]{_actor.Name}:[/] ");
+		// Create a layout to organize the output
+		IRenderable layout = new Rows();
 
-		await foreach (var token in await _actor.ChatAsync(userMsg))
-		{
-			// Stream tokens directly to console.
-			AnsiConsole.Write(token);
-		}
+		var responseBuilder = new StringBuilder();
+		var infoItems = new List<IRenderable>();
+
+		await AnsiConsole.Live(layout)
+			.StartAsync(async ctx =>
+			{
+				await foreach (var chunk in _actor.ChatAsync(userMsg))
+				{
+					switch (chunk)
+					{
+						case RuleChunk ruleChunk:
+							infoItems.AddRange(new BulletListPanelRenderable("Processing Rules", ruleChunk.FiredRules));
+							break;
+
+						case IntentChunk intentChunk:
+							var bestIntent = intentChunk.Intents
+								.OrderByDescending(x => x.Confidence)
+								.FirstOrDefault();
+
+							if (bestIntent != null)
+							{
+								infoItems.AddRange(new IntentPanelRenderable(bestIntent, userMsg, true));
+							}
+							break;
+
+						case ItemResolutionChunk itemChunk:
+							// You could add a visual representation of item resolution
+							if (itemChunk.Result.Status == ItemResolutionStatus.Ambiguous)
+							{
+								var itemPanel = new Panel($"Multiple items match: {string.Join(", ", itemChunk.Result.Candidates.Select(i => i.Name))}")
+									.Header("[yellow]Item Resolution[/]")
+									.Border(BoxBorder.Rounded)
+									.BorderColor(Color.Yellow);
+								infoItems.Add(itemPanel);
+							}
+							break;
+
+						case ToolResultChunk toolChunk:
+							// Display tool execution results.
+							var toolPanel = new Panel($"{toolChunk.ToolName}: {toolChunk.Result}")
+								.Header("[blue]Tool Executed[/]")
+								.Border(BoxBorder.Rounded)
+								.BorderColor(Color.Blue);
+							infoItems.Add(toolPanel);
+							break;
+
+						case TextChunk textChunk:
+							responseBuilder.Append(textChunk.Text);
+							break;
+					}
+
+					var responsePanel = new Panel(responseBuilder.ToString())
+						.Header($"[green]{_actor.Name}[/]")
+						.Border(BoxBorder.Rounded)
+						.BorderColor(Color.Green);
+
+					// Update the layout.
+					if (infoItems.Any())
+					{
+						layout = new Rows(infoItems.Concat([responsePanel]));
+						// layout["Info"].Update(new Rows(infoItems));
+					}
+					else
+					{
+						layout = responsePanel;
+					}
+					// .Expand();
+
+					// layout["Response"].Update(responsePanel);
+					ctx.UpdateTarget(layout);
+				}
+			});
 
 		AnsiConsole.WriteLine();
 	}

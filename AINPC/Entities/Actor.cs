@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using AINPC.Enums;
 using AINPC.Intent.Classification;
 using AINPC.Intent.Classification.Facts;
@@ -71,9 +72,9 @@ internal class Actor : Entity, IHasInventory
 		await Task.CompletedTask;
 	}
 
-	public async Task<IAsyncEnumerable<string>> ChatAsync(
+	public async IAsyncEnumerable<ChatChunk> ChatAsync(
 		string message,
-		CancellationToken cancellationToken = default)
+		[EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
 		var intentResult = _intentEngine.Process(
 			message,
@@ -85,6 +86,18 @@ internal class Actor : Entity, IHasInventory
 
 		_recentIntent = intentResult.UpdatedRecentIntent;
 
+		// Yield fired rules if any
+		if (intentResult.FiredRules.Any())
+		{
+			yield return new RuleChunk(intentResult.FiredRules);
+		}
+
+		// Yield intents
+		if (intentResult.Intents.Any())
+		{
+			yield return new IntentChunk(intentResult.Intents);
+		}
+
 		var intents = intentResult.Intents;
 		var intentNames = intents.Select(i => i.Name).ToHashSet();
 
@@ -95,9 +108,14 @@ internal class Actor : Entity, IHasInventory
 		var itemResolutionResults = intents
 			.Where(i => i.HasSlot("item_name"))
 			.Select(i => i.Slots["item_name"])
-			.Select(itemName => _itemResolver.Resolve(itemName, Inventory));
+			.Select(itemName => _itemResolver.Resolve(itemName, Inventory))
+			.ToList();
+
 		foreach (var result in itemResolutionResults)
 		{
+			// Yield item resolution results
+			yield return new ItemResolutionChunk(result);
+
 			switch (result.Status)
 			{
 				case ItemResolutionStatus.NotFound:
@@ -134,7 +152,6 @@ internal class Actor : Entity, IHasInventory
 
 		var toolsToRun = _tools
 			.Where(t => intentNames.Contains(t.Intent));
-		// .OrderBy(t => t.ExecutionOrder); // TODO: Should I care about tool execution order?
 
 		var toolContext = new ToolInvocationContext
 		{
@@ -145,8 +162,11 @@ internal class Actor : Entity, IHasInventory
 		{
 			var toolResult = await tool.InvokeAsync(toolContext);
 
-			if (!string.IsNullOrWhiteSpace(toolResult?.ToString()))
+			if (toolResult != null && !string.IsNullOrWhiteSpace(toolResult.ToString()))
 			{
+				// Yield tool results
+				yield return new ToolResultChunk(tool.Name, toolResult);
+
 				_chat!.Messages.Add(new Message(
 					ChatRole.System,
 					$"FACT: {toolResult}"
@@ -155,10 +175,13 @@ internal class Actor : Entity, IHasInventory
 		}
 
 		// --------------------------------------------------
-		// Step 3: Narration
+		// Step 3: Narration - Stream text chunks
 		// --------------------------------------------------
 
-		return _chat!.SendAsync(message, cancellationToken);
+		await foreach (var token in _chat!.SendAsync(message, cancellationToken))
+		{
+			yield return new TextChunk(token);
+		}
 	}
 
 	public void ReceiveItems(IEnumerable<ItemInfo> items)
