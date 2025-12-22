@@ -33,10 +33,13 @@ internal class RoleFactory
 	{
 		var village = _villages.GetElderwood();
 
+		var roleName = "gatekeeper";
+
 		var systemPrompt = _engine.Render(
 			NPCTemplates.Gatekeeper,
 			new Dictionary<string, string>
 			{
+				["RoleName"] = roleName,
 				["CharacterName"] = character.Name,
 				["PersonalityTraits"] = string.Join(", ", character.PersonalityTraits),
 				["VillageName"] = village.Name,
@@ -46,7 +49,7 @@ internal class RoleFactory
 			}
 		);
 
-		return new("gatekeeper", systemPrompt);
+		return new(roleName, systemPrompt);
 	}
 
 	public RoleInfo CreateShopkeeperPrompt(CharacterInfo character)
