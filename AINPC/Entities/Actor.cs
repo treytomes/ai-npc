@@ -76,6 +76,9 @@ internal class Actor : Entity, IHasInventory
 		string message,
 		[EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
+		// Messages to add in the next response generation, to be removed immediately after.
+		var tempMessages = new List<Message>();
+
 		var intentResult = _intentEngine.Process(
 			message,
 			this,
@@ -119,7 +122,7 @@ internal class Actor : Entity, IHasInventory
 			switch (result.Status)
 			{
 				case ItemResolutionStatus.NotFound:
-					_chat!.Messages.Add(new Message(
+					tempMessages.Add(new Message(
 						ChatRole.System,
 						"FACT: The shop does not carry an item matching the customer's description."
 					));
@@ -129,7 +132,7 @@ internal class Actor : Entity, IHasInventory
 					var options = string.Join(", ",
 						result.Candidates.Select(i => i.Name));
 
-					_chat!.Messages.Add(new Message(
+					tempMessages.Add(new Message(
 						ChatRole.System,
 						$"FACT: The customer could be referring to any of these items: {options}."
 					));
@@ -138,7 +141,7 @@ internal class Actor : Entity, IHasInventory
 				case ItemResolutionStatus.ExactMatch:
 				case ItemResolutionStatus.SingleAliasMatch:
 				case ItemResolutionStatus.SingleFuzzyMatch:
-					_chat!.Messages.Add(new Message(
+					tempMessages.Add(new Message(
 						ChatRole.System,
 						$"FACT: The customer mentioned {result.Item!.Name}, {result.Item!.Description}, {result.Item!.Cost}"
 					));
@@ -167,12 +170,15 @@ internal class Actor : Entity, IHasInventory
 				// Yield tool results
 				yield return new ToolResultChunk(tool.Name, toolResult);
 
-				_chat!.Messages.Add(new Message(
+				tempMessages.Add(new Message(
 					ChatRole.System,
 					$"FACT: {toolResult}"
 				));
 			}
 		}
+
+		// Inject the temporary messages.
+		_chat!.Messages.AddRange(tempMessages);
 
 		// --------------------------------------------------
 		// Step 3: Narration - Stream text chunks
@@ -181,6 +187,12 @@ internal class Actor : Entity, IHasInventory
 		await foreach (var token in _chat!.SendAsync(message, cancellationToken))
 		{
 			yield return new TextChunk(token);
+		}
+
+		// Remove the temporary messages when complete.
+		foreach (var msg in tempMessages)
+		{
+			_chat!.Messages.Remove(msg);
 		}
 	}
 
