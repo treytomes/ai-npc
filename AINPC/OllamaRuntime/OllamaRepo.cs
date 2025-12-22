@@ -1,4 +1,5 @@
 using System.Text;
+using AINPC.CatalystRuntime;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OllamaSharp;

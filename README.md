@@ -275,3 +275,9 @@ public async Task<IAsyncEnumerable<string>> ChatAsync(string message, Cancellati
 This works for a simple command, like dumping and querying the actor's inventory.
 
 This system does mean that the current method of describing tools and defining parameters is no longer relevant.  I don't want to remove the `BaseOllamaTool` class from the project just yet, so we're gonna differentiate our deterministic tools with an `IActorTool` interface.
+
+## User Intent
+
+This one is a big deal with our tiny language model.  Qwen can generate creative text, but has trouble with complex reasoning.  By discerning user intent, we can inject the information the user needs into the system messages before Qwen begins speaking.
+
+Right now the user intent is partially discerned using a growing lexicon of positive and negative messages sorted by intent type.  I'm hoping to use the Catalyst NLP library to remove or reduce that data source.

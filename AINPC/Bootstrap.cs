@@ -1,3 +1,4 @@
+using AINPC.CatalystRuntime;
 using AINPC.Gpu.Services;
 using AINPC.OllamaRuntime;
 using AINPC.Services;
@@ -165,6 +166,7 @@ static class Bootstrap
 		services.AddSingleton<OllamaInstaller>();
 		services.AddSingleton<OllamaProcess>();
 		services.AddSingleton<OllamaManager>();
+		services.AddSingleton<CatalystManager>();
 		services.AddSingleton<OllamaRepo>();
 		services.AddSingleton<TAppEngine>();
 		services.AddTransient<IAppEngine>(sp => sp.GetRequiredService<OllamaAppEngine>());
