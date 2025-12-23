@@ -149,7 +149,7 @@ internal class ShopkeeperIntentState : AppState
 			.Spinner(Spinner.Known.Dots2)
 			.StartAsync("Thinking...", async ctx =>
 			{
-				var result = engine.Process(
+				var result = await engine.ProcessAsync(
 					query,
 					actor,
 					new IntentEngineContext

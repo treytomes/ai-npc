@@ -2,7 +2,7 @@ namespace AINPC.Intent.Classification;
 
 internal interface IIntentEngine<TActor>
 {
-	IntentEngineResult Process(
+	Task<IntentEngineResult> ProcessAsync(
 		string input,
 		TActor actor,
 		IntentEngineContext? context = null);

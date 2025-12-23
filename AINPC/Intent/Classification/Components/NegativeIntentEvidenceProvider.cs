@@ -12,7 +12,7 @@ namespace AINPC.Intent.Classification;
 internal sealed class NegativeIntentEvidenceProvider(IIntentLexiconFactory intentLexiconFactory)
 	: IEvidenceProvider<Actor>
 {
-	public void Provide(ISession session, string utterance, Actor actor)
+	public async Task ProvideAsync(ISession session, string utterance, Actor actor)
 	{
 		var negativePhrases = intentLexiconFactory.GetLexicon("negative_intent_lexicon.json").Intents
 			.SelectMany(i => i.Patterns.Select(p => (Intent: i.Name, Phrase: p)));
@@ -37,5 +37,7 @@ internal sealed class NegativeIntentEvidenceProvider(IIntentLexiconFactory inten
 
 			session.Insert(new NegativeIntentHint(intent, result.Score));
 		}
+
+		await Task.CompletedTask;
 	}
 }

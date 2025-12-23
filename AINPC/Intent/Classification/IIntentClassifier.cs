@@ -5,5 +5,5 @@ namespace AINPC.Intent.Classification;
 
 internal interface IIntentClassifier
 {
-	IntentClassificationResult Classify(string utterance, Actor actor, RecentIntent? recentIntent = null);
+	Task<IntentClassificationResult> Classify(string utterance, Actor actor, RecentIntent? recentIntent = null);
 }

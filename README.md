@@ -280,4 +280,5 @@ This system does mean that the current method of describing tools and defining p
 
 This one is a big deal with our tiny language model.  Qwen can generate creative text, but has trouble with complex reasoning.  By discerning user intent, we can inject the information the user needs into the system messages before Qwen begins speaking.
 
-Right now the user intent is partially discerned using a growing lexicon of positive and negative messages sorted by intent type.  I'm hoping to use the Catalyst NLP library to remove or reduce that data source.
+Right now the user intent is partially discerned using a growing lexicon of positive and negative messages sorted by intent type.  I'm hoping to use the Catalyst NLP library to remove or reduce that data source.  The biggest problem I'm finding with Catalyst is that the documentation is practically absent, and the samples are incomplete as far as what the library can do.
+

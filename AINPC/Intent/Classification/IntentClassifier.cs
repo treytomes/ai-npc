@@ -32,7 +32,7 @@ internal sealed class IntentClassifier : IIntentClassifier
 
 	#region Methods
 
-	public IntentClassificationResult Classify(string utterance, Actor actor, RecentIntent? recentIntent = null)
+	public async Task<IntentClassificationResult> Classify(string utterance, Actor actor, RecentIntent? recentIntent = null)
 	{
 		var session = _actorSessionFactory.CreateSession(actor.Role.Name);
 
@@ -40,7 +40,7 @@ internal sealed class IntentClassifier : IIntentClassifier
 
 		foreach (var provider in _providers)
 		{
-			provider.Provide(session, utterance, actor);
+			await provider.ProvideAsync(session, utterance, actor);
 		}
 
 		session.Fire();

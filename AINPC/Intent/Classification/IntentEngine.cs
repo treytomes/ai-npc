@@ -14,12 +14,12 @@ internal sealed class IntentEngine
 
 	#region Methods
 
-	public IntentEngineResult Process(
+	public async Task<IntentEngineResult> ProcessAsync(
 		string input,
 		Actor actor,
 		IntentEngineContext? context = null)
 	{
-		var result = _classifier.Classify(
+		var result = await _classifier.Classify(
 			input,
 			actor,
 			context?.RecentIntent);

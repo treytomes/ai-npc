@@ -79,7 +79,7 @@ internal class Actor : Entity, IHasInventory
 		// Messages to add in the next response generation, to be removed immediately after.
 		var tempMessages = new List<Message>();
 
-		var intentResult = _intentEngine.Process(
+		var intentResult = await _intentEngine.ProcessAsync(
 			message,
 			this,
 			new IntentEngineContext

@@ -1,10 +1,34 @@
 using Catalyst;
+using Microsoft.Extensions.Logging;
 using Mosaik.Core;
 
 namespace AINPC.CatalystRuntime;
 
 public class CatalystManager
 {
+	#region Fields
+
+	private readonly ILogger<CatalystManager> _logger;
+
+	#endregion
+
+	#region Constructors
+
+	public CatalystManager(ILogger<CatalystManager> logger)
+	{
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	}
+
+	#endregion
+
+	#region Properties
+
+	public Pipeline? Pipeline { get; private set; }
+
+	#endregion
+
+	#region Methods
+
 	public async Task InitializeAsync()
 	{
 		// Set storage location for models.
@@ -14,8 +38,12 @@ public class CatalystManager
 		Catalyst.Models.English.Register();
 
 		// Pre-load the pipeline to trigger download.
-		var pipeline = Pipeline.For(Language.English);
+		Pipeline = Pipeline.For(Language.English);
 
-		Console.WriteLine("Catalyst models ready.");
+		_logger.LogInformation("Catalyst models ready.");
+
+		await Task.CompletedTask;
 	}
+
+	#endregion
 }

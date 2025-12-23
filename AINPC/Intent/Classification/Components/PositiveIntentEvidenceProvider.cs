@@ -12,7 +12,7 @@ namespace AINPC.Intent.Classification;
 internal sealed class PositiveIntentEvidenceProvider(IIntentLexiconFactory intentLexiconFactory)
 	: IEvidenceProvider<Actor>
 {
-	public void Provide(ISession session, string utterance, Actor actor)
+	public async Task ProvideAsync(ISession session, string utterance, Actor actor)
 	{
 		var intentPhrases = intentLexiconFactory.GetLexicon("positive_intent_lexicon.json").Intents
 			.SelectMany(i => i.Patterns.Select(p => (Intent: i.Name, Phrase: p)));
@@ -40,5 +40,7 @@ internal sealed class PositiveIntentEvidenceProvider(IIntentLexiconFactory inten
 
 			session.Insert(hint);
 		}
+
+		await Task.CompletedTask;
 	}
 }
