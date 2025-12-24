@@ -1,5 +1,9 @@
+using Catalyst;
+using LLM.NLP.REPL;
+using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;
+using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
@@ -7,12 +11,14 @@ namespace LLM.NLP.Test;
 /// Regression tests to ensure punctuation handling remains stable
 /// during NLP parsing.
 /// </summary>
-public class NlpParser_PunctuationTests
+public sealed class NlpParser_PunctuationTests : IDisposable
 {
-	[Fact]
-	public void Parser_Removes_TerminalPunctuation()
+	private readonly ServiceProvider _provider;
+	private readonly INlpRuntime _runtime;
+	private readonly INlpParser _parser;
+
+	public NlpParser_PunctuationTests()
 	{
-		// ARRANGE
 		var services = new ServiceCollection();
 
 		services.AddNlpRuntime(o =>
@@ -21,16 +27,37 @@ public class NlpParser_PunctuationTests
 			o.Language = Language.English;
 		});
 
-		using var provider = services.BuildServiceProvider();
+		_provider = services.BuildServiceProvider();
 
-		var runtime = provider.GetRequiredService<INlpRuntime>();
-		var parser = provider.GetRequiredService<INlpParser>();
+		_runtime = _provider.GetRequiredService<INlpRuntime>();
+		_parser = _provider.GetRequiredService<INlpParser>();
 
-		// ACT
-		var document = runtime.Process("Open the door.");
-		var parsed = parser.Parse(document);
+		AnsiConsole.WriteLine();
+		AnsiConsole.Write(
+			new Rule("[bold green]NLP Parser — Punctuation Handling[/]")
+				.LeftJustified());
+	}
 
-		// ASSERT
+	public void Dispose()
+	{
+		_provider.Dispose();
+
+		AnsiConsole.Write(
+			new Rule("[dim]End Punctuation Tests[/]")
+				.LeftJustified());
+		AnsiConsole.WriteLine();
+	}
+
+	[Fact]
+	public void Parser_Removes_TerminalPunctuation()
+	{
+		const string input = "Open the door.";
+
+		var document = _runtime.Process(input);
+		var parsed = _parser.Parse(document);
+
+		ParsedInputSnapshotRenderer.Render(input, parsed);
+
 		Assert.Equal(
 			["open", "the", "door"],
 			parsed.Tokens);
@@ -41,25 +68,13 @@ public class NlpParser_PunctuationTests
 	[Fact]
 	public void Parser_Preserves_InternalWordPunctuation()
 	{
-		// ARRANGE
-		var services = new ServiceCollection();
+		const string input = "Use the x-ray machine.";
 
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		var document = _runtime.Process(input);
+		var parsed = _parser.Parse(document);
 
-		using var provider = services.BuildServiceProvider();
+		ParsedInputSnapshotRenderer.Render(input, parsed);
 
-		var runtime = provider.GetRequiredService<INlpRuntime>();
-		var parser = provider.GetRequiredService<INlpParser>();
-
-		// ACT
-		var document = runtime.Process("Use the x-ray machine.");
-		var parsed = parser.Parse(document);
-
-		// ASSERT
 		Assert.Contains("x-ray", parsed.Tokens);
 	}
 }

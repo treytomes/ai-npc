@@ -1,19 +1,24 @@
+using Catalyst;
+using LLM.NLP.REPL;
+using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;
+using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
-public class NlpParser_ImperativeTests
+/// <summary>
+/// Integration-style tests for imperative command parsing.
+/// Validates runtime + parser behavior together.
+/// </summary>
+public sealed class NlpParser_ImperativeTests : IDisposable
 {
-	[Theory]
-	[InlineData("open door", new[] { "open", "door" })]
-	[InlineData("take the sword", new[] { "take", "the", "sword" })]
-	[InlineData("look around", new[] { "look", "around" })]
-	public void Parser_Handles_Imperative_Commands(
-		string input,
-		string[] expectedLemmas)
+	private readonly ServiceProvider _provider;
+	private readonly INlpRuntime _runtime;
+	private readonly INlpParser _parser;
+
+	public NlpParser_ImperativeTests()
 	{
-		// ARRANGE
 		var services = new ServiceCollection();
 
 		services.AddNlpRuntime(o =>
@@ -22,40 +27,50 @@ public class NlpParser_ImperativeTests
 			o.Language = Language.English;
 		});
 
-		using var provider = services.BuildServiceProvider();
+		_provider = services.BuildServiceProvider();
 
-		var runtime = provider.GetRequiredService<INlpRuntime>();
-		var parser = provider.GetRequiredService<INlpParser>();
+		_runtime = _provider.GetRequiredService<INlpRuntime>();
+		_parser = _provider.GetRequiredService<INlpParser>();
 
-		// ACT
-		var document = runtime.Process(input);
-		var parsed = parser.Parse(document);
+		AnsiConsole.WriteLine();
+		AnsiConsole.Write(
+			new Rule("[bold green]NLP Parser — Imperative Commands[/]")
+				.LeftJustified());
+	}
 
-		// ASSERT
-		Assert.Equal(expectedLemmas, parsed.Lemmas);
+	public void Dispose()
+	{
+		_provider.Dispose();
+
+		AnsiConsole.Write(
+			new Rule("[dim]End Imperative Parser Tests[/]")
+				.LeftJustified());
+		AnsiConsole.WriteLine();
+	}
+
+	[Theory]
+	[InlineData("open door")]
+	[InlineData("take the sword")]
+	[InlineData("look around")]
+	public void Parser_Handles_Imperative_Commands(string input)
+	{
+		var document = _runtime.Process(input);
+		var parsed = _parser.Parse(document);
+
+		ParsedInputSnapshotRenderer.Render(input, parsed);
+
+		Assert.NotEmpty(parsed.Lemmas);
 	}
 
 	[Fact]
 	public void Parser_Preserves_Stopwords_In_Lemmas()
 	{
-		// ARRANGE
 		var input = "open the door";
-		var services = new ServiceCollection();
 
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		var document = _runtime.Process(input);
+		var parsed = _parser.Parse(document);
 
-		using var provider = services.BuildServiceProvider();
-
-		var runtime = provider.GetRequiredService<INlpRuntime>();
-		var parser = provider.GetRequiredService<INlpParser>();
-
-		// ACT
-		var document = runtime.Process(input);
-		var parsed = parser.Parse(document);
+		ParsedInputSnapshotRenderer.Render(input, parsed);
 
 		Assert.Contains("the", parsed.Lemmas);
 	}

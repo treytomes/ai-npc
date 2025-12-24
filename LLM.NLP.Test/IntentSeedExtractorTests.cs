@@ -1,143 +1,127 @@
 using Catalyst;
+using LLM.NLP.REPL;
+using LLM.NLP.Test.Helpers;
 using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
 /// <summary>
-/// Tests for extracting intent seeds (verb + objects) from parsed input.
-/// Includes Spectre.Console output to aid debugging and understanding.
+/// Tests for extracting intent seeds from parsed input.
+/// Uses snapshot-style Spectre.Console output for visibility.
 /// </summary>
-public class IntentSeedExtractorTests
+public sealed class IntentSeedExtractorTests : IDisposable
 {
-	[Fact]
-	public void Extractor_Finds_Verb_And_Object()
+	private readonly IntentSeedExtractor _extractor;
+
+	public IntentSeedExtractorTests()
 	{
-		// ARRANGE
-		var parsed = new ParsedInput(
-			rawText: "open the door",
-			normalizedText: "open the door",
-			tokens: ["open", "the", "door"],
-			lemmas: ["open", "the", "door"],
-			parsedTokens:
-			[
-				new ParsedToken("open", "open", PartOfSpeech.VERB),
-				new ParsedToken("the", "the", PartOfSpeech.DET),
-				new ParsedToken("door", "door", PartOfSpeech.NOUN)
-			]);
+		_extractor = new IntentSeedExtractor();
 
-		var extractor = new IntentSeedExtractor();
+		AnsiConsole.WriteLine();
+		AnsiConsole.Write(
+			new Rule("[bold green]IntentSeedExtractor — Core Cases[/]")
+				.LeftJustified());
+	}
 
-		// ACT
-		var seed = extractor.Extract(parsed);
+	public void Dispose()
+	{
+		AnsiConsole.Write(
+			new Rule("[dim]End Core Intent Seed Tests[/]")
+				.LeftJustified());
+		AnsiConsole.WriteLine();
+	}
 
-		RenderSeed(parsed.RawText, parsed, seed);
+	[Fact]
+	public void Extractor_Finds_Verb_And_DirectObject()
+	{
+		var parsed = new ParsedInputBuilder()
+			.Token("open", "open", PartOfSpeech.VERB)
+			.Token("the", "the", PartOfSpeech.DET)
+			.Token("door", "door", PartOfSpeech.NOUN)
+			.Build();
 
-		// ASSERT
+		var seed = _extractor.Extract(parsed);
+
+		IntentSeedSnapshotRenderer.Render("open the door", parsed, seed);
+
 		Assert.Equal("open", seed.Verb);
-		Assert.Contains("door", seed.Objects);
+		Assert.Equal("door", seed.DirectObject);
+		Assert.Empty(seed.Prepositions);
 	}
 
 	[Fact]
 	public void Extractor_Handles_No_Object()
 	{
-		// ARRANGE
-		var parsed = new ParsedInput(
-			rawText: "look",
-			normalizedText: "look",
-			tokens: ["look"],
-			lemmas: ["look"],
-			parsedTokens:
-			[
-				new ParsedToken("look", "look", PartOfSpeech.VERB),
-			]);
+		var parsed = new ParsedInputBuilder()
+			.Token("look", "look", PartOfSpeech.VERB)
+			.Build();
 
-		var extractor = new IntentSeedExtractor();
+		var seed = _extractor.Extract(parsed);
 
-		// ACT
-		var seed = extractor.Extract(parsed);
+		IntentSeedSnapshotRenderer.Render("look", parsed, seed);
 
-		RenderSeed(parsed.RawText, parsed, seed);
-
-		// ASSERT
 		Assert.Equal("look", seed.Verb);
-		Assert.Empty(seed.Objects);
+		Assert.Null(seed.DirectObject);
+		Assert.Empty(seed.Prepositions);
 	}
 
 	[Fact]
 	public void Extractor_Handles_No_Verb()
 	{
-		// ARRANGE
-		var parsed = new ParsedInput(
-			rawText: "the door",
-			normalizedText: "the door",
-			tokens: ["the", "door"],
-			lemmas: ["the", "door"],
-			parsedTokens:
-			[
-				new ParsedToken("the", "the", PartOfSpeech.DET),
-				new ParsedToken("door", "door", PartOfSpeech.NOUN)
-			]);
+		var parsed = new ParsedInputBuilder()
+			.Token("the", "the", PartOfSpeech.DET)
+			.Token("door", "door", PartOfSpeech.NOUN)
+			.Build();
 
-		var extractor = new IntentSeedExtractor();
+		var seed = _extractor.Extract(parsed);
 
-		// ACT
-		var seed = extractor.Extract(parsed);
+		IntentSeedSnapshotRenderer.Render("the door", parsed, seed);
 
-		RenderSeed(parsed.RawText, parsed, seed);
-
-		// ASSERT
 		Assert.Null(seed.Verb);
-		Assert.Contains("door", seed.Objects);
+		Assert.Equal("door", seed.DirectObject);
+		Assert.Empty(seed.Prepositions);
 	}
 
 	[Fact]
 	public void Extractor_Uses_Pos_Tagged_Verb()
 	{
-		var parsed = new ParsedInput(
-			rawText: "opened the door",
-			normalizedText: "opened the door",
-			tokens: ["opened", "the", "door"],
-			lemmas: ["open", "the", "door"],
-			parsedTokens:
-			[
-				new ParsedToken("opened", "open", PartOfSpeech.VERB),
-				new ParsedToken("the", "the", PartOfSpeech.DET),
-				new ParsedToken("door", "door", PartOfSpeech.NOUN)
-			]);
+		var parsed = new ParsedInputBuilder()
+			.Token("opened", "open", PartOfSpeech.VERB)
+			.Token("the", "the", PartOfSpeech.DET)
+			.Token("door", "door", PartOfSpeech.NOUN)
+			.Build();
 
-		var extractor = new IntentSeedExtractor();
+		var seed = _extractor.Extract(parsed);
 
-		var seed = extractor.Extract(parsed);
-
-		RenderSeed(parsed.RawText, parsed, seed);
+		IntentSeedSnapshotRenderer.Render("opened the door", parsed, seed);
 
 		Assert.Equal("open", seed.Verb);
-		Assert.Contains("door", seed.Objects);
+		Assert.Equal("door", seed.DirectObject);
+		Assert.Empty(seed.Prepositions);
 	}
 
-	private static void RenderSeed(
-		string input,
-		ParsedInput parsed,
-		IntentSeed seed)
+	[Fact]
+	public void Snapshot_Take_Key_From_Chest_In_Room()
 	{
-		var table = new Table()
-			.Border(TableBorder.Rounded)
-			.Title($"[bold yellow]Intent Seed[/] for \"{input}\"")
-			.AddColumn("Field")
-			.AddColumn("Value");
+		var parsed = new ParsedInputBuilder()
+			.Token("take", pos: PartOfSpeech.VERB)
+			.Token("key", pos: PartOfSpeech.NOUN)
+			.Token("from", pos: PartOfSpeech.ADP)
+			.Token("chest", pos: PartOfSpeech.NOUN)
+			.Token("in", pos: PartOfSpeech.ADP)
+			.Token("room", pos: PartOfSpeech.NOUN)
+			.Build();
 
-		table.AddRow("Raw Text", parsed.RawText);
-		table.AddRow("Normalized", parsed.NormalizedText);
-		table.AddRow("Tokens", string.Join(", ", parsed.Tokens));
-		table.AddRow("Lemmas", string.Join(", ", parsed.Lemmas));
-		table.AddRow("Verb", seed.Verb ?? "<none>");
-		table.AddRow(
-			"Objects",
-			seed.Objects.Count > 0
-				? string.Join(", ", seed.Objects)
-				: "<none>");
+		var seed = _extractor.Extract(parsed);
 
-		AnsiConsole.Write(table);
-		AnsiConsole.WriteLine();
+		IntentSeedSnapshotRenderer.Render(
+			parsed.RawText,
+			parsed,
+			seed);
+
+		Assert.Equal("take", seed.Verb);
+		Assert.Equal("key", seed.DirectObject);
+		Assert.Equal("chest", seed.Prepositions["from"]);
+		Assert.Equal("room", seed.Prepositions["in"]);
 	}
 }

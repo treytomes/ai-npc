@@ -1,14 +1,24 @@
+using Catalyst;
+using LLM.NLP.REPL;
+using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;
+using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
-public class NlpParser_LemmatizationTests
+/// <summary>
+/// Integration tests for lemmatization behavior.
+/// Verifies that verbs and nouns are normalized correctly.
+/// </summary>
+public sealed class NlpParser_LemmatizationTests : IDisposable
 {
-	[Fact]
-	public void Parser_Lemmatizes_Verbs_And_Nouns()
+	private readonly ServiceProvider _provider;
+	private readonly INlpRuntime _runtime;
+	private readonly INlpParser _parser;
+
+	public NlpParser_LemmatizationTests()
 	{
-		// ARRANGE
 		var services = new ServiceCollection();
 
 		services.AddNlpRuntime(o =>
@@ -17,18 +27,38 @@ public class NlpParser_LemmatizationTests
 			o.Language = Language.English;
 		});
 
-		using var provider = services.BuildServiceProvider();
+		_provider = services.BuildServiceProvider();
 
-		var runtime = provider.GetRequiredService<INlpRuntime>();
-		var parser = provider.GetRequiredService<INlpParser>();
+		_runtime = _provider.GetRequiredService<INlpRuntime>();
+		_parser = _provider.GetRequiredService<INlpParser>();
 
-		// ACT
-		var document = runtime.Process("The doors were opened.");
-		var parsed = parser.Parse(document);
+		AnsiConsole.WriteLine();
+		AnsiConsole.Write(
+			new Rule("[bold green]NLP Parser — Lemmatization[/]")
+				.LeftJustified());
+	}
 
-		// ASSERT
+	public void Dispose()
+	{
+		_provider.Dispose();
+
+		AnsiConsole.Write(
+			new Rule("[dim]End Lemmatization Tests[/]")
+				.LeftJustified());
+		AnsiConsole.WriteLine();
+	}
+
+	[Fact]
+	public void Parser_Lemmatizes_Verbs_And_Nouns()
+	{
+		const string input = "The doors were opened.";
+
+		var document = _runtime.Process(input);
+		var parsed = _parser.Parse(document);
+
+		ParsedInputSnapshotRenderer.Render(input, parsed);
+
 		Assert.Contains("door", parsed.Lemmas);
 		Assert.Contains("open", parsed.Lemmas);
 	}
-
 }

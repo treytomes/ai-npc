@@ -1,44 +1,65 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Language = Mosaik.Core.Language;
+using Mosaik.Core;
+using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
 /// <summary>
 /// Verifies that the NLP runtime can be initialized through dependency injection,
 /// including Catalyst model registration, storage configuration, and pipeline creation.
-/// This test ensures the public DI entry point is sufficient for runtime use.
 /// </summary>
-public class NlpRuntimeInitializationTests
+public sealed class NlpRuntimeInitializationTests : IDisposable
 {
-	[Fact]
-	public void NlpRuntime_CanInitialize_ThroughDependencyInjection()
-	{
-		// ARRANGE
-		var services = new ServiceCollection();
+	private readonly ServiceCollection _services;
 
-		services.AddNlpRuntime(options =>
+	public NlpRuntimeInitializationTests()
+	{
+		_services = new ServiceCollection();
+
+		_services.AddNlpRuntime(options =>
 		{
 			options.DataPath = "catalyst-data";
 			options.Language = Language.English;
 		});
 
+		AnsiConsole.WriteLine();
+		AnsiConsole.Write(
+			new Rule("[bold green]NLP Runtime — DI Initialization[/]")
+				.LeftJustified());
+	}
+
+	public void Dispose()
+	{
+		AnsiConsole.Write(
+			new Rule("[dim]End Runtime Initialization Tests[/]")
+				.LeftJustified());
+		AnsiConsole.WriteLine();
+	}
+
+	[Fact]
+	public void NlpRuntime_CanInitialize_ThroughDependencyInjection()
+	{
 		Exception? exception = null;
 
-		// ACT
 		try
 		{
-			using var provider = services.BuildServiceProvider();
+			using var provider = _services.BuildServiceProvider();
 
 			var runtime = provider.GetRequiredService<INlpRuntime>();
 
-			var doc = runtime.Process("Hello world!");
+			var document = runtime.Process("Hello world!");
+
+			AnsiConsole.MarkupLine(
+				"[green]✓[/] Runtime processed input successfully.");
 		}
 		catch (Exception ex)
 		{
 			exception = ex;
+
+			AnsiConsole.MarkupLine(
+				$"[red]✗ Runtime initialization failed:[/] {ex.Message}");
 		}
 
-		// ASSERT
 		Assert.Null(exception);
 	}
 }

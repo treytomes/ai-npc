@@ -1,0 +1,178 @@
+﻿using Microsoft.Extensions.DependencyInjection;
+using Spectre.Console;
+using LLM.NLP;
+using Mosaik.Core;
+
+namespace LLM.NLP.REPL;
+
+internal static class Program
+{
+	private static bool _showPipeline = true;
+	private static bool _showRawDocument = false;
+
+	private static INlpRuntime _runtime = null!;
+	private static INlpParser _parser = null!;
+	private static IntentSeedExtractor _intentExtractor = null!;
+
+	static void Main()
+	{
+		Bootstrap();
+
+		RenderHeader();
+
+		while (true)
+		{
+			var input = ReadInput();
+			if (string.IsNullOrWhiteSpace(input))
+				continue;
+
+			if (HandleCommand(input))
+				continue;
+
+			ProcessInput(input);
+		}
+	}
+
+	// -----------------------------
+	// Bootstrap
+	// -----------------------------
+
+	private static void Bootstrap()
+	{
+		var services = new ServiceCollection();
+
+		services.AddNlpRuntime(o =>
+		{
+			o.DataPath = "catalyst-data";
+			o.Language = Language.English;
+		});
+
+		using var provider = services.BuildServiceProvider();
+
+		_runtime = provider.GetRequiredService<INlpRuntime>();
+		_parser = provider.GetRequiredService<INlpParser>();
+		_intentExtractor = new IntentSeedExtractor();
+	}
+
+	// -----------------------------
+	// Rendering
+	// -----------------------------
+
+	private static void RenderHeader()
+	{
+		AnsiConsole.Clear();
+
+		AnsiConsole.Write(
+			new FigletText("LLM.NLP")
+				.Color(Color.Cyan));
+
+		AnsiConsole.MarkupLine(
+			"[grey]Type natural language commands. Use :help for options.[/]");
+		AnsiConsole.WriteLine();
+	}
+
+	private static string ReadInput()
+	{
+		return AnsiConsole.Prompt(
+			new TextPrompt<string>("[bold green]>[/] ")
+				.AllowEmpty());
+	}
+
+	// -----------------------------
+	// Command Handling
+	// -----------------------------
+
+	private static bool HandleCommand(string input)
+	{
+		switch (input.Trim().ToLowerInvariant())
+		{
+			case ":exit":
+			case ":quit":
+				AnsiConsole.MarkupLine("[grey]Goodbye.[/]");
+				Environment.Exit(0);
+				return true;
+
+			case ":help":
+				RenderHelp();
+				return true;
+
+			case ":clear":
+				RenderHeader();
+				return true;
+
+			case ":pipeline":
+				_showPipeline = !_showPipeline;
+				AnsiConsole.MarkupLine(
+					$"[grey]Pipeline rendering: {(_showPipeline ? "ON" : "OFF")}[/]");
+				return true;
+
+			case ":raw":
+				_showRawDocument = !_showRawDocument;
+				AnsiConsole.MarkupLine(
+					$"[grey]Raw document output: {(_showRawDocument ? "ON" : "OFF")}[/]");
+				return true;
+		}
+
+		return false;
+	}
+
+	private static void RenderHelp()
+	{
+		var table = new Table()
+			.AddColumn("Command")
+			.AddColumn("Description");
+
+		table.AddRow(":help", "Show this help");
+		table.AddRow(":exit", "Exit REPL");
+		table.AddRow(":clear", "Clear screen");
+		table.AddRow(":pipeline", "Toggle pipeline snapshots");
+		table.AddRow(":raw", "Toggle raw document output");
+
+		AnsiConsole.Write(table);
+	}
+
+	// -----------------------------
+	// NLP Processing
+	// -----------------------------
+
+	private static void ProcessInput(string input)
+	{
+		AnsiConsole.WriteLine();
+
+		try
+		{
+			var document = _runtime.Process(input);
+			if (document == null)
+			{
+				throw new NullReferenceException("Processed document is null.");
+			}
+
+			if (_showRawDocument)
+			{
+				AnsiConsole.MarkupLine("[bold]Raw Document[/]");
+				AnsiConsole.WriteLine(document.ToString());
+				AnsiConsole.WriteLine();
+			}
+
+			var parsed = _parser.Parse(document);
+
+			if (_showPipeline)
+			{
+				ParsedInputSnapshotRenderer.Render(input, parsed);
+			}
+
+			var intentSeed = _intentExtractor.Extract(parsed);
+
+			if (intentSeed != null)
+			{
+				IntentSeedSnapshotRenderer.Render(input, parsed, intentSeed);
+			}
+		}
+		catch (Exception ex)
+		{
+			AnsiConsole.WriteException(ex);
+		}
+
+		AnsiConsole.WriteLine();
+	}
+}

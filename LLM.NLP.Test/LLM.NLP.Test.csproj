@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../LLM.NLP.REPL/LLM.NLP.REPL.csproj" />
     <ProjectReference Include="../LLM.NLP/LLM.NLP.csproj" />
   </ItemGroup>
 

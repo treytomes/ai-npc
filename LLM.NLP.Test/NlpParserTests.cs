@@ -1,41 +1,67 @@
+using LLM.NLP.REPL;
+using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
+using Mosaik.Core;
+using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
 /// <summary>
 /// Verifies that the NLP parser converts processed documents into
-/// normalized ParsedInput instances.
+/// normalized <see cref="ParsedInput"/> instances.
 /// </summary>
-public class NlpParserTests
+public sealed class NlpParserTests : IDisposable
 {
-	[Fact]
-	public void Parser_Produces_NormalizedParsedInput()
+	private readonly ServiceProvider _provider;
+	private readonly INlpRuntime _runtime;
+	private readonly INlpParser _parser;
+
+	public NlpParserTests()
 	{
-		// ARRANGE
 		var services = new ServiceCollection();
 
 		services.AddNlpRuntime(options =>
 		{
 			options.DataPath = "catalyst-data";
-			options.Language = Mosaik.Core.Language.English;
+			options.Language = Language.English;
 		});
 
-		using var provider = services.BuildServiceProvider();
+		_provider = services.BuildServiceProvider();
 
-		var runtime = provider.GetRequiredService<INlpRuntime>();
-		var parser = provider.GetRequiredService<INlpParser>();
+		_runtime = _provider.GetRequiredService<INlpRuntime>();
+		_parser = _provider.GetRequiredService<INlpParser>();
 
-		var document = runtime.Process("Open the door.");
+		AnsiConsole.WriteLine();
+		AnsiConsole.Write(
+			new Rule("[bold green]NLP Parser — Normalization[/]")
+				.LeftJustified());
+	}
 
-		// ACT
-		var parsed = parser.Parse(document);
+	public void Dispose()
+	{
+		_provider.Dispose();
 
-		// ASSERT
+		AnsiConsole.Write(
+			new Rule("[dim]End Parser Normalization Tests[/]")
+				.LeftJustified());
+		AnsiConsole.WriteLine();
+	}
+
+	[Fact]
+	public void Parser_Produces_NormalizedParsedInput()
+	{
+		const string input = "Open the door.";
+
+		var document = _runtime.Process(input);
+		var parsed = _parser.Parse(document);
+
+		ParsedInputSnapshotRenderer.Render(input, parsed);
+
 		Assert.Equal("Open the door.", parsed.RawText);
 		Assert.Equal("open the door", parsed.NormalizedText);
 
 		Assert.Equal(
-			["open", "the", "door"],
+			new[] { "open", "the", "door" },
 			parsed.Tokens);
 	}
 }
