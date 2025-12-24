@@ -13,7 +13,9 @@ public static class IntentSeedSnapshotRenderer
 		ParsedInput parsed,
 		IntentSeed seed)
 	{
-		AnsiConsole.Write(new Rule($"[bold yellow]Intent Snapshot[/] — \"{input}\""));
+		AnsiConsole.Write(
+			new Rule($"[bold yellow]Intent Snapshot[/] — \"{input}\"")
+				.LeftJustified());
 
 		// Parsed tokens
 		var tokenTable = new Table()
@@ -34,26 +36,71 @@ public static class IntentSeedSnapshotRenderer
 		AnsiConsole.Write(tokenTable);
 		AnsiConsole.WriteLine();
 
-		// Intent seed
+		// Intent summary
 		var intentTable = new Table()
 			.Border(TableBorder.Rounded)
 			.Title("Intent Seed")
 			.AddColumn("Field")
 			.AddColumn("Value");
 
-		intentTable.AddRow("Verb", seed.Verb ?? "<none>");
-		intentTable.AddRow("Direct Object", seed.DirectObject ?? "<none>");
+		intentTable.AddRow(
+			"Verb",
+			seed.Verb != null
+				? $"[yellow]{seed.Verb}[/]"
+				: "<none>");
+
+		intentTable.AddRow(
+			"Direct Object",
+			seed.DirectObject != null
+				? $"[green]{seed.DirectObject.Head}[/] " +
+				  $"[dim](\"{seed.DirectObject.Text}\")[/]"
+				: "<none>");
 
 		intentTable.AddRow(
 			"Prepositions",
 			seed.Prepositions.Count == 0
 				? "<none>"
 				: string.Join(
-					"\n",
-					seed.Prepositions.Select(kvp =>
-						$"{kvp.Key} → {kvp.Value}")));
+					", ",
+					seed.Prepositions.Select(p =>
+						$"[blue]{p.Key}[/] → {p.Value.Head}")));
 
 		AnsiConsole.Write(intentTable);
+		AnsiConsole.WriteLine();
+
+		// Detailed breakdown
+		if (seed.DirectObject != null)
+		{
+			NounPhraseSnapshotRenderer.Render(
+				"Direct Object",
+				seed.DirectObject);
+		}
+
+		foreach (var (prep, phrase) in seed.Prepositions)
+		{
+			NounPhraseSnapshotRenderer.Render(
+				$"Preposition ({prep})",
+				phrase);
+		}
+	}
+
+	public static void RenderCompact(IntentSeed seed)
+	{
+		AnsiConsole.MarkupLine($"[bold]Verb:[/] {seed.Verb ?? "<none>"}");
+
+		if (seed.DirectObject != null)
+		{
+			AnsiConsole.MarkupLine(
+				$"  [green]DO:[/] {seed.DirectObject.Head} " +
+				$"[dim](\"{seed.DirectObject.Text}\")[/]");
+		}
+
+		foreach (var (prep, phrase) in seed.Prepositions)
+		{
+			AnsiConsole.MarkupLine(
+				$"  [blue]{prep}:[/] {phrase.Head}");
+		}
+
 		AnsiConsole.WriteLine();
 	}
 }

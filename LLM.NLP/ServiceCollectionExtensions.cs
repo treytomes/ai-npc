@@ -14,6 +14,8 @@ public static class ServiceCollectionExtensions
 		services.AddSingleton(options);
 		services.AddSingleton<INlpRuntime, NlpRuntime>();
 		services.AddSingleton<INlpParser, CatalystNlpParser>();
+		services.AddSingleton<IIntentSeedExtractor, IntentSeedExtractor>();
+		services.AddSingleton<INounPhraseExtractor, PosBasedNounPhraseExtractor>();
 
 		return services;
 	}

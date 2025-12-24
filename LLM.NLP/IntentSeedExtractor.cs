@@ -5,12 +5,25 @@ namespace LLM.NLP;
 /// <summary>
 /// Extracts a deterministic intent seed from parsed input.
 /// </summary>
-public sealed class IntentSeedExtractor
+internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 {
-	private static readonly HashSet<string> _stopWords =
-	[
-		"the", "a", "an"
-	];
+	#region Fields
+
+	private readonly INounPhraseExtractor _nounPhrases;
+
+	#endregion
+
+	#region Constructors
+
+	public IntentSeedExtractor(INounPhraseExtractor nounPhrases)
+	{
+		_nounPhrases = nounPhrases
+			?? throw new ArgumentNullException(nameof(nounPhrases));
+	}
+
+	#endregion
+
+	#region Methods
 
 	public IntentSeed Extract(ParsedInput input)
 	{
@@ -18,43 +31,47 @@ public sealed class IntentSeedExtractor
 			throw new ArgumentNullException(nameof(input));
 
 		string? verb = null;
-		string? directObject = null;
-		var prepositions = new Dictionary<string, string>();
+		NounPhrase? directObject = null;
+		var prepositions = new Dictionary<string, NounPhrase>();
 
-		ParsedToken? lastPrep = null;
+		var tokens = input.ParsedTokens;
 
-		foreach (var token in input.ParsedTokens)
+		string? pendingPreposition = null;
+
+		for (int i = 0; i < tokens.Count; i++)
 		{
-			if (_stopWords.Contains(token.Lemma))
-				continue;
+			var token = tokens[i];
 
-			// 1. Verb
+			// 1. Verb (first verb wins)
 			if (verb == null && token.Pos == PartOfSpeech.VERB)
 			{
 				verb = token.Lemma;
 				continue;
 			}
 
-			// 2. Preposition
-			if (token.Pos == PartOfSpeech.ADP)
+			// 2. Try noun phrase FIRST
+			var phrase = _nounPhrases.TryExtract(tokens, ref i);
+			if (phrase != null)
 			{
-				lastPrep = token;
-				continue;
-			}
-
-			// 3. Noun handling
-			if (token.Pos == PartOfSpeech.NOUN)
-			{
-				if (lastPrep != null)
+				if (pendingPreposition != null)
 				{
-					// Attach noun to preposition
-					prepositions[lastPrep.Lemma] = token.Lemma;
-					lastPrep = null;
+					// Intent-level prepositional phrase
+					prepositions[pendingPreposition] = phrase;
+					pendingPreposition = null;
 				}
 				else if (directObject == null)
 				{
-					directObject = token.Lemma;
+					directObject = phrase;
 				}
+
+				continue;
+			}
+
+			// 3. Preposition (only if not consumed by NP)
+			if (token.Pos == PartOfSpeech.ADP)
+			{
+				pendingPreposition = token.Lemma;
+				continue;
 			}
 		}
 
@@ -63,4 +80,6 @@ public sealed class IntentSeedExtractor
 			directObject,
 			prepositions);
 	}
+
+	#endregion
 }

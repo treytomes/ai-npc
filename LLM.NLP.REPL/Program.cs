@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
-using LLM.NLP;
 using Mosaik.Core;
 
 namespace LLM.NLP.REPL;
@@ -9,10 +8,11 @@ internal static class Program
 {
 	private static bool _showPipeline = true;
 	private static bool _showRawDocument = false;
+	private static bool _showParseTree = true;
 
 	private static INlpRuntime _runtime = null!;
 	private static INlpParser _parser = null!;
-	private static IntentSeedExtractor _intentExtractor = null!;
+	private static IIntentSeedExtractor _intentExtractor = null!;
 
 	static void Main()
 	{
@@ -51,7 +51,7 @@ internal static class Program
 
 		_runtime = provider.GetRequiredService<INlpRuntime>();
 		_parser = provider.GetRequiredService<INlpParser>();
-		_intentExtractor = new IntentSeedExtractor();
+		_intentExtractor = provider.GetRequiredService<IIntentSeedExtractor>();
 	}
 
 	// -----------------------------
@@ -111,6 +111,11 @@ internal static class Program
 				AnsiConsole.MarkupLine(
 					$"[grey]Raw document output: {(_showRawDocument ? "ON" : "OFF")}[/]");
 				return true;
+
+			case ":tree":
+				_showParseTree = !_showParseTree; AnsiConsole.MarkupLine(
+					$"[grey]Parse tree output: {(_showParseTree ? "ON" : "OFF")}[/]");
+				return true;
 		}
 
 		return false;
@@ -127,6 +132,7 @@ internal static class Program
 		table.AddRow(":clear", "Clear screen");
 		table.AddRow(":pipeline", "Toggle pipeline snapshots");
 		table.AddRow(":raw", "Toggle raw document output");
+		table.AddRow(":tree", "Toggle parse tree output");
 
 		AnsiConsole.Write(table);
 	}
@@ -141,16 +147,14 @@ internal static class Program
 
 		try
 		{
-			var document = _runtime.Process(input);
-			if (document == null)
-			{
-				throw new NullReferenceException("Processed document is null.");
-			}
+			var document =
+				_runtime.Process(input)
+				?? throw new NullReferenceException("Processed document is null.");
 
 			if (_showRawDocument)
 			{
 				AnsiConsole.MarkupLine("[bold]Raw Document[/]");
-				AnsiConsole.WriteLine(document.ToString());
+				AnsiConsole.WriteLine(document.ToString() ?? "empty");
 				AnsiConsole.WriteLine();
 			}
 
@@ -166,6 +170,14 @@ internal static class Program
 			if (intentSeed != null)
 			{
 				IntentSeedSnapshotRenderer.Render(input, parsed, intentSeed);
+
+				if (_showParseTree)
+				{
+					ParseTreeSnapshotRenderer.Render(
+						input,
+						parsed,
+						intentSeed);
+				}
 			}
 		}
 		catch (Exception ex)
