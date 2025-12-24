@@ -4,7 +4,12 @@ namespace LLM.NLP;
 /// Represents normalized and structured information extracted
 /// from raw user input for use by game logic and LLM narration.
 /// </summary>
-public sealed class ParsedInput(string rawText, string normalizedText, IReadOnlyList<string> tokens, IReadOnlyList<string> lemmas)
+public sealed class ParsedInput(
+	string rawText,
+	string normalizedText,
+	IReadOnlyList<string> tokens,
+	IReadOnlyList<string> lemmas,
+	IReadOnlyList<ParsedToken> parsedTokens)
 {
 	/// <summary>
 	/// The original raw input provided by the user.
@@ -25,4 +30,6 @@ public sealed class ParsedInput(string rawText, string normalizedText, IReadOnly
 	/// Lemmatized tokens suitable for intent detection.
 	/// </summary>
 	public IReadOnlyList<string> Lemmas { get; } = lemmas;
+
+	public IReadOnlyList<ParsedToken> ParsedTokens { get; } = parsedTokens;
 }

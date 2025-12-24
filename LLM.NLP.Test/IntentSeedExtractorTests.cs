@@ -1,3 +1,4 @@
+using Catalyst;
 using Spectre.Console;
 
 namespace LLM.NLP.Test;
@@ -16,14 +17,20 @@ public class IntentSeedExtractorTests
 			rawText: "open the door",
 			normalizedText: "open the door",
 			tokens: ["open", "the", "door"],
-			lemmas: ["open", "the", "door"]);
+			lemmas: ["open", "the", "door"],
+			parsedTokens:
+			[
+				new ParsedToken("open", "open", PartOfSpeech.VERB),
+				new ParsedToken("the", "the", PartOfSpeech.DET),
+				new ParsedToken("door", "door", PartOfSpeech.NOUN)
+			]);
 
 		var extractor = new IntentSeedExtractor();
 
 		// ACT
 		var seed = extractor.Extract(parsed);
 
-		RenderSeed("open the door", parsed, seed);
+		RenderSeed(parsed.RawText, parsed, seed);
 
 		// ASSERT
 		Assert.Equal("open", seed.Verb);
@@ -38,14 +45,18 @@ public class IntentSeedExtractorTests
 			rawText: "look",
 			normalizedText: "look",
 			tokens: ["look"],
-			lemmas: ["look"]);
+			lemmas: ["look"],
+			parsedTokens:
+			[
+				new ParsedToken("look", "look", PartOfSpeech.VERB),
+			]);
 
 		var extractor = new IntentSeedExtractor();
 
 		// ACT
 		var seed = extractor.Extract(parsed);
 
-		RenderSeed("look", parsed, seed);
+		RenderSeed(parsed.RawText, parsed, seed);
 
 		// ASSERT
 		Assert.Equal("look", seed.Verb);
@@ -60,17 +71,47 @@ public class IntentSeedExtractorTests
 			rawText: "the door",
 			normalizedText: "the door",
 			tokens: ["the", "door"],
-			lemmas: ["the", "door"]);
+			lemmas: ["the", "door"],
+			parsedTokens:
+			[
+				new ParsedToken("the", "the", PartOfSpeech.DET),
+				new ParsedToken("door", "door", PartOfSpeech.NOUN)
+			]);
 
 		var extractor = new IntentSeedExtractor();
 
 		// ACT
 		var seed = extractor.Extract(parsed);
 
-		RenderSeed("the door", parsed, seed);
+		RenderSeed(parsed.RawText, parsed, seed);
 
 		// ASSERT
 		Assert.Null(seed.Verb);
+		Assert.Contains("door", seed.Objects);
+	}
+
+	[Fact]
+	public void Extractor_Uses_Pos_Tagged_Verb()
+	{
+		var parsed = new ParsedInput(
+			rawText: "opened the door",
+			normalizedText: "opened the door",
+			tokens: ["opened", "the", "door"],
+			lemmas: ["open", "the", "door"],
+			parsedTokens:
+			[
+				new ParsedToken("opened", "open", PartOfSpeech.VERB),
+				new ParsedToken("the", "the", PartOfSpeech.DET),
+				new ParsedToken("door", "door", PartOfSpeech.NOUN)
+			]);
+
+		var extractor = new IntentSeedExtractor();
+
+		var seed = extractor.Extract(parsed);
+
+		RenderSeed(parsed.RawText, parsed, seed);
+
+		Assert.Equal("open", seed.Verb);
 		Assert.Contains("door", seed.Objects);
 	}
 

@@ -15,6 +15,15 @@ internal sealed class CatalystNlpParser : INlpParser
 
 		var rawText = document.Value ?? string.Empty;
 
+		var parsedTokens = document
+			.SelectMany(s => s.Tokens)
+			.Where(t => t.POS != PartOfSpeech.PUNCT)
+			.Select(t => new ParsedToken(
+				Value: t.Value.ToLowerInvariant(),
+				Lemma: t.Lemma?.ToLowerInvariant() ?? t.Value.ToLowerInvariant(),
+				Pos: t.POS))
+			.ToList();
+
 		var tokens = new List<string>();
 		var lemmas = new List<string>();
 
@@ -39,6 +48,7 @@ internal sealed class CatalystNlpParser : INlpParser
 			rawText: rawText,
 			normalizedText: normalizedText,
 			tokens: tokens,
-			lemmas: lemmas);
+			lemmas: lemmas,
+			parsedTokens: parsedTokens);
 	}
 }

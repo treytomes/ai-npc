@@ -1,3 +1,5 @@
+using Catalyst;
+
 namespace LLM.NLP;
 
 public sealed class IntentSeedExtractor
@@ -7,7 +9,7 @@ public sealed class IntentSeedExtractor
 		"the", "a", "an", "to", "of", "in", "on", "at", "with"
 	];
 
-	private static readonly HashSet<string> _commonVerbs =
+	private static readonly HashSet<string> _fallbackVerbs =
 	[
 		"open", "close", "take", "drop", "look", "use", "go",
 		"move", "attack", "talk", "pick", "examine"
@@ -21,18 +23,32 @@ public sealed class IntentSeedExtractor
 		string? verb = null;
 		var objects = new List<string>();
 
-		foreach (var lemma in input.Lemmas)
+		// 1. POS-based verb detection
+		var verbToken = input.ParsedTokens
+			.FirstOrDefault(t => t.Pos == PartOfSpeech.VERB);
+
+		if (verbToken != null)
 		{
-			if (_stopWords.Contains(lemma))
+			verb = verbToken.Lemma;
+		}
+
+		// 2. Object extraction
+		foreach (var token in input.ParsedTokens)
+		{
+			if (_stopWords.Contains(token.Lemma))
 				continue;
 
-			if (verb == null && _commonVerbs.Contains(lemma))
-			{
-				verb = lemma;
+			if (token.Pos == PartOfSpeech.VERB)
 				continue;
-			}
 
-			objects.Add(lemma);
+			objects.Add(token.Lemma);
+		}
+
+		// 3. Fallback verb detection
+		if (verb == null)
+		{
+			verb = input.Lemmas.FirstOrDefault(l => _fallbackVerbs.Contains(l));
+			// TODO: I might want to throw an error here instead.
 		}
 
 		return new IntentSeed(verb, objects);

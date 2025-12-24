@@ -18,7 +18,7 @@ public class ParsedInputTests
 		var lemmatizedTokens = new[] { "open", "the", "door" };
 
 		// ACT
-		var parsed = new ParsedInput(raw, normalized, tokens, lemmatizedTokens);
+		var parsed = new ParsedInput(raw, normalized, tokens, lemmatizedTokens, []);
 
 		AnsiConsole.MarkupLine("[grey]ParsedInput Debug Output[/]");
 		AnsiConsole.Write(new Table()
