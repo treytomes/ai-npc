@@ -1,0 +1,13 @@
+{
+  "exit": ["quit", "q", "leave", "bye", "goodbye", "stop"],
+  "help": ["?", "info", "information", "instructions", "commands", "assist"],
+  "clear": ["cls", "clr", "clean", "clearscreen"],
+  "json": ["showjson", "jsonoutput"],
+  "pipeline": ["showpipeline", "pipelineoutput"],
+  "raw": ["document", "showraw", "rawoutput"],
+  "tree": ["parse", "parsetree", "showtree", "treeoutput"],
+  
+  "show": ["display", "enable", "on"],
+  "hide": ["disable", "off"],
+  "toggle": ["switch", "flip", "turn"]
+}
