@@ -1,6 +1,6 @@
 using Spectre.Console;
 
-namespace LLM.NLP.REPL;
+namespace LLM.NLP.REPL.Renderers;
 
 /// <summary>
 /// Renders a snapshot-style view of <see cref="ParsedInput"/> using Spectre.Console.

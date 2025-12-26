@@ -1,6 +1,6 @@
-namespace LLM.NLP.REPL;
-
 using Spectre.Console;
+
+namespace LLM.NLP.REPL.Renderers;
 
 /// <summary>
 /// Renders a structured snapshot of a <see cref="NounPhrase"/>.
