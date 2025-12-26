@@ -229,4 +229,76 @@ public sealed class IntentSeedExtractorTests : IDisposable
 			"chest",
 			seed.DirectObject.Complements["out of"].Head);
 	}
+
+	[Fact]
+	public void Extracts_Show_Me_What_You_Have_For_Sale()
+	{
+		var parsed = new ParsedInputBuilder()
+			.Token("Show", "show", PartOfSpeech.VERB)
+			.Token("me", "me", PartOfSpeech.PRON)
+			.Token("what", "what", PartOfSpeech.PRON)
+			.Token("you", "you", PartOfSpeech.PRON)
+			.Token("have", "have", PartOfSpeech.VERB)
+			.Token("for", "for", PartOfSpeech.ADP)
+			.Token("sale", "sale", PartOfSpeech.NOUN)
+			.Build();
+
+		var seed = _extractor.Extract(parsed);
+
+		// Should extract "show" as main verb
+		Assert.Equal("show", seed.Verb);
+
+		// Should extract "me" as indirect object
+		Assert.NotNull(seed.IndirectObject);
+		Assert.Equal("me", seed.IndirectObject!.Head);
+		Assert.Equal("me", seed.IndirectObject.Text);
+
+		// Should extract "what you have" as direct object (relative clause)
+		Assert.NotNull(seed.DirectObject);
+		Assert.Equal("what", seed.DirectObject!.Head);
+		Assert.Equal("what you have", seed.DirectObject.Text);
+
+		// Should extract "for sale" as prepositional phrase
+		Assert.Single(seed.Prepositions);
+		Assert.True(seed.Prepositions.ContainsKey("for"));
+		Assert.Equal("sale", seed.Prepositions["for"].Head);
+		Assert.Equal("sale", seed.Prepositions["for"].Text);
+	}
+
+	[Fact]
+	public void Extracts_What_Do_You_Have_For_Sale()
+	{
+		var parsed = new ParsedInputBuilder()
+			.Token("what", "what", PartOfSpeech.PRON)
+			.Token("do", "do", PartOfSpeech.AUX)
+			.Token("you", "you", PartOfSpeech.PRON)
+			.Token("have", "have", PartOfSpeech.VERB)
+			.Token("for", "for", PartOfSpeech.ADP)
+			.Token("sale", "sale", PartOfSpeech.NOUN)
+			.Build();
+
+		var seed = _extractor.Extract(parsed);
+
+		// Should extract "have" as main verb (not auxiliary "do")
+		Assert.Equal("have", seed.Verb);
+
+		// Should extract "you" as subject
+		Assert.NotNull(seed.Subject);
+		Assert.Equal("you", seed.Subject!.Head);
+		Assert.Equal("you", seed.Subject.Text);
+
+		// Should extract "what" as direct object
+		Assert.NotNull(seed.DirectObject);
+		Assert.Equal("what", seed.DirectObject!.Head);
+		Assert.Equal("what", seed.DirectObject.Text);
+
+		// Should extract "for sale" as prepositional phrase
+		Assert.Single(seed.Prepositions);
+		Assert.True(seed.Prepositions.ContainsKey("for"));
+		Assert.Equal("sale", seed.Prepositions["for"].Head);
+		Assert.Equal("sale", seed.Prepositions["for"].Text);
+
+		// No indirect object in this case
+		Assert.Null(seed.IndirectObject);
+	}
 }

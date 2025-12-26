@@ -61,12 +61,16 @@ public class SynonymNormalizer : IIntentPipelineStep
 	public IntentSeed Process(IntentSeed seed)
 	{
 		var normalizedVerb = NormalizeToken(seed.Verb);
+		var normalizedSubject = NormalizeNounPhrase(seed.Subject);
 		var normalizedDirectObject = NormalizeNounPhrase(seed.DirectObject);
+		var normalizedIndirectObject = NormalizeNounPhrase(seed.IndirectObject);
 		var normalizedPrepositions = NormalizePrepositions(seed.Prepositions);
 
 		return new IntentSeed(
 			normalizedVerb,
+			normalizedSubject,
 			normalizedDirectObject,
+			normalizedIndirectObject,
 			normalizedPrepositions
 		);
 	}

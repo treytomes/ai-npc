@@ -44,9 +44,23 @@ public static class IntentSeedSnapshotRenderer
 			.AddColumn("Value");
 
 		intentTable.AddRow(
+			"Subject",
+			seed.Subject != null
+				? $"[cyan]{seed.Subject.Head}[/] " +
+				  $"[dim](\"{seed.Subject.Text}\")[/]"
+				: "<none>");
+
+		intentTable.AddRow(
 			"Verb",
 			seed.Verb != null
 				? $"[yellow]{seed.Verb}[/]"
+				: "<none>");
+
+		intentTable.AddRow(
+			"Indirect Object",
+			seed.IndirectObject != null
+				? $"[magenta]{seed.IndirectObject.Head}[/] " +
+				  $"[dim](\"{seed.IndirectObject.Text}\")[/]"
 				: "<none>");
 
 		intentTable.AddRow(
@@ -69,6 +83,20 @@ public static class IntentSeedSnapshotRenderer
 		AnsiConsole.WriteLine();
 
 		// Detailed breakdown
+		if (seed.Subject != null)
+		{
+			NounPhraseSnapshotRenderer.Render(
+				"Subject",
+				seed.Subject);
+		}
+
+		if (seed.IndirectObject != null)
+		{
+			NounPhraseSnapshotRenderer.Render(
+				"Indirect Object",
+				seed.IndirectObject);
+		}
+
 		if (seed.DirectObject != null)
 		{
 			NounPhraseSnapshotRenderer.Render(
@@ -87,6 +115,20 @@ public static class IntentSeedSnapshotRenderer
 	public static void RenderCompact(IntentSeed seed)
 	{
 		AnsiConsole.MarkupLine($"[bold]Verb:[/] {seed.Verb ?? "<none>"}");
+
+		if (seed.Subject != null)
+		{
+			AnsiConsole.MarkupLine(
+				$"  [cyan]Subj:[/] {seed.Subject.Head} " +
+				$"[dim](\"{seed.Subject.Text}\")[/]");
+		}
+
+		if (seed.IndirectObject != null)
+		{
+			AnsiConsole.MarkupLine(
+				$"  [magenta]IO:[/] {seed.IndirectObject.Head} " +
+				$"[dim](\"{seed.IndirectObject.Text}\")[/]");
+		}
 
 		if (seed.DirectObject != null)
 		{

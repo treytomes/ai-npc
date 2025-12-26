@@ -37,26 +37,52 @@ public static class ParseTreeSnapshotRenderer
 		{
 			var intentNode = root.AddNode("[yellow]Intent Seed[/]");
 
+			/* ---- Subject ---- */
+
+			if (seed.Subject != null)
+			{
+				var subjNode = intentNode.AddNode("[cyan]Subject[/]");
+				RenderNounPhraseTree(subjNode, seed.Subject);
+			}
+			else
+			{
+				intentNode.AddNode("[cyan]Subject[/]: <none>");
+			}
+
+			/* ---- Verb ---- */
+
 			intentNode.AddNode(
-				$"Verb: [bold]{seed.Verb ?? "<none>"}[/]");
+				$"[yellow]Verb[/]: [bold]{seed.Verb ?? "<none>"}[/]");
+
+			/* ---- Indirect Object ---- */
+
+			if (seed.IndirectObject != null)
+			{
+				var ioNode = intentNode.AddNode("[magenta]Indirect Object[/]");
+				RenderNounPhraseTree(ioNode, seed.IndirectObject);
+			}
+			else
+			{
+				intentNode.AddNode("[magenta]Indirect Object[/]: <none>");
+			}
 
 			/* ---- Direct Object ---- */
 
 			if (seed.DirectObject != null)
 			{
-				var objNode = intentNode.AddNode("Direct Object");
+				var objNode = intentNode.AddNode("[green]Direct Object[/]");
 				RenderNounPhraseTree(objNode, seed.DirectObject);
 			}
 			else
 			{
-				intentNode.AddNode("Direct Object: <none>");
+				intentNode.AddNode("[green]Direct Object[/]: <none>");
 			}
 
 			/* ---- Prepositions ---- */
 
 			if (seed.Prepositions.Count > 0)
 			{
-				var prepNode = intentNode.AddNode("Prepositions");
+				var prepNode = intentNode.AddNode("[blue]Prepositions[/]");
 
 				foreach (var (prep, phrase) in seed.Prepositions)
 				{
@@ -67,7 +93,7 @@ public static class ParseTreeSnapshotRenderer
 			}
 			else
 			{
-				intentNode.AddNode("Prepositions: <none>");
+				intentNode.AddNode("[blue]Prepositions[/]: <none>");
 			}
 		}
 

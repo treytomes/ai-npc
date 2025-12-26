@@ -7,14 +7,12 @@ namespace LLM.NLP;
 /// </summary>
 public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 {
-	private static readonly HashSet<string> _phrasalPrepStarters =
+	private static readonly HashSet<PartOfSpeech> NominalPos =
 	[
-		"out",
-		"up",
-		"down",
-		"off",
-		"away"
-	];
+		PartOfSpeech.NOUN,
+		PartOfSpeech.PRON,  // Add pronouns
+        PartOfSpeech.PROPN  // Add proper nouns
+    ];
 
 	public NounPhrase? TryExtract(
 		IReadOnlyList<ParsedToken> tokens,
@@ -22,43 +20,60 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 	{
 		int start = index;
 
+		// Special case: Handle pronouns as simple noun phrases
+		if (index < tokens.Count && tokens[index].Pos == PartOfSpeech.PRON)
+		{
+			var pronoun = tokens[index];
+			index++;
+
+			// Check for relative clauses (e.g., "what you have")
+			if (IsRelativePronoun(pronoun.Lemma) && index < tokens.Count)
+			{
+				return TryExtractRelativeClause(tokens, ref index, pronoun.Value);
+			}
+
+			return new NounPhrase(
+				head: pronoun.Value,
+				modifiers: [],
+				complements: new Dictionary<string, NounPhrase>(),
+				text: pronoun.Value
+			);
+		}
+
 		var determiners = new List<string>();
 		var modifiers = new List<string>();
 
 		// 1. Determiners
-		while (index < tokens.Count &&
-			   tokens[index].Pos == PartOfSpeech.DET)
+		while (index < tokens.Count && tokens[index].Pos == PartOfSpeech.DET)
 		{
 			determiners.Add(tokens[index].Value);
 			index++;
 		}
 
 		// 2. Adjectives
-		while (index < tokens.Count &&
-			   tokens[index].Pos == PartOfSpeech.ADJ)
+		while (index < tokens.Count && tokens[index].Pos == PartOfSpeech.ADJ)
 		{
 			modifiers.Add(tokens[index].Value);
 			index++;
 		}
 
-		// 3. Head noun (required, but may be preceded by noun modifiers)
-		if (index >= tokens.Count || tokens[index].Pos != PartOfSpeech.NOUN)
+		// 3. Head nominal (noun, pronoun, or proper noun)
+		if (index >= tokens.Count || !NominalPos.Contains(tokens[index].Pos))
 		{
 			index = start;
 			return null;
 		}
 
-		// Collect noun sequence
-		var nounChain = new List<string>();
-		while (index < tokens.Count && tokens[index].Pos == PartOfSpeech.NOUN)
+		// Collect nominal sequence
+		var nominalChain = new List<string>();
+		while (index < tokens.Count && NominalPos.Contains(tokens[index].Pos))
 		{
-			nounChain.Add(tokens[index].Value);
+			nominalChain.Add(tokens[index].Value);
 			index++;
 		}
 
-		// Last noun is head, preceding nouns are modifiers
-		var head = nounChain[^1];
-		modifiers.AddRange(nounChain.Take(nounChain.Count - 1));
+		var head = nominalChain[^1];
+		modifiers.AddRange(nominalChain.Take(nominalChain.Count - 1));
 
 		var complements = new Dictionary<string, NounPhrase>();
 
@@ -67,9 +82,10 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 		{
 			string? prep = null;
 
-			// Handle "out of"
+			// Handle "out of" - check both when "out" is ADJ or ADP
 			if (index + 1 < tokens.Count &&
 				tokens[index].Value.Equals("out", StringComparison.OrdinalIgnoreCase) &&
+				(tokens[index].Pos == PartOfSpeech.ADJ || tokens[index].Pos == PartOfSpeech.ADP) &&
 				tokens[index + 1].Pos == PartOfSpeech.ADP &&
 				tokens[index + 1].Value.Equals("of", StringComparison.OrdinalIgnoreCase))
 			{
@@ -110,6 +126,85 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			text: string.Join(" ", textParts),
 			head: head,
 			modifiers: determiners.Concat(modifiers).ToList(),
-			complements: complements);
+			complements: complements
+		);
+	}
+
+	private bool IsRelativePronoun(string lemma)
+	{
+		return lemma is "what" or "which" or "that" or "who" or "whom" or "whose";
+	}
+
+	private NounPhrase? TryExtractRelativeClause(
+	IReadOnlyList<ParsedToken> tokens,
+	ref int index,
+	string relativePronoun)
+	{
+		// Look ahead to determine if this is truly a relative clause
+		// In questions like "What do you have?", "what" is interrogative, not relative
+
+		// Check if the next few tokens form a question pattern (AUX + PRON + VERB)
+		if (index < tokens.Count - 2 &&
+			tokens[index].Pos == PartOfSpeech.AUX &&
+			tokens[index + 1].Pos == PartOfSpeech.PRON &&
+			index + 2 < tokens.Count &&
+			tokens[index + 2].Pos == PartOfSpeech.VERB)
+		{
+			// This is a question pattern, not a relative clause
+			// Just return the pronoun itself
+			return new NounPhrase(
+				head: relativePronoun,
+				modifiers: [],
+				complements: new Dictionary<string, NounPhrase>(),
+				text: relativePronoun
+			);
+		}
+
+		var clauseTokens = new List<string> { relativePronoun };
+		int clauseStart = index;
+
+		// Original relative clause extraction logic...
+		while (index < tokens.Count)
+		{
+			var token = tokens[index];
+
+			// Stop at sentence-ending punctuation or coordinating conjunctions
+			if (token.Pos == PartOfSpeech.PUNCT ||
+				(token.Pos == PartOfSpeech.CCONJ && clauseTokens.Count > 1))
+			{
+				break;
+			}
+
+			clauseTokens.Add(token.Value);
+			index++;
+
+			// Stop after a verb + its complements if we find a preposition at intent level
+			if (token.Pos == PartOfSpeech.VERB &&
+				index < tokens.Count &&
+				tokens[index].Pos == PartOfSpeech.ADP)
+			{
+				// Check if this preposition starts a new phrase at intent level
+				// by looking ahead
+				int lookahead = index + 1;
+				if (lookahead < tokens.Count &&
+					NominalPos.Contains(tokens[lookahead].Pos))
+				{
+					break;
+				}
+			}
+		}
+
+		if (clauseTokens.Count > 1)
+		{
+			return new NounPhrase(
+				head: relativePronoun,
+				modifiers: [],
+				complements: new Dictionary<string, NounPhrase>(),
+				text: string.Join(" ", clauseTokens)
+			);
+		}
+
+		index = clauseStart;
+		return null;
 	}
 }

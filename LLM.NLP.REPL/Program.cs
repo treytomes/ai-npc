@@ -150,6 +150,8 @@ internal static class Program
 
 		try
 		{
+			var isSystemCommand = input.TrimStart().First() == ':';
+
 			var document =
 				_runtime.Process(input)
 				?? throw new NullReferenceException("Processed document is null.");
@@ -171,7 +173,11 @@ internal static class Program
 
 			var parsed = _parser.Parse(document);
 
-			if (_systemIntentEvaluator.TryEvaluate(parsed)) return;
+			if (isSystemCommand)
+			{
+				_systemIntentEvaluator.TryEvaluate(parsed);
+				return;
+			}
 
 			if (_showPipeline)
 			{
@@ -202,10 +208,23 @@ internal static class Program
 
 				if (_showParseTree)
 				{
-					ParseTreeSnapshotRenderer.Render(
-						input,
-						parsed,
-						intentSeed);
+					if (_useJsonRenderers)
+					{
+						AnsiConsole.Write(new
+						{
+							input,
+							parsed,
+							intentSeed,
+						}.ToJsonRenderable());
+						AnsiConsole.WriteLine();
+					}
+					else
+					{
+						ParseTreeSnapshotRenderer.Render(
+							input,
+							parsed,
+							intentSeed);
+					}
 				}
 			}
 		}
