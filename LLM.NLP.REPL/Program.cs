@@ -4,6 +4,7 @@ using Mosaik.Core;
 using LLM.NLP.REPL.Renderers;
 using LLM.NLP.REPL.SystemIntent;
 using LLM.NPL.REPL;
+using LLM.NLP.REPL.SystemIntent.Commands;
 
 namespace LLM.NLP.REPL;
 
@@ -19,7 +20,6 @@ internal static class Program
 	private static INlpRuntime _runtime = null!;
 	private static INlpParser _parser = null!;
 	private static IIntentSeedExtractor _intentExtractor = null!;
-	// private static ISystemIntentExtractor _systemIntentExtractor = null!;
 	private static ISystemIntentEvaluator _systemIntentEvaluator = null!;
 
 	#endregion
@@ -62,7 +62,6 @@ internal static class Program
 		_runtime = provider.GetRequiredService<INlpRuntime>();
 		_parser = provider.GetRequiredService<INlpParser>();
 		_intentExtractor = provider.GetRequiredService<IIntentSeedExtractor>();
-		// _systemIntentExtractor = provider.GetRequiredService<ISystemIntentExtractor>();
 		_systemIntentEvaluator = provider.GetRequiredService<ISystemIntentEvaluator>();
 
 		_systemIntentEvaluator.AddCommands(new List<ISystemCommand>()

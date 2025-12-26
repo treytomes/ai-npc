@@ -7,7 +7,6 @@ public static class ServiceCollectionExtensions
 {
 	public static IServiceCollection AddREPL(this IServiceCollection services)
 	{
-		// services.AddSingleton<ISystemIntentExtractor, IntentBasedSystemIntentExtractor>();
 		services.AddTransient<ISystemIntentEvaluator, SystemIntentEvaluator>();
 		return services;
 	}
