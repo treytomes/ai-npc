@@ -1,5 +1,6 @@
 using Catalyst;
 using LLM.NLP.REPL;
+using LLM.NLP.REPL.Renderers;
 using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;
@@ -73,6 +74,23 @@ public sealed class NounPhraseTests : IDisposable
 		var np = phrases.Single();
 		Assert.Equal("loaf", np.Head);
 		Assert.Equal("bread", np.Complements["of"].Head);
+	}
+
+	[Fact]
+	public void Extracts_compound_nouns()
+	{
+		var parsed = new ParsedInputBuilder()
+			.Token("toggle", pos: PartOfSpeech.NOUN)
+			.Token("document", pos: PartOfSpeech.NOUN)
+			.Build();
+
+		var phrases = ExtractAll(parsed);
+
+		NounPhraseSnapshotRenderer.RenderAll(parsed.RawText, phrases);
+
+		var np = phrases.Single();
+		Assert.Equal("document", np.Head);
+		Assert.True(np.Modifiers?.Contains("toggle"));
 	}
 
 	/* ---------------- helpers ---------------- */

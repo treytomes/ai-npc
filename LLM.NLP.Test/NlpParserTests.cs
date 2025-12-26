@@ -1,5 +1,4 @@
-using LLM.NLP.REPL;
-using LLM.NLP.Test.Helpers;
+using LLM.NLP.REPL.Renderers;
 using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;
 using Spectre.Console;

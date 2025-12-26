@@ -41,20 +41,27 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			index++;
 		}
 
-		// 3. Head noun (required)
-		if (index >= tokens.Count ||
-			tokens[index].Pos != PartOfSpeech.NOUN)
+		// 3. Head noun (required, but may be preceded by noun modifiers)
+		if (index >= tokens.Count || tokens[index].Pos != PartOfSpeech.NOUN)
 		{
 			index = start;
 			return null;
 		}
 
-		var head = tokens[index].Value;
-		index++;
+		// Collect noun sequence
+		var nounChain = new List<string>();
+		while (index < tokens.Count && tokens[index].Pos == PartOfSpeech.NOUN)
+		{
+			nounChain.Add(tokens[index].Value);
+			index++;
+		}
+
+		// Last noun is head, preceding nouns are modifiers
+		var head = nounChain[^1];
+		modifiers.AddRange(nounChain.Take(nounChain.Count - 1));
 
 		var complements = new Dictionary<string, NounPhrase>();
 
-		// 4. Prepositional complements
 		// 4. Prepositional complements (including phrasal preps)
 		while (index < tokens.Count)
 		{
