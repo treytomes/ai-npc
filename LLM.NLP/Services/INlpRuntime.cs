@@ -1,6 +1,6 @@
 using Catalyst;
 
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
 /// <summary>
 /// Provides access to the NLP runtime used to preprocess user input

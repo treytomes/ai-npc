@@ -1,6 +1,6 @@
 using Catalyst;
 
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
 /// <summary>
 /// Catalyst-based implementation of <see cref="INlpParser"/>.

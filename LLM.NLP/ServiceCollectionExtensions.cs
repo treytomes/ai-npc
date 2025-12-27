@@ -1,3 +1,4 @@
+using LLM.NLP.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LLM.NLP;
@@ -14,7 +15,7 @@ public static class ServiceCollectionExtensions
 		services.AddSingleton(options);
 		services.AddSingleton<INlpRuntime, NlpRuntime>();
 		services.AddSingleton<INlpParser, CatalystNlpParser>();
-		services.AddSingleton<IIntentSeedExtractor, IntentSeedExtractor>();
+		services.AddSingleton<IIntentSeedExtractor, CatalystIntentSeedExtractor>();
 		services.AddSingleton<INounPhraseExtractor, PosBasedNounPhraseExtractor>();
 
 		return services;

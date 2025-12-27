@@ -1,5 +1,6 @@
 using Catalyst;
 using LLM.NLP.REPL.Renderers;
+using LLM.NLP.Services;
 using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;

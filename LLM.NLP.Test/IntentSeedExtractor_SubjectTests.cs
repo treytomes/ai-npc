@@ -1,6 +1,7 @@
 namespace LLM.NLP.Test;
 
 using Catalyst;
+using LLM.NLP.Services;
 using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;

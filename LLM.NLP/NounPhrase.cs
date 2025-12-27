@@ -1,3 +1,5 @@
+using LLM.NLP.Services;
+
 namespace LLM.NLP;
 
 public sealed class NounPhrase(string head, IReadOnlyList<string> modifiers, IReadOnlyDictionary<string, NounPhrase> complements, string text, bool isCoordinated, IReadOnlyList<string> coordinatedHeads)
@@ -10,6 +12,5 @@ public sealed class NounPhrase(string head, IReadOnlyList<string> modifiers, IRe
 	public bool IsCoordinated { get; } = isCoordinated;
 	public IReadOnlyList<string> CoordinatedHeads { get; } = coordinatedHeads;
 
-	public bool IsQuestionWord =>
-		IntentSeedExtractor.IsQuestionWord(Head);
+	public bool IsQuestionWord => Head.IsQuestionWord();
 }

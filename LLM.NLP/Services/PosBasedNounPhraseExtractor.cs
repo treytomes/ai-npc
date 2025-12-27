@@ -1,6 +1,6 @@
 using Catalyst;
 
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
 /// <summary>
 /// Deterministic noun phrase extractor based on POS patterns.

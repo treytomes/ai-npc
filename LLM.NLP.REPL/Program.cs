@@ -5,6 +5,7 @@ using LLM.NLP.REPL.Renderers;
 using LLM.NLP.REPL.SystemIntent;
 using LLM.NPL.REPL;
 using LLM.NLP.REPL.SystemIntent.Commands;
+using LLM.NLP.Services;
 
 namespace LLM.NLP.REPL;
 

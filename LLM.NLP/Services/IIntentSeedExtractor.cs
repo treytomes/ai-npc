@@ -1,4 +1,4 @@
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
 public interface IIntentSeedExtractor
 {

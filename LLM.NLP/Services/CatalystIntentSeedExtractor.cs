@@ -1,16 +1,26 @@
 using Catalyst;
 
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
-internal sealed class IntentSeedExtractor : IIntentSeedExtractor
+internal sealed class CatalystIntentSeedExtractor : IIntentSeedExtractor
 {
+	#region Fields
+
 	private readonly INounPhraseExtractor _nounPhrases;
 
-	public IntentSeedExtractor(INounPhraseExtractor nounPhrases)
+	#endregion
+
+	#region Constructors
+
+	public CatalystIntentSeedExtractor(INounPhraseExtractor nounPhrases)
 	{
 		_nounPhrases = nounPhrases
 			?? throw new ArgumentNullException(nameof(nounPhrases));
 	}
+
+	#endregion
+
+	#region Methods
 
 	public IntentSeed Extract(ParsedInput input)
 	{
@@ -97,7 +107,7 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 				{
 					// WH-subject question (e.g. "Who opened the door?")
 					if (phraseStartIndex == 0 &&
-						IsQuestionWord(phrase.Head) &&
+						phrase.Head.IsQuestionWord() &&
 						subject == null &&
 						lastAuxIndex == -1)
 					{
@@ -105,7 +115,7 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 						hasWhSubject = true;
 					}
 					// Normal subject assignment (e.g. "you" in "What do you have?")
-					else if (subject == null && !IsQuestionWord(phrase.Head))
+					else if (subject == null && !phrase.Head.IsQuestionWord())
 					{
 						subject = phrase;
 					}
@@ -185,12 +195,6 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 			prepositions);
 	}
 
-	public static bool IsQuestionWord(string word)
-	{
-		return word is "who" or "whom" or "whose" or "what" or "which"
-			or "where" or "when" or "why" or "how";
-	}
-
 	private static bool IsLikelyIndirectObject(
 		NounPhrase phrase,
 		IReadOnlyList<ParsedToken> tokens,
@@ -212,4 +216,6 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 
 		return false;
 	}
+
+	#endregion
 }

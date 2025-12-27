@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using LLM.NLP.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Mosaik.Core;
 using Spectre.Console;
 

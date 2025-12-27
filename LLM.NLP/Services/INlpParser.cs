@@ -1,6 +1,6 @@
 using Catalyst;
 
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
 /// <summary>
 /// Converts processed NLP documents into normalized, game-friendly

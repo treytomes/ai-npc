@@ -1,5 +1,4 @@
-using LLM.NPL.REPL;
-using Spectre.Console;
+using LLM.NLP.Services;
 
 namespace LLM.NLP.REPL.SystemIntent;
 

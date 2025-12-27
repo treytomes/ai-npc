@@ -1,4 +1,4 @@
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
 /// <summary>
 /// Extracts noun phrases from a sequence of parsed tokens.

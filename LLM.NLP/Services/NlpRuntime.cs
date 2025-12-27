@@ -1,7 +1,7 @@
 using Catalyst;
 using Mosaik.Core;
 
-namespace LLM.NLP;
+namespace LLM.NLP.Services;
 
 internal sealed class NlpRuntime : INlpRuntime
 {
