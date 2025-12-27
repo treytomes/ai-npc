@@ -2,28 +2,15 @@ using Catalyst;
 
 namespace LLM.NLP;
 
-/// <summary>
-/// Extracts a deterministic intent seed from parsed input.
-/// </summary>
 internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 {
-	#region Fields
-
 	private readonly INounPhraseExtractor _nounPhrases;
-
-	#endregion
-
-	#region Constructors
 
 	public IntentSeedExtractor(INounPhraseExtractor nounPhrases)
 	{
 		_nounPhrases = nounPhrases
 			?? throw new ArgumentNullException(nameof(nounPhrases));
 	}
-
-	#endregion
-
-	#region Methods
 
 	public IntentSeed Extract(ParsedInput input)
 	{
@@ -39,15 +26,38 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 		var tokens = input.ParsedTokens;
 		string? pendingPreposition = null;
 
-		// First pass: find the main verb and last auxiliary before it
 		int mainVerbIndex = -1;
 		int lastAuxIndex = -1;
+		bool isInvertedStructure = false;
+		bool hasWhSubject = false;
+
+		#region First pass: find main verb
 
 		for (int i = 0; i < tokens.Count; i++)
 		{
 			if (tokens[i].Pos == PartOfSpeech.AUX)
 			{
 				lastAuxIndex = i;
+
+				if (i == 0 || (i == 1 && tokens[0].Pos == PartOfSpeech.PRON))
+					isInvertedStructure = true;
+
+				bool hasVerbAfter = false;
+				for (int j = i + 1; j < tokens.Count; j++)
+				{
+					if (tokens[j].Pos == PartOfSpeech.VERB)
+					{
+						hasVerbAfter = true;
+						break;
+					}
+				}
+
+				if (!hasVerbAfter && verb == null)
+				{
+					verb = tokens[i].Lemma;
+					mainVerbIndex = i;
+					break;
+				}
 			}
 			else if (tokens[i].Pos == PartOfSpeech.VERB)
 			{
@@ -57,24 +67,21 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 			}
 		}
 
-		// Second pass: process noun phrases based on position
+		#endregion
+
+		#region Second pass: existing logic (unchanged)
+
 		for (int i = 0; i < tokens.Count; i++)
 		{
-			var token = tokens[i];
-
-			// Skip the verb itself
 			if (i == mainVerbIndex)
 				continue;
 
-			// Skip auxiliaries
-			if (token.Pos == PartOfSpeech.AUX)
+			if (tokens[i].Pos == PartOfSpeech.AUX && i != mainVerbIndex)
 				continue;
 
-			// Store the current position before TryExtract
 			int phraseStartIndex = i;
-
-			// Try to extract noun phrase
 			var phrase = _nounPhrases.TryExtract(tokens, ref i);
+
 			if (phrase != null)
 			{
 				if (pendingPreposition != null)
@@ -84,54 +91,91 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 				}
 				else if (mainVerbIndex == -1)
 				{
-					// No verb case - first NP is direct object
-					if (directObject == null)
-						directObject = phrase;
+					directObject ??= phrase;
 				}
 				else if (phraseStartIndex < mainVerbIndex)
 				{
-					// Use phraseStartIndex for position check
-					if (lastAuxIndex != -1 && phraseStartIndex > lastAuxIndex)
+					// WH-subject question (e.g. "Who opened the door?")
+					if (phraseStartIndex == 0 &&
+						IsQuestionWord(phrase.Head) &&
+						subject == null &&
+						lastAuxIndex == -1)
 					{
-						// Between auxiliary and main verb = subject
 						subject = phrase;
+						hasWhSubject = true;
 					}
-					else if (lastAuxIndex == -1)
+					// Normal subject assignment (e.g. "you" in "What do you have?")
+					else if (subject == null && !IsQuestionWord(phrase.Head))
 					{
-						// No auxiliary, before verb = subject
 						subject = phrase;
-					}
-					else
-					{
-						// Before auxiliary = likely question word (direct object)
-						if (directObject == null)
-							directObject = phrase;
-					}
-				}
-				else
-				{
-					// After verb - could be indirect or direct object
-					if (indirectObject == null && IsLikelyIndirectObject(phrase, tokens, i))
-					{
-						indirectObject = phrase;
 					}
 					else if (directObject == null)
 					{
 						directObject = phrase;
 					}
 				}
+				else
+				{
+					if (isInvertedStructure && subject == null && mainVerbIndex < 2)
+						subject = phrase;
+					else if (indirectObject == null && IsLikelyIndirectObject(phrase, tokens, i))
+						indirectObject = phrase;
+					else if (directObject == null)
+						directObject = phrase;
+				}
 
-				// Important: i has already been advanced by TryExtract
-				i--; // Decrement because the loop will increment
+				i--;
 				continue;
 			}
 
-			// Handle prepositions
-			if (token.Pos == PartOfSpeech.ADP)
+			if (tokens[i].Pos == PartOfSpeech.ADP)
+				pendingPreposition = tokens[i].Lemma;
+		}
+
+		#endregion
+
+		#region FIX: WH-subject fallback (single, safe extraction)
+
+		if (hasWhSubject && directObject == null && mainVerbIndex >= 0)
+		{
+			int i = mainVerbIndex + 1;
+			if (i < tokens.Count)
 			{
-				pendingPreposition = token.Lemma;
+				var phrase = _nounPhrases.TryExtract(tokens, ref i);
+				if (phrase != null)
+					directObject = phrase;
 			}
 		}
+
+		#endregion
+
+		#region FIX: WH-object question normalization (auxiliary inversion)
+
+		if (subject != null &&
+			directObject == null &&
+			subject.IsQuestionWord &&
+			mainVerbIndex > 0 &&
+			lastAuxIndex >= 0)
+		{
+			// Pattern: "What do you have ..."
+			// If subject is WH and there's an AUX before the real subject,
+			// reassign roles.
+
+			// Find the noun phrase immediately after the auxiliary
+			for (int i = lastAuxIndex + 1; i < mainVerbIndex; i++)
+			{
+				int temp = i;
+				var phrase = _nounPhrases.TryExtract(tokens, ref temp);
+				if (phrase != null && !phrase.IsQuestionWord)
+				{
+					directObject = subject;
+					subject = phrase;
+					break;
+				}
+			}
+		}
+
+		#endregion
 
 		return new IntentSeed(
 			verb,
@@ -141,36 +185,31 @@ internal sealed class IntentSeedExtractor : IIntentSeedExtractor
 			prepositions);
 	}
 
-	private bool IsLikelyIndirectObject(NounPhrase phrase, IReadOnlyList<ParsedToken> tokens, int currentIndex)
+	public static bool IsQuestionWord(string word)
 	{
-		// Simple heuristic: pronouns like "me", "you", "him", "her", "us", "them" 
-		// immediately after a verb are often indirect objects
-		var indirectObjectPronouns = new HashSet<string>
-		{
-			"me", "you", "him", "her", "us", "them"
-		};
+		return word is "who" or "whom" or "whose" or "what" or "which"
+			or "where" or "when" or "why" or "how";
+	}
 
-		if (indirectObjectPronouns.Contains(phrase.Head.ToLower()))
+	private static bool IsLikelyIndirectObject(
+		NounPhrase phrase,
+		IReadOnlyList<ParsedToken> tokens,
+		int currentIndex)
+	{
+		var pronouns = new HashSet<string> { "me", "you", "him", "her", "us", "them" };
+
+		if (!pronouns.Contains(phrase.Head.ToLowerInvariant()))
+			return false;
+
+		for (int i = currentIndex; i < tokens.Count; i++)
 		{
-			// Check if there's another NP coming (which would be the direct object)
-			for (int i = currentIndex; i < tokens.Count; i++)
-			{
-				if (tokens[i].Pos == PartOfSpeech.NOUN ||
-					tokens[i].Pos == PartOfSpeech.PRON)
-				{
-					return true;
-				}
-				// Stop looking if we hit a preposition or verb
-				if (tokens[i].Pos == PartOfSpeech.ADP ||
-					tokens[i].Pos == PartOfSpeech.VERB)
-				{
-					break;
-				}
-			}
+			if (tokens[i].Pos is PartOfSpeech.NOUN or PartOfSpeech.PRON)
+				return true;
+
+			if (tokens[i].Pos is PartOfSpeech.ADP or PartOfSpeech.VERB)
+				break;
 		}
 
 		return false;
 	}
-
-	#endregion
 }

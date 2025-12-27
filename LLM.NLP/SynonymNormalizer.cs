@@ -92,12 +92,15 @@ public class SynonymNormalizer : IIntentPipelineStep
 
 		var normalizedHead = NormalizeToken(nounPhrase.Head) ?? nounPhrase.Head;
 		var normalizedComplements = NormalizePrepositions(nounPhrase.Complements);
+		var normalizedCoordinatedHeads = nounPhrase.CoordinatedHeads.Select(x => NormalizeToken(x)!).ToList().AsReadOnly();
 
 		return new NounPhrase(
 			normalizedHead,
 			nounPhrase.Modifiers, // Modifiers stay as-is
 			normalizedComplements,
-			nounPhrase.Text
+			nounPhrase.Text,
+			nounPhrase.IsCoordinated,
+			normalizedCoordinatedHeads
 		);
 	}
 

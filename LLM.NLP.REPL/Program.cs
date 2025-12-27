@@ -16,6 +16,7 @@ internal static class Program
 	private static bool _showRawDocument = false;
 	private static bool _showParseTree = true;
 	private static bool _useJsonRenderers = false;
+	private static bool _useCompactJson = false;
 
 	private static INlpRuntime _runtime = null!;
 	private static INlpParser _parser = null!;
@@ -90,7 +91,8 @@ internal static class Program
 			new ToggleJsonCommand(args =>
 			{
 				_useJsonRenderers = args.GetValueOrDefault("enabled", !_useJsonRenderers, false);
-				AnsiConsole.MarkupLine($"[grey]JSON output: {(_useJsonRenderers ? "[green]ON[/]" : "[red]OFF[/]")}[/]");
+				_useCompactJson = args.GetValueOrDefault("compact", !_useCompactJson, false);
+				AnsiConsole.MarkupLine($"[grey]JSON output: {(_useJsonRenderers ? "[green]ON[/]" : "[red]OFF[/]")}, compact: {(_useCompactJson ? "[green]ON[/]" : "[red]OFF[/]")}[/]");
 			})
 		});
 	}
@@ -161,7 +163,7 @@ internal static class Program
 				AnsiConsole.MarkupLine("[bold]Raw Document[/]");
 				if (_useJsonRenderers)
 				{
-					AnsiConsole.Write(document.ToJsonRenderable());
+					AnsiConsole.Write(document.ToJsonRenderable(_useCompactJson));
 					AnsiConsole.WriteLine();
 				}
 				else
@@ -183,7 +185,7 @@ internal static class Program
 			{
 				if (_useJsonRenderers)
 				{
-					AnsiConsole.Write(parsed.ToJsonRenderable());
+					AnsiConsole.Write(parsed.ToJsonRenderable(_useCompactJson));
 					AnsiConsole.WriteLine();
 				}
 				else
@@ -198,7 +200,7 @@ internal static class Program
 			{
 				if (_useJsonRenderers)
 				{
-					AnsiConsole.Write(intentSeed.ToJsonRenderable());
+					AnsiConsole.Write(intentSeed.ToJsonRenderable(_useCompactJson));
 					AnsiConsole.WriteLine();
 				}
 				else
@@ -215,7 +217,7 @@ internal static class Program
 							input,
 							parsed,
 							intentSeed,
-						}.ToJsonRenderable());
+						}.ToJsonRenderable(_useCompactJson));
 						AnsiConsole.WriteLine();
 					}
 					else

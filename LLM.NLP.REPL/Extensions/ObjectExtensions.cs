@@ -7,17 +7,17 @@ namespace LLM.NPL.REPL;
 
 public static class ObjectExtensions
 {
-	public static string ToJson<T>(this T @this)
+	public static string ToJson<T>(this T @this, bool isCompact = false)
 	{
 		return JsonSerializer.Serialize(@this, new JsonSerializerOptions()
 		{
-			WriteIndented = true,
+			WriteIndented = !isCompact,
 		});
 	}
 
-	public static IRenderable ToJsonRenderable<T>(this T @this)
+	public static IRenderable ToJsonRenderable<T>(this T @this, bool isCompact = false)
 	{
-		var jsonText = @this.ToJson();
+		var jsonText = @this.ToJson(isCompact);
 		return new JsonText(jsonText)
 			.BracesColor(Color.Grey)
 			.MemberColor(Color.CornflowerBlue)

@@ -10,9 +10,9 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 	private static readonly HashSet<PartOfSpeech> NominalPos =
 	[
 		PartOfSpeech.NOUN,
-		PartOfSpeech.PRON,  // Add pronouns
-        PartOfSpeech.PROPN  // Add proper nouns
-    ];
+		PartOfSpeech.PRON,
+		PartOfSpeech.PROPN
+	];
 
 	public NounPhrase? TryExtract(
 		IReadOnlyList<ParsedToken> tokens,
@@ -36,7 +36,9 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 				head: pronoun.Value,
 				modifiers: [],
 				complements: new Dictionary<string, NounPhrase>(),
-				text: pronoun.Value
+				text: pronoun.Value,
+				isCoordinated: false,
+				coordinatedHeads: []
 			);
 		}
 
@@ -57,23 +59,70 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			index++;
 		}
 
-		// 3. Head nominal (noun, pronoun, or proper noun)
+		// 3. Head nominal (noun, pronoun, or proper noun) with coordination support
 		if (index >= tokens.Count || !NominalPos.Contains(tokens[index].Pos))
 		{
 			index = start;
 			return null;
 		}
 
-		// Collect nominal sequence
-		var nominalChain = new List<string>();
-		while (index < tokens.Count && NominalPos.Contains(tokens[index].Pos))
+		// Collect nominal sequence with coordination
+		var coordinatedHeads = new List<string>();
+		var allNominals = new List<string>();
+		bool isCoordinated = false;
+
+		while (index < tokens.Count)
 		{
-			nominalChain.Add(tokens[index].Value);
-			index++;
+			if (NominalPos.Contains(tokens[index].Pos))
+			{
+				var currentNominal = tokens[index].Value;
+				allNominals.Add(currentNominal);
+				coordinatedHeads.Add(currentNominal);
+				index++;
+
+				// Check for coordination
+				if (index < tokens.Count && tokens[index].Pos == PartOfSpeech.CCONJ)
+				{
+					isCoordinated = true;
+					allNominals.Add(tokens[index].Value); // Add the conjunction
+					index++;
+					continue; // Look for more coordinated elements
+				}
+				else if (!isCoordinated)
+				{
+					// No coordination, continue collecting compound nouns
+					continue;
+				}
+				else
+				{
+					// We've finished a coordinated sequence
+					break;
+				}
+			}
+			else
+			{
+				break;
+			}
 		}
 
-		var head = nominalChain[^1];
-		modifiers.AddRange(nominalChain.Take(nominalChain.Count - 1));
+		// Determine head and modifiers
+		string head;
+		List<string> nominalModifiers;
+
+		if (isCoordinated)
+		{
+			// For coordinated phrases, use the last coordinated element as head
+			head = coordinatedHeads[^1];
+			nominalModifiers = new List<string>();
+		}
+		else
+		{
+			// For non-coordinated phrases, last nominal is head, others are modifiers
+			head = allNominals[^1];
+			nominalModifiers = allNominals.Take(allNominals.Count - 1).ToList();
+		}
+
+		modifiers.AddRange(nominalModifiers);
 
 		var complements = new Dictionary<string, NounPhrase>();
 
@@ -113,8 +162,17 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 		// Build text
 		var textParts = new List<string>();
 		textParts.AddRange(determiners);
-		textParts.AddRange(modifiers);
-		textParts.Add(head);
+
+		if (isCoordinated)
+		{
+			// For coordinated phrases, include all parts
+			textParts.AddRange(allNominals);
+		}
+		else
+		{
+			textParts.AddRange(modifiers);
+			textParts.Add(head);
+		}
 
 		foreach (var (prep, np) in complements)
 		{
@@ -126,7 +184,9 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			text: string.Join(" ", textParts),
 			head: head,
 			modifiers: determiners.Concat(modifiers).ToList(),
-			complements: complements
+			complements: complements,
+			isCoordinated: isCoordinated,
+			coordinatedHeads: isCoordinated ? coordinatedHeads : []
 		);
 	}
 
@@ -136,9 +196,9 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 	}
 
 	private NounPhrase? TryExtractRelativeClause(
-	IReadOnlyList<ParsedToken> tokens,
-	ref int index,
-	string relativePronoun)
+		IReadOnlyList<ParsedToken> tokens,
+		ref int index,
+		string relativePronoun)
 	{
 		// Look ahead to determine if this is truly a relative clause
 		// In questions like "What do you have?", "what" is interrogative, not relative
@@ -156,7 +216,9 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 				head: relativePronoun,
 				modifiers: [],
 				complements: new Dictionary<string, NounPhrase>(),
-				text: relativePronoun
+				text: relativePronoun,
+				isCoordinated: false,
+				coordinatedHeads: []
 			);
 		}
 
@@ -200,7 +262,9 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 				head: relativePronoun,
 				modifiers: [],
 				complements: new Dictionary<string, NounPhrase>(),
-				text: string.Join(" ", clauseTokens)
+				text: string.Join(" ", clauseTokens),
+				isCoordinated: false,
+				coordinatedHeads: []
 			);
 		}
 
