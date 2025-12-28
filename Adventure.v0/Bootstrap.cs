@@ -1,5 +1,5 @@
-using Adventure.CatalystRuntime;
 using Adventure.Gpu.Services;
+using Adventure.NLP;
 using Adventure.OllamaRuntime;
 using Adventure.Services;
 using Microsoft.Extensions.Configuration;
@@ -166,23 +166,20 @@ static class Bootstrap
 		services.AddSingleton<OllamaInstaller>();
 		services.AddSingleton<OllamaProcess>();
 		services.AddSingleton<OllamaManager>();
-		services.AddSingleton<CatalystManager>();
 		services.AddSingleton<OllamaRepo>();
 		services.AddSingleton<TAppEngine>();
 		services.AddTransient<IAppEngine>(sp => sp.GetRequiredService<OllamaAppEngine>());
 		services.AddTransient<IStateManager>(sp => sp.GetRequiredService<TAppEngine>());
+		services.AddNlpRuntime();
 
 		// Register game states.
 		var stateTypes = Assembly.GetExecutingAssembly().GetTypes()
 			.Where(x => !x.IsAbstract)
 			.Where(x => x.IsAssignableTo(typeof(AppState)));
 
-		// Console.WriteLine("BEGIN REGISTERING STATES");
 		foreach (var stateType in stateTypes)
 		{
-			// Console.WriteLine($"Registering {stateType.Name}...");
 			services.AddTransient(stateType);
 		}
-		// Console.WriteLine("DONE");
 	}
 }

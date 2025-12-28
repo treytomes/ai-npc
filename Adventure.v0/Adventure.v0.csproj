@@ -9,21 +9,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Catalyst" Version="1.0.62192" />
-    <PackageReference Include="Catalyst.Models.English" Version="1.0.30952" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.1" />
     <PackageReference Include="NRules" Version="1.0.3" />
     <PackageReference Include="OllamaSharp" Version="5.4.11" />
     <PackageReference Include="Spectre.Console" Version="0.54.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="System.Reactive" Version="6.1.0" />
-    <PackageReference Include="System.Text.Json" Version="10.0.0" />
+    <PackageReference Include="System.Text.Json" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Adventure.NLP/Adventure.NLP.csproj" />
   </ItemGroup>
 
 	<ItemGroup>

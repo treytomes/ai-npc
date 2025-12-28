@@ -1,5 +1,4 @@
 using System.Text;
-using Adventure.CatalystRuntime;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OllamaSharp;

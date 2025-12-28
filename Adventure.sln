@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adventure", "Adventure\Adventure.csproj", "{9AEC4DA5-C82C-4B43-A995-C119DC038BB1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adventure.v0", "Adventure.v0\Adventure.v0.csproj", "{9AEC4DA5-C82C-4B43-A995-C119DC038BB1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adventure.NLP", "Adventure.NLP\Adventure.NLP.csproj", "{BEEE475A-8BCC-442B-BA6A-3647DC49E172}"
 EndProject

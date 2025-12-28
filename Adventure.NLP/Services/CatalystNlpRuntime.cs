@@ -5,7 +5,7 @@ using Mosaik.Core;
 
 namespace Adventure.NLP.Services;
 
-internal sealed class NlpRuntime : INlpRuntime
+internal sealed class CatalystNlpRuntime : INlpRuntime
 {
 	#region Fields
 
@@ -19,7 +19,7 @@ internal sealed class NlpRuntime : INlpRuntime
 
 	#region Constructors
 
-	public NlpRuntime()
+	public CatalystNlpRuntime()
 	{
 		_language = CultureInfo.CurrentUICulture.ToMosaikLanguage();
 		EnsureInitialized();

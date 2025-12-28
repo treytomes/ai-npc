@@ -7,7 +7,7 @@ public static class ServiceCollectionExtensions
 {
 	public static IServiceCollection AddNlpRuntime(this IServiceCollection services)
 	{
-		services.AddSingleton<INlpRuntime, NlpRuntime>();
+		services.AddSingleton<INlpRuntime, CatalystNlpRuntime>();
 		services.AddSingleton<INlpParser, CatalystNlpParser>();
 		services.AddSingleton<IIntentSeedExtractor, CatalystIntentSeedExtractor>();
 		services.AddSingleton<INounPhraseExtractor, PosBasedNounPhraseExtractor>();
