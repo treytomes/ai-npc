@@ -1,11 +1,13 @@
 {
 	"cSpell.words": [
+		"Adposition",
 		"AINPC",
 		"appsettings",
 		"CCONJ",
 		"cuda",
 		"finalizer",
 		"glxinfo",
+		"INTJ",
 		"Invokable",
 		"Jaccard",
 		"JRPG",
@@ -26,6 +28,7 @@
 		"renderable",
 		"Renderables",
 		"rocm",
+		"SCONJ",
 		"Stopwords",
 		"vainfo",
 		"xunit"

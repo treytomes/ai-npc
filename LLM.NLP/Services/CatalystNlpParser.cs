@@ -21,7 +21,7 @@ internal sealed class CatalystNlpParser : INlpParser
 			.Select(t => new ParsedToken(
 				Value: t.Value.ToLowerInvariant(),
 				Lemma: t.Lemma?.ToLowerInvariant() ?? t.Value.ToLowerInvariant(),
-				Pos: t.POS))
+				Pos: t.POS.ToNlp()))
 			.ToList();
 
 		var tokens = new List<string>();

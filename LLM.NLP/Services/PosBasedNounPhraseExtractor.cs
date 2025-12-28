@@ -7,11 +7,11 @@ namespace LLM.NLP.Services;
 /// </summary>
 public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 {
-	private static readonly HashSet<PartOfSpeech> NominalPos =
+	private static readonly HashSet<NlpPartOfSpeech> NominalPos =
 	[
-		PartOfSpeech.NOUN,
-		PartOfSpeech.PRON,
-		PartOfSpeech.PROPN
+		NlpPartOfSpeech.Noun,
+		NlpPartOfSpeech.Pronoun,
+		NlpPartOfSpeech.ProperNoun
 	];
 
 	public NounPhrase? TryExtract(
@@ -21,7 +21,7 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 		int start = index;
 
 		// Special case: Handle pronouns as simple noun phrases
-		if (index < tokens.Count && tokens[index].Pos == PartOfSpeech.PRON)
+		if (index < tokens.Count && tokens[index].Pos == NlpPartOfSpeech.Pronoun)
 		{
 			var pronoun = tokens[index];
 			index++;
@@ -46,14 +46,14 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 		var modifiers = new List<string>();
 
 		// 1. Determiners
-		while (index < tokens.Count && tokens[index].Pos == PartOfSpeech.DET)
+		while (index < tokens.Count && tokens[index].Pos == NlpPartOfSpeech.Determiner)
 		{
 			determiners.Add(tokens[index].Value);
 			index++;
 		}
 
 		// 2. Adjectives
-		while (index < tokens.Count && tokens[index].Pos == PartOfSpeech.ADJ)
+		while (index < tokens.Count && tokens[index].Pos == NlpPartOfSpeech.Adjective)
 		{
 			modifiers.Add(tokens[index].Value);
 			index++;
@@ -81,7 +81,7 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 				index++;
 
 				// Check for coordination
-				if (index < tokens.Count && tokens[index].Pos == PartOfSpeech.CCONJ)
+				if (index < tokens.Count && tokens[index].Pos == NlpPartOfSpeech.CoordinatingConjunction)
 				{
 					isCoordinated = true;
 					allNominals.Add(tokens[index].Value); // Add the conjunction
@@ -134,15 +134,15 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			// Handle "out of" - check both when "out" is ADJ or ADP
 			if (index + 1 < tokens.Count &&
 				tokens[index].Value.Equals("out", StringComparison.OrdinalIgnoreCase) &&
-				(tokens[index].Pos == PartOfSpeech.ADJ || tokens[index].Pos == PartOfSpeech.ADP) &&
-				tokens[index + 1].Pos == PartOfSpeech.ADP &&
+				(tokens[index].Pos == NlpPartOfSpeech.Adjective || tokens[index].Pos == NlpPartOfSpeech.Adposition) &&
+				tokens[index + 1].Pos == NlpPartOfSpeech.Adposition &&
 				tokens[index + 1].Value.Equals("of", StringComparison.OrdinalIgnoreCase))
 			{
 				prep = "out of";
 				index += 2;
 			}
 			// Single-word preposition
-			else if (tokens[index].Pos == PartOfSpeech.ADP)
+			else if (tokens[index].Pos == NlpPartOfSpeech.Adposition)
 			{
 				prep = tokens[index].Lemma;
 				index++;
@@ -205,10 +205,10 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 
 		// Check if the next few tokens form a question pattern (AUX + PRON + VERB)
 		if (index < tokens.Count - 2 &&
-			tokens[index].Pos == PartOfSpeech.AUX &&
-			tokens[index + 1].Pos == PartOfSpeech.PRON &&
+			tokens[index].Pos == NlpPartOfSpeech.AuxiliaryVerb &&
+			tokens[index + 1].Pos == NlpPartOfSpeech.Pronoun &&
 			index + 2 < tokens.Count &&
-			tokens[index + 2].Pos == PartOfSpeech.VERB)
+			tokens[index + 2].Pos == NlpPartOfSpeech.Verb)
 		{
 			// This is a question pattern, not a relative clause
 			// Just return the pronoun itself
@@ -231,8 +231,8 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			var token = tokens[index];
 
 			// Stop at sentence-ending punctuation or coordinating conjunctions
-			if (token.Pos == PartOfSpeech.PUNCT ||
-				(token.Pos == PartOfSpeech.CCONJ && clauseTokens.Count > 1))
+			if (token.Pos == NlpPartOfSpeech.Punctuation ||
+				(token.Pos == NlpPartOfSpeech.CoordinatingConjunction && clauseTokens.Count > 1))
 			{
 				break;
 			}
@@ -241,9 +241,9 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			index++;
 
 			// Stop after a verb + its complements if we find a preposition at intent level
-			if (token.Pos == PartOfSpeech.VERB &&
+			if (token.Pos == NlpPartOfSpeech.Verb &&
 				index < tokens.Count &&
-				tokens[index].Pos == PartOfSpeech.ADP)
+				tokens[index].Pos == NlpPartOfSpeech.Adposition)
 			{
 				// Check if this preposition starts a new phrase at intent level
 				// by looking ahead

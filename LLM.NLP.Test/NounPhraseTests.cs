@@ -1,16 +1,12 @@
-using Catalyst;
-using LLM.NLP.REPL.Renderers;
 using LLM.NLP.Services;
 using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
-using Mosaik.Core;
-using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
-public sealed class NounPhraseTests : IDisposable
+public sealed class NounPhraseTests
 {
-	private readonly ServiceProvider _provider;
+	private readonly IServiceProvider _provider;
 	private readonly INounPhraseExtractor _extractor;
 
 	public NounPhraseTests()
@@ -20,33 +16,18 @@ public sealed class NounPhraseTests : IDisposable
 
 		_provider = services.BuildServiceProvider();
 		_extractor = _provider.GetRequiredService<INounPhraseExtractor>();
-
-		AnsiConsole.WriteLine();
-		AnsiConsole.Write(
-			new Rule("[bold green]NounPhraseExtractor — Index-Based Tests[/]")
-				.LeftJustified());
-	}
-
-	public void Dispose()
-	{
-		AnsiConsole.Write(
-			new Rule("[dim]End Noun Phrase Tests[/]")
-				.LeftJustified());
-		AnsiConsole.WriteLine();
 	}
 
 	[Fact]
 	public void Extracts_Adjective_Modified_Noun()
 	{
 		var parsed = new ParsedInputBuilder()
-			.Token("rusty", pos: PartOfSpeech.ADJ)
-			.Token("old", pos: PartOfSpeech.ADJ)
-			.Token("knife", pos: PartOfSpeech.NOUN)
+			.Token("rusty", pos: NlpPartOfSpeech.Adjective)
+			.Token("old", pos: NlpPartOfSpeech.Adjective)
+			.Token("knife", pos: NlpPartOfSpeech.Noun)
 			.Build();
 
 		var phrases = ExtractAll(parsed);
-
-		NounPhraseSnapshotRenderer.RenderAll(parsed.RawText, phrases);
 
 		Assert.Single(phrases);
 		Assert.Equal("knife", phrases[0].Head);
@@ -57,14 +38,12 @@ public sealed class NounPhraseTests : IDisposable
 	public void Extracts_Of_Complement()
 	{
 		var parsed = new ParsedInputBuilder()
-			.Token("loaf", pos: PartOfSpeech.NOUN)
-			.Token("of", pos: PartOfSpeech.ADP)
-			.Token("bread", pos: PartOfSpeech.NOUN)
+			.Token("loaf", pos: NlpPartOfSpeech.Noun)
+			.Token("of", pos: NlpPartOfSpeech.Adposition)
+			.Token("bread", pos: NlpPartOfSpeech.Noun)
 			.Build();
 
 		var phrases = ExtractAll(parsed);
-
-		NounPhraseSnapshotRenderer.RenderAll(parsed.RawText, phrases);
 
 		var np = phrases.Single();
 		Assert.Equal("loaf", np.Head);
@@ -75,13 +54,11 @@ public sealed class NounPhraseTests : IDisposable
 	public void Extracts_compound_nouns()
 	{
 		var parsed = new ParsedInputBuilder()
-			.Token("toggle", pos: PartOfSpeech.NOUN)
-			.Token("document", pos: PartOfSpeech.NOUN)
+			.Token("toggle", pos: NlpPartOfSpeech.Noun)
+			.Token("document", pos: NlpPartOfSpeech.Noun)
 			.Build();
 
 		var phrases = ExtractAll(parsed);
-
-		NounPhraseSnapshotRenderer.RenderAll(parsed.RawText, phrases);
 
 		var np = phrases.Single();
 		Assert.Equal("document", np.Head);

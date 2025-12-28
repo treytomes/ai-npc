@@ -1,8 +1,5 @@
-using LLM.NLP.REPL.Renderers;
 using LLM.NLP.Services;
 using Microsoft.Extensions.DependencyInjection;
-using Mosaik.Core;
-using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
@@ -10,9 +7,9 @@ namespace LLM.NLP.Test;
 /// Regression tests to ensure punctuation handling remains stable
 /// during NLP parsing.
 /// </summary>
-public sealed class NlpParser_PunctuationTests : IDisposable
+public sealed class NlpParser_PunctuationTests
 {
-	private readonly ServiceProvider _provider;
+	private readonly IServiceProvider _provider;
 	private readonly INlpRuntime _runtime;
 	private readonly INlpParser _parser;
 
@@ -25,21 +22,6 @@ public sealed class NlpParser_PunctuationTests : IDisposable
 
 		_runtime = _provider.GetRequiredService<INlpRuntime>();
 		_parser = _provider.GetRequiredService<INlpParser>();
-
-		AnsiConsole.WriteLine();
-		AnsiConsole.Write(
-			new Rule("[bold green]NLP Parser — Punctuation Handling[/]")
-				.LeftJustified());
-	}
-
-	public void Dispose()
-	{
-		_provider.Dispose();
-
-		AnsiConsole.Write(
-			new Rule("[dim]End Punctuation Tests[/]")
-				.LeftJustified());
-		AnsiConsole.WriteLine();
 	}
 
 	[Fact]
@@ -49,8 +31,6 @@ public sealed class NlpParser_PunctuationTests : IDisposable
 
 		var document = _runtime.Process(input);
 		var parsed = _parser.Parse(document);
-
-		ParsedInputSnapshotRenderer.Render(input, parsed);
 
 		Assert.Equal(
 			["open", "the", "door"],
@@ -66,8 +46,6 @@ public sealed class NlpParser_PunctuationTests : IDisposable
 
 		var document = _runtime.Process(input);
 		var parsed = _parser.Parse(document);
-
-		ParsedInputSnapshotRenderer.Render(input, parsed);
 
 		Assert.Contains("x-ray", parsed.Tokens);
 	}

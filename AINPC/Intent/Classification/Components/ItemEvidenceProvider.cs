@@ -60,8 +60,8 @@ internal sealed class ItemEvidenceProvider : IEvidenceProvider<Actor>
 		// isApattern.NewPattern(
 		// 	"Is+Noun",
 		// 	mp => mp.Add(
-		// 	new PatternUnit(P.Single().WithToken("is").WithPOS(PartOfSpeech.VERB)),
-		// 	new PatternUnit(P.Multiple().WithPOS(PartOfSpeech.NOUN, PartOfSpeech.PROPN, PartOfSpeech.AUX, PartOfSpeech.DET, PartOfSpeech.ADJ))
+		// 	new PatternUnit(P.Single().WithToken("is").WithPOS(NlpPartOfSpeech.Verb)),
+		// 	new PatternUnit(P.Multiple().WithPOS(NlpPartOfSpeech.Noun, NlpPartOfSpeech.ProperNoun, NlpPartOfSpeech.AuxiliaryVerb, NlpPartOfSpeech.Determiner, NlpPartOfSpeech.Adjective))
 		// ));
 		// _nlpPipeline.Add(isApattern);
 

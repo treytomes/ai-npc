@@ -28,8 +28,8 @@ public abstract class SystemCommandBase(Action<IReadOnlyDictionary<string, objec
 		{
 			switch (token.Pos)
 			{
-				case PartOfSpeech.NOUN:
-				case PartOfSpeech.ADJ:
+				case NlpPartOfSpeech.Noun:
+				case NlpPartOfSpeech.Adjective:
 					return token.Lemma ?? token.Value;
 			}
 		}

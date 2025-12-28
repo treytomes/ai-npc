@@ -1,5 +1,3 @@
-using Catalyst;
-
 namespace LLM.NLP.Test.Helpers;
 
 /// <summary>
@@ -12,7 +10,7 @@ internal sealed class ParsedInputBuilder
 	public ParsedInputBuilder Token(
 		string value,
 		string? lemma = null,
-		PartOfSpeech pos = PartOfSpeech.X)
+		NlpPartOfSpeech pos = NlpPartOfSpeech.Other)
 	{
 		_tokens.Add(new ParsedToken(
 			Value: value,

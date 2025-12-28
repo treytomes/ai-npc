@@ -1,5 +1,3 @@
-using Catalyst;
-
 namespace LLM.NLP;
 
 /// <summary>
@@ -8,4 +6,4 @@ namespace LLM.NLP;
 public sealed record ParsedToken(
 	string Value,
 	string Lemma,
-	PartOfSpeech Pos);
+	NlpPartOfSpeech Pos);

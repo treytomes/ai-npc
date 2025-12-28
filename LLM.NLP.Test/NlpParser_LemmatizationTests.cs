@@ -1,8 +1,5 @@
-using LLM.NLP.REPL.Renderers;
 using LLM.NLP.Services;
 using Microsoft.Extensions.DependencyInjection;
-using Mosaik.Core;
-using Spectre.Console;
 
 namespace LLM.NLP.Test;
 
@@ -10,9 +7,9 @@ namespace LLM.NLP.Test;
 /// Integration tests for lemmatization behavior.
 /// Verifies that verbs and nouns are normalized correctly.
 /// </summary>
-public sealed class NlpParser_LemmatizationTests : IDisposable
+public sealed class NlpParser_LemmatizationTests
 {
-	private readonly ServiceProvider _provider;
+	private readonly IServiceProvider _provider;
 	private readonly INlpRuntime _runtime;
 	private readonly INlpParser _parser;
 
@@ -25,21 +22,6 @@ public sealed class NlpParser_LemmatizationTests : IDisposable
 
 		_runtime = _provider.GetRequiredService<INlpRuntime>();
 		_parser = _provider.GetRequiredService<INlpParser>();
-
-		AnsiConsole.WriteLine();
-		AnsiConsole.Write(
-			new Rule("[bold green]NLP Parser — Lemmatization[/]")
-				.LeftJustified());
-	}
-
-	public void Dispose()
-	{
-		_provider.Dispose();
-
-		AnsiConsole.Write(
-			new Rule("[dim]End Lemmatization Tests[/]")
-				.LeftJustified());
-		AnsiConsole.WriteLine();
 	}
 
 	[Fact]
@@ -49,8 +31,6 @@ public sealed class NlpParser_LemmatizationTests : IDisposable
 
 		var document = _runtime.Process(input);
 		var parsed = _parser.Parse(document);
-
-		ParsedInputSnapshotRenderer.Render(input, parsed);
 
 		Assert.Contains("door", parsed.Lemmas);
 		Assert.Contains("open", parsed.Lemmas);

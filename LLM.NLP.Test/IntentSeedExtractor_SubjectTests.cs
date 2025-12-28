@@ -1,17 +1,13 @@
-namespace LLM.NLP.Test;
-
-using Catalyst;
 using LLM.NLP.Services;
 using LLM.NLP.Test.Helpers;
 using Microsoft.Extensions.DependencyInjection;
-using Mosaik.Core;
-using Xunit;
+
+namespace LLM.NLP.Test;
 
 public class IntentSeedExtractor_SubjectTests
 {
 	private readonly IServiceProvider _provider;
 	private readonly IIntentSeedExtractor _extractor;
-	private readonly INounPhraseExtractor _nounPhraseExtractor;
 
 	public IntentSeedExtractor_SubjectTests()
 	{
@@ -20,7 +16,6 @@ public class IntentSeedExtractor_SubjectTests
 
 		_provider = services.BuildServiceProvider();
 		_extractor = _provider.GetRequiredService<IIntentSeedExtractor>();
-		_nounPhraseExtractor = _provider.GetRequiredService<INounPhraseExtractor>();
 	}
 
 	[Fact]
@@ -28,10 +23,10 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "You have three items"
 		var parsed = new ParsedInputBuilder()
-			.Token("you", "you", PartOfSpeech.PRON)
-			.Token("have", "have", PartOfSpeech.VERB)
-			.Token("three", "three", PartOfSpeech.NUM)
-			.Token("items", "item", PartOfSpeech.NOUN)
+			.Token("you", "you", NlpPartOfSpeech.Pronoun)
+			.Token("have", "have", NlpPartOfSpeech.Verb)
+			.Token("three", "three", NlpPartOfSpeech.Numeral)
+			.Token("items", "item", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -49,12 +44,12 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "The cat sits on the mat"
 		var parsed = new ParsedInputBuilder()
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("cat", "cat", PartOfSpeech.NOUN)
-			.Token("sits", "sit", PartOfSpeech.VERB)
-			.Token("on", "on", PartOfSpeech.ADP)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("mat", "mat", PartOfSpeech.NOUN)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("cat", "cat", NlpPartOfSpeech.Noun)
+			.Token("sits", "sit", NlpPartOfSpeech.Verb)
+			.Token("on", "on", NlpPartOfSpeech.Adposition)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("mat", "mat", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -72,12 +67,12 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "The old brown dog barked loudly"
 		var parsed = new ParsedInputBuilder()
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("old", "old", PartOfSpeech.ADJ)
-			.Token("brown", "brown", PartOfSpeech.ADJ)
-			.Token("dog", "dog", PartOfSpeech.NOUN)
-			.Token("barked", "bark", PartOfSpeech.VERB)
-			.Token("loudly", "loudly", PartOfSpeech.ADV)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("old", "old", NlpPartOfSpeech.Adjective)
+			.Token("brown", "brown", NlpPartOfSpeech.Adjective)
+			.Token("dog", "dog", NlpPartOfSpeech.Noun)
+			.Token("barked", "bark", NlpPartOfSpeech.Verb)
+			.Token("loudly", "loudly", NlpPartOfSpeech.Adverb)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -95,10 +90,10 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "Show me the door" (imperative - implied subject "you")
 		var parsed = new ParsedInputBuilder()
-			.Token("Show", "show", PartOfSpeech.VERB)
-			.Token("me", "me", PartOfSpeech.PRON)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("door", "door", PartOfSpeech.NOUN)
+			.Token("Show", "show", NlpPartOfSpeech.Verb)
+			.Token("me", "me", NlpPartOfSpeech.Pronoun)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("door", "door", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -116,12 +111,12 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "What do you have for sale?"
 		var parsed = new ParsedInputBuilder()
-			.Token("what", "what", PartOfSpeech.PRON)
-			.Token("do", "do", PartOfSpeech.AUX)
-			.Token("you", "you", PartOfSpeech.PRON)
-			.Token("have", "have", PartOfSpeech.VERB)
-			.Token("for", "for", PartOfSpeech.ADP)
-			.Token("sale", "sale", PartOfSpeech.NOUN)
+			.Token("what", "what", NlpPartOfSpeech.Pronoun)
+			.Token("do", "do", NlpPartOfSpeech.AuxiliaryVerb)
+			.Token("you", "you", NlpPartOfSpeech.Pronoun)
+			.Token("have", "have", NlpPartOfSpeech.Verb)
+			.Token("for", "for", NlpPartOfSpeech.Adposition)
+			.Token("sale", "sale", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -138,10 +133,10 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "Is the door open?"
 		var parsed = new ParsedInputBuilder()
-			.Token("is", "be", PartOfSpeech.AUX)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("door", "door", PartOfSpeech.NOUN)
-			.Token("open", "open", PartOfSpeech.ADJ)
+			.Token("is", "be", NlpPartOfSpeech.AuxiliaryVerb)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("door", "door", NlpPartOfSpeech.Noun)
+			.Token("open", "open", NlpPartOfSpeech.Adjective)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -157,13 +152,13 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "John and Mary went to the store"
 		var parsed = new ParsedInputBuilder()
-			.Token("john", "john", PartOfSpeech.PROPN)
-			.Token("and", "and", PartOfSpeech.CCONJ)
-			.Token("mary", "mary", PartOfSpeech.PROPN)
-			.Token("went", "go", PartOfSpeech.VERB)
-			.Token("to", "to", PartOfSpeech.ADP)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("store", "store", PartOfSpeech.NOUN)
+			.Token("john", "john", NlpPartOfSpeech.ProperNoun)
+			.Token("and", "and", NlpPartOfSpeech.CoordinatingConjunction)
+			.Token("mary", "mary", NlpPartOfSpeech.ProperNoun)
+			.Token("went", "go", NlpPartOfSpeech.Verb)
+			.Token("to", "to", NlpPartOfSpeech.Adposition)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("store", "store", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -180,12 +175,12 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "The man with the hat smiled"
 		var parsed = new ParsedInputBuilder()
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("man", "man", PartOfSpeech.NOUN)
-			.Token("with", "with", PartOfSpeech.ADP)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("hat", "hat", PartOfSpeech.NOUN)
-			.Token("smiled", "smile", PartOfSpeech.VERB)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("man", "man", NlpPartOfSpeech.Noun)
+			.Token("with", "with", NlpPartOfSpeech.Adposition)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("hat", "hat", NlpPartOfSpeech.Noun)
+			.Token("smiled", "smile", NlpPartOfSpeech.Verb)
 			.Build();
 		var seed = _extractor.Extract(parsed);
 
@@ -201,12 +196,12 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "The door was opened by John"
 		var parsed = new ParsedInputBuilder()
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("door", "door", PartOfSpeech.NOUN)
-			.Token("was", "be", PartOfSpeech.AUX)
-			.Token("opened", "open", PartOfSpeech.VERB)
-			.Token("by", "by", PartOfSpeech.ADP)
-			.Token("john", "john", PartOfSpeech.PROPN)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("door", "door", NlpPartOfSpeech.Noun)
+			.Token("was", "be", NlpPartOfSpeech.AuxiliaryVerb)
+			.Token("opened", "open", NlpPartOfSpeech.Verb)
+			.Token("by", "by", NlpPartOfSpeech.Adposition)
+			.Token("john", "john", NlpPartOfSpeech.ProperNoun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -224,13 +219,13 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "There are three items on the shelf"
 		var parsed = new ParsedInputBuilder()
-			.Token("there", "there", PartOfSpeech.PRON)
-			.Token("are", "be", PartOfSpeech.VERB)
-			.Token("three", "three", PartOfSpeech.NUM)
-			.Token("items", "item", PartOfSpeech.NOUN)
-			.Token("on", "on", PartOfSpeech.ADP)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("shelf", "shelf", PartOfSpeech.NOUN)
+			.Token("there", "there", NlpPartOfSpeech.Pronoun)
+			.Token("are", "be", NlpPartOfSpeech.Verb)
+			.Token("three", "three", NlpPartOfSpeech.Numeral)
+			.Token("items", "item", NlpPartOfSpeech.Noun)
+			.Token("on", "on", NlpPartOfSpeech.Adposition)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("shelf", "shelf", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -247,10 +242,10 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "Who opened the door?"
 		var parsed = new ParsedInputBuilder()
-			.Token("who", "who", PartOfSpeech.PRON)
-			.Token("opened", "open", PartOfSpeech.VERB)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("door", "door", PartOfSpeech.NOUN)
+			.Token("who", "who", NlpPartOfSpeech.Pronoun)
+			.Token("opened", "open", NlpPartOfSpeech.Verb)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("door", "door", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -267,10 +262,10 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "Who opened the door?"
 		var parsed = new ParsedInputBuilder()
-			.Token("who", "who", PartOfSpeech.PRON)
-			.Token("opened", "open", PartOfSpeech.VERB)
-			.Token("the", "the", PartOfSpeech.DET)
-			.Token("door", "door", PartOfSpeech.NOUN)
+			.Token("who", "who", NlpPartOfSpeech.Pronoun)
+			.Token("opened", "open", NlpPartOfSpeech.Verb)
+			.Token("the", "the", NlpPartOfSpeech.Determiner)
+			.Token("door", "door", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -289,9 +284,9 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "It is raining"
 		var parsed = new ParsedInputBuilder()
-			.Token("it", "it", PartOfSpeech.PRON)
-			.Token("is", "be", PartOfSpeech.AUX)
-			.Token("raining", "rain", PartOfSpeech.VERB)
+			.Token("it", "it", NlpPartOfSpeech.Pronoun)
+			.Token("is", "be", NlpPartOfSpeech.AuxiliaryVerb)
+			.Token("raining", "rain", NlpPartOfSpeech.Verb)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -306,9 +301,9 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "Running is healthy"
 		var parsed = new ParsedInputBuilder()
-			.Token("running", "running", PartOfSpeech.NOUN) // Gerunds often tagged as NOUN
-			.Token("is", "be", PartOfSpeech.VERB)
-			.Token("healthy", "healthy", PartOfSpeech.ADJ)
+			.Token("running", "running", NlpPartOfSpeech.Noun) // Gerunds often tagged as NOUN
+			.Token("is", "be", NlpPartOfSpeech.Verb)
+			.Token("healthy", "healthy", NlpPartOfSpeech.Adjective)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -323,9 +318,9 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "The red door" (no verb, no subject)
 		var parsed = new ParsedInputBuilder()
-			.Token("The", "the", PartOfSpeech.DET)
-			.Token("red", "red", PartOfSpeech.ADJ)
-			.Token("door", "door", PartOfSpeech.NOUN)
+			.Token("The", "the", NlpPartOfSpeech.Determiner)
+			.Token("red", "red", NlpPartOfSpeech.Adjective)
+			.Token("door", "door", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);
@@ -341,10 +336,10 @@ public class IntentSeedExtractor_SubjectTests
 	{
 		// "She is a doctor"
 		var parsed = new ParsedInputBuilder()
-			.Token("she", "she", PartOfSpeech.PRON)
-			.Token("is", "be", PartOfSpeech.VERB)
-			.Token("a", "a", PartOfSpeech.DET)
-			.Token("doctor", "doctor", PartOfSpeech.NOUN)
+			.Token("she", "she", NlpPartOfSpeech.Pronoun)
+			.Token("is", "be", NlpPartOfSpeech.Verb)
+			.Token("a", "a", NlpPartOfSpeech.Determiner)
+			.Token("doctor", "doctor", NlpPartOfSpeech.Noun)
 			.Build();
 
 		var seed = _extractor.Extract(parsed);

@@ -45,17 +45,17 @@ internal sealed class CatalystIntentSeedExtractor : IIntentSeedExtractor
 
 		for (int i = 0; i < tokens.Count; i++)
 		{
-			if (tokens[i].Pos == PartOfSpeech.AUX)
+			if (tokens[i].Pos == NlpPartOfSpeech.AuxiliaryVerb)
 			{
 				lastAuxIndex = i;
 
-				if (i == 0 || (i == 1 && tokens[0].Pos == PartOfSpeech.PRON))
+				if (i == 0 || (i == 1 && tokens[0].Pos == NlpPartOfSpeech.Pronoun))
 					isInvertedStructure = true;
 
 				bool hasVerbAfter = false;
 				for (int j = i + 1; j < tokens.Count; j++)
 				{
-					if (tokens[j].Pos == PartOfSpeech.VERB)
+					if (tokens[j].Pos == NlpPartOfSpeech.Verb)
 					{
 						hasVerbAfter = true;
 						break;
@@ -69,7 +69,7 @@ internal sealed class CatalystIntentSeedExtractor : IIntentSeedExtractor
 					break;
 				}
 			}
-			else if (tokens[i].Pos == PartOfSpeech.VERB)
+			else if (tokens[i].Pos == NlpPartOfSpeech.Verb)
 			{
 				verb = tokens[i].Lemma;
 				mainVerbIndex = i;
@@ -86,7 +86,7 @@ internal sealed class CatalystIntentSeedExtractor : IIntentSeedExtractor
 			if (i == mainVerbIndex)
 				continue;
 
-			if (tokens[i].Pos == PartOfSpeech.AUX && i != mainVerbIndex)
+			if (tokens[i].Pos == NlpPartOfSpeech.AuxiliaryVerb && i != mainVerbIndex)
 				continue;
 
 			int phraseStartIndex = i;
@@ -138,7 +138,7 @@ internal sealed class CatalystIntentSeedExtractor : IIntentSeedExtractor
 				continue;
 			}
 
-			if (tokens[i].Pos == PartOfSpeech.ADP)
+			if (tokens[i].Pos == NlpPartOfSpeech.Adposition)
 				pendingPreposition = tokens[i].Lemma;
 		}
 
@@ -207,10 +207,10 @@ internal sealed class CatalystIntentSeedExtractor : IIntentSeedExtractor
 
 		for (int i = currentIndex; i < tokens.Count; i++)
 		{
-			if (tokens[i].Pos is PartOfSpeech.NOUN or PartOfSpeech.PRON)
+			if (tokens[i].Pos is NlpPartOfSpeech.Noun or NlpPartOfSpeech.Pronoun)
 				return true;
 
-			if (tokens[i].Pos is PartOfSpeech.ADP or PartOfSpeech.VERB)
+			if (tokens[i].Pos is NlpPartOfSpeech.Adposition or NlpPartOfSpeech.Verb)
 				break;
 		}
 
