@@ -1,11 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
-using Mosaik.Core;
-using Adventure.NLP.REPL.Renderers;
 using Adventure.NLP.REPL.SystemIntent;
 using LLM.NPL.REPL;
 using Adventure.NLP.REPL.SystemIntent.Commands;
 using Adventure.NLP.Services;
+using Adventure.NLP.SystemIntent;
 
 namespace Adventure.NLP.REPL;
 
@@ -187,7 +186,7 @@ internal static class Program
 				}
 				else
 				{
-					ParsedInputSnapshotRenderer.Render(input, parsed);
+					parsed.ToSnapshotRenderable(input);
 				}
 			}
 
@@ -202,7 +201,7 @@ internal static class Program
 				}
 				else
 				{
-					IntentSeedSnapshotRenderer.Render(input, parsed, intentSeed);
+					AnsiConsole.Write(intentSeed.ToAnalysisRenderable(input, parsed));
 				}
 
 				if (_showParseTree)
@@ -219,10 +218,7 @@ internal static class Program
 					}
 					else
 					{
-						ParseTreeSnapshotRenderer.Render(
-							input,
-							parsed,
-							intentSeed);
+						parsed.ToParseTreeRenderable(input, intentSeed);
 					}
 				}
 			}

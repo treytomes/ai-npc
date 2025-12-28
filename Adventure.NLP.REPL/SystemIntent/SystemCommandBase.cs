@@ -1,4 +1,4 @@
-using Catalyst;
+using Adventure.NLP.SystemIntent;
 
 namespace Adventure.NLP.REPL.SystemIntent;
 

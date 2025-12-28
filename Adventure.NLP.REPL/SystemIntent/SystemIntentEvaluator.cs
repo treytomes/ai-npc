@@ -1,4 +1,5 @@
 using Adventure.NLP.Services;
+using Adventure.NLP.SystemIntent;
 
 namespace Adventure.NLP.REPL.SystemIntent;
 

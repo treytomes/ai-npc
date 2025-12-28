@@ -1,3 +1,5 @@
+using Adventure.NLP.SystemIntent;
+
 namespace Adventure.NLP.REPL.SystemIntent;
 
 public interface ISystemIntentEvaluator
