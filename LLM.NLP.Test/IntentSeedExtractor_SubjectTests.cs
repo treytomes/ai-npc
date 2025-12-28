@@ -16,12 +16,7 @@ public class IntentSeedExtractor_SubjectTests
 	public IntentSeedExtractor_SubjectTests()
 	{
 		var services = new ServiceCollection();
-
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		services.AddNlpRuntime();
 
 		_provider = services.BuildServiceProvider();
 		_extractor = _provider.GetRequiredService<IIntentSeedExtractor>();

@@ -16,12 +16,7 @@ public sealed class NounPhraseTests : IDisposable
 	public NounPhraseTests()
 	{
 		var services = new ServiceCollection();
-
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		services.AddNlpRuntime();
 
 		_provider = services.BuildServiceProvider();
 		_extractor = _provider.GetRequiredService<INounPhraseExtractor>();

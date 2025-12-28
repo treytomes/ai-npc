@@ -19,12 +19,7 @@ public sealed class NlpParser_ImperativeTests : IDisposable
 	public NlpParser_ImperativeTests()
 	{
 		var services = new ServiceCollection();
-
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		services.AddNlpRuntime();
 
 		_provider = services.BuildServiceProvider();
 

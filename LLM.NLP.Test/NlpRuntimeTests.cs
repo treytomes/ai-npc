@@ -16,12 +16,7 @@ public sealed class NlpRuntimeInitializationTests : IDisposable
 	public NlpRuntimeInitializationTests()
 	{
 		_services = new ServiceCollection();
-
-		_services.AddNlpRuntime(options =>
-		{
-			options.DataPath = "catalyst-data";
-			options.Language = Language.English;
-		});
+		_services.AddNlpRuntime();
 
 		AnsiConsole.WriteLine();
 		AnsiConsole.Write(

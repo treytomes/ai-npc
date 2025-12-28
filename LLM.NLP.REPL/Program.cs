@@ -52,11 +52,7 @@ internal static class Program
 	{
 		var services = new ServiceCollection();
 
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		services.AddNlpRuntime();
 		services.AddREPL();
 
 		using var provider = services.BuildServiceProvider();

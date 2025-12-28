@@ -19,12 +19,7 @@ public sealed class NlpParserTests : IDisposable
 	public NlpParserTests()
 	{
 		var services = new ServiceCollection();
-
-		services.AddNlpRuntime(options =>
-		{
-			options.DataPath = "catalyst-data";
-			options.Language = Language.English;
-		});
+		services.AddNlpRuntime();
 
 		_provider = services.BuildServiceProvider();
 

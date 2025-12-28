@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Runtime.InteropServices;
 using Catalyst;
 using Mosaik.Core;
 
@@ -17,11 +19,10 @@ internal sealed class NlpRuntime : INlpRuntime
 
 	#region Constructors
 
-	public NlpRuntime(NlpRuntimeOptions options)
+	public NlpRuntime()
 	{
-		EnsureInitialized(options);
-
-		_language = options.Language;
+		_language = CultureInfo.CurrentUICulture.ToMosaikLanguage();
+		EnsureInitialized();
 		_pipeline = Pipeline.For(_language);
 	}
 
@@ -46,7 +47,20 @@ internal sealed class NlpRuntime : INlpRuntime
 		return document;
 	}
 
-	private static void EnsureInitialized(NlpRuntimeOptions options)
+	private static string GetInstallDir()
+	{
+		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+		{
+			var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+			return Path.Combine(baseDir, "AINPC", "catalyst");
+		}
+
+		// Linux/macOS-like path
+		var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+		return Path.Combine(home, ".ainpc", "catalyst");
+	}
+
+	private void EnsureInitialized()
 	{
 		if (_initialized) return;
 
@@ -54,20 +68,19 @@ internal sealed class NlpRuntime : INlpRuntime
 		{
 			if (_initialized) return;
 
-			Storage.Current = new DiskStorage(options.DataPath);
+			Storage.Current = new DiskStorage(GetInstallDir());
 
-			if (options.Language == Language.English)
+			if (_language == Language.English)
 			{
 				Catalyst.Models.English.Register();
 			}
 			else
 			{
-				throw new NotSupportedException(
-					$"Language '{options.Language}' is not registered.");
+				throw new NotSupportedException($"Language '{_language}' is not registered.");
 			}
 
-			// Force pipeline initialization once
-			Pipeline.For(options.Language);
+			// Force pipeline initialization once.
+			Pipeline.For(_language);
 
 			_initialized = true;
 		}

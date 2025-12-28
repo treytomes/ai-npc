@@ -19,12 +19,7 @@ public sealed class NlpParser_LemmatizationTests : IDisposable
 	public NlpParser_LemmatizationTests()
 	{
 		var services = new ServiceCollection();
-
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		services.AddNlpRuntime();
 
 		_provider = services.BuildServiceProvider();
 

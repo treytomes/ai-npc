@@ -16,12 +16,7 @@ public sealed class IntentSeedExtractor_PrepositionsTests : IDisposable
 	public IntentSeedExtractor_PrepositionsTests()
 	{
 		var services = new ServiceCollection();
-
-		services.AddNlpRuntime(o =>
-		{
-			o.DataPath = "catalyst-data";
-			o.Language = Language.English;
-		});
+		services.AddNlpRuntime();
 
 		_provider = services.BuildServiceProvider();
 		_extractor = _provider.GetRequiredService<IIntentSeedExtractor>();
