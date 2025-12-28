@@ -8,12 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Adventure.Common/Adventure.Common.csproj" />
     <ProjectReference Include="../Adventure.NLP/Adventure.NLP.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Spectre.Console" Version="0.54.0" />
-    <PackageReference Include="Spectre.Console.Json" Version="0.54.0" />
   </ItemGroup>
 
 	<ItemGroup>

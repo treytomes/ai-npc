@@ -1,4 +1,4 @@
-namespace Adventure.NLP.REPL;
+namespace Adventure.NLP.SystemIntent;
 
 public interface ISystemCommand
 {
