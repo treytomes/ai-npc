@@ -33,12 +33,12 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			}
 
 			return new NounPhrase(
-				head: pronoun.Value,
-				modifiers: [],
-				complements: new Dictionary<string, NounPhrase>(),
-				text: pronoun.Value,
-				isCoordinated: false,
-				coordinatedHeads: []
+				Head: pronoun.Value,
+				Modifiers: [],
+				Complements: new Dictionary<string, NounPhrase>(),
+				Text: pronoun.Value,
+				IsCoordinated: false,
+				CoordinatedHeads: []
 			);
 		}
 
@@ -181,12 +181,12 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 		}
 
 		return new NounPhrase(
-			text: string.Join(" ", textParts),
-			head: head,
-			modifiers: determiners.Concat(modifiers).ToList(),
-			complements: complements,
-			isCoordinated: isCoordinated,
-			coordinatedHeads: isCoordinated ? coordinatedHeads : []
+			Text: string.Join(" ", textParts),
+			Head: head,
+			Modifiers: determiners.Concat(modifiers).ToList(),
+			Complements: complements,
+			IsCoordinated: isCoordinated,
+			CoordinatedHeads: isCoordinated ? coordinatedHeads : []
 		);
 	}
 
@@ -213,12 +213,12 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 			// This is a question pattern, not a relative clause
 			// Just return the pronoun itself
 			return new NounPhrase(
-				head: relativePronoun,
-				modifiers: [],
-				complements: new Dictionary<string, NounPhrase>(),
-				text: relativePronoun,
-				isCoordinated: false,
-				coordinatedHeads: []
+				Head: relativePronoun,
+				Modifiers: [],
+				Complements: new Dictionary<string, NounPhrase>(),
+				Text: relativePronoun,
+				IsCoordinated: false,
+				CoordinatedHeads: []
 			);
 		}
 
@@ -259,12 +259,12 @@ public sealed class PosBasedNounPhraseExtractor : INounPhraseExtractor
 		if (clauseTokens.Count > 1)
 		{
 			return new NounPhrase(
-				head: relativePronoun,
-				modifiers: [],
-				complements: new Dictionary<string, NounPhrase>(),
-				text: string.Join(" ", clauseTokens),
-				isCoordinated: false,
-				coordinatedHeads: []
+				Head: relativePronoun,
+				Modifiers: [],
+				Complements: new Dictionary<string, NounPhrase>(),
+				Text: string.Join(" ", clauseTokens),
+				IsCoordinated: false,
+				CoordinatedHeads: []
 			);
 		}
 

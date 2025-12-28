@@ -45,10 +45,10 @@ internal sealed class CatalystNlpParser : INlpParser
 		var normalizedText = string.Join(" ", tokens);
 
 		return new ParsedInput(
-			rawText: rawText,
-			normalizedText: normalizedText,
-			tokens: tokens,
-			lemmas: lemmas,
-			parsedTokens: parsedTokens);
+			RawText: rawText,
+			NormalizedText: normalizedText,
+			Tokens: tokens,
+			Lemmas: lemmas,
+			ParsedTokens: parsedTokens);
 	}
 }

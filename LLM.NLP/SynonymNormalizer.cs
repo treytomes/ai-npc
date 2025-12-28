@@ -1,5 +1,8 @@
 namespace LLM.NLP;
 
+/// <summary>
+/// Mutate an intent seed by replacing words with normalized synonyms.
+/// </summary>
 public class SynonymNormalizer : IIntentPipelineStep
 {
 	#region Fields

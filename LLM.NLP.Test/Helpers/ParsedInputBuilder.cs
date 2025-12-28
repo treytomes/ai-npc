@@ -28,10 +28,10 @@ internal sealed class ParsedInputBuilder
 		var lemmas = _tokens.Select(t => t.Lemma).ToList();
 
 		return new ParsedInput(
-			rawText: string.Join(" ", values),
-			normalizedText: string.Join(" ", values),
-			tokens: values,
-			lemmas: lemmas,
-			parsedTokens: _tokens.ToList());
+			RawText: string.Join(" ", values),
+			NormalizedText: string.Join(" ", values),
+			Tokens: values,
+			Lemmas: lemmas,
+			ParsedTokens: _tokens.ToList());
 	}
 }
