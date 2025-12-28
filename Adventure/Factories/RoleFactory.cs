@@ -1,0 +1,77 @@
+using Adventure.Templates;
+using Adventure.ValueObjects;
+
+namespace Adventure.Factories;
+
+internal class RoleFactory
+{
+	#region Fields
+
+	private readonly VillageFactory _villages;
+	private readonly TemplateEngine _engine = new();
+
+	#endregion
+
+	#region Constructors
+
+	public RoleFactory(VillageFactory villages)
+	{
+		_villages = villages ?? throw new ArgumentNullException(nameof(villages));
+	}
+
+	#endregion
+
+	#region Methods
+
+	public RoleInfo CreateHelpfulAssistantPrompt()
+	{
+		var systemPrompt = _engine.Render(NPCTemplates.HelpfulAssistant);
+		return new RoleInfo("assistant", systemPrompt);
+	}
+
+	public RoleInfo CreateGatekeeper(CharacterInfo character)
+	{
+		var village = _villages.GetElderwood();
+
+		var roleName = "gatekeeper";
+
+		var systemPrompt = _engine.Render(
+			NPCTemplates.Gatekeeper,
+			new Dictionary<string, string>
+			{
+				["RoleName"] = roleName,
+				["CharacterName"] = character.Name,
+				["PersonalityTraits"] = string.Join(", ", character.PersonalityTraits),
+				["VillageName"] = village.Name,
+				["VillageLocation"] = village.Location,
+				["VillageTraits"] = string.Join(", ", village.Traits),
+				["VillageEvents"] = village.RecentEvents
+			}
+		);
+
+		return new(roleName, systemPrompt);
+	}
+
+	public RoleInfo CreateShopkeeperPrompt(CharacterInfo character)
+	{
+		var village = _villages.GetElderwood();
+
+		var roleName = "shopkeeper";
+
+		var systemPrompt = _engine.Render(NPCTemplates.Shopkeeper,
+			new Dictionary<string, string>
+			{
+				["RoleName"] = roleName,
+				["CharacterName"] = character.Name,
+				["PersonalityTraits"] = string.Join(", ", character.PersonalityTraits),
+				["VillageName"] = village.Name,
+				["VillageLocation"] = village.Location,
+				["VillageTraits"] = string.Join(", ", village.Traits),
+				["VillageEvents"] = village.RecentEvents
+			});
+
+		return new(roleName, systemPrompt);
+	}
+
+	#endregion
+}

@@ -141,7 +141,7 @@ If the user appears to be asking for the weather do not make up a response. Use 
 Qwen needs a lot of prompting to get it to not make things up.  Even with this system prompt, we have a lot of work to do:
 
 ```
-AINPC Ollama Test
+Adventure Ollama Test
 ----------------------------------
 Ollama server is running.
 Beginning interactive chat.
