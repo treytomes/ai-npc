@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-namespace Adventure;
+namespace Adventure.LLM.OllamaRuntime;
 
 public sealed class OllamaProcess
 {

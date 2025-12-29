@@ -3,9 +3,9 @@ using Adventure.Enums;
 using Adventure.Intent.Classification;
 using Adventure.Intent.Classification.Facts;
 using Adventure.Models;
-using Adventure.OllamaRuntime;
 using Adventure.Tools;
 using Adventure.ValueObjects;
+using Adventure.LLM.OllamaRuntime;
 using OllamaSharp;
 using OllamaSharp.Models.Chat;
 

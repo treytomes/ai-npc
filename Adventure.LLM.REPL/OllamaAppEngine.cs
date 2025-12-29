@@ -1,4 +1,3 @@
-using Adventure.NLP.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Adventure.LLM.OllamaRuntime;
@@ -10,14 +9,14 @@ class OllamaAppEngine : AppEngine
 {
 	#region Fields
 
-	private readonly AppSettingsV0 _settings;
+	private readonly LLM.REPL.AppSettings _settings;
 	private readonly OllamaRepo _ollamaRepo;
 
 	#endregion
 
 	#region Constructors
 
-	public OllamaAppEngine(IOptions<AppSettingsV0> settings, IServiceProvider serviceProvider, ILogger<OllamaAppEngine> logger, OllamaRepo ollamaRepo)
+	public OllamaAppEngine(IOptions<LLM.REPL.AppSettings> settings, IServiceProvider serviceProvider, ILogger<OllamaAppEngine> logger, OllamaRepo ollamaRepo)
 		: base(serviceProvider, logger)
 	{
 		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
@@ -32,7 +31,7 @@ class OllamaAppEngine : AppEngine
 	protected override async Task InitializeAsync()
 	{
 		AnsiConsole.Write(
-			new FigletText("Adventure")
+			new FigletText("Adventure.LLM")
 				.LeftJustified()
 				.Color(Color.Cyan1));
 

@@ -3,7 +3,7 @@ using Adventure.Entities;
 using Adventure.Enums;
 using Adventure.Factories;
 using Adventure.Intent.Classification;
-using Adventure.OllamaRuntime;
+using Adventure.LLM.OllamaRuntime;
 using Adventure.Renderables;
 using Adventure.Tools;
 using Microsoft.Extensions.Logging;

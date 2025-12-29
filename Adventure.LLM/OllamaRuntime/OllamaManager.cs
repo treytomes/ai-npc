@@ -1,14 +1,12 @@
 using System.Diagnostics;
-using Adventure.Gpu.Services;
 using Microsoft.Extensions.Logging;
 
-namespace Adventure;
+namespace Adventure.LLM.OllamaRuntime;
 
-sealed class OllamaManager : IDisposable
+public sealed class OllamaManager : IDisposable
 {
 	#region Fields
 
-	private readonly IGpuDetectorService _gpuDetector;
 	private readonly OllamaInstaller _installer;
 	private readonly ILogger<OllamaManager> _logger;
 
@@ -30,9 +28,8 @@ sealed class OllamaManager : IDisposable
 
 	#region Constructors
 
-	public OllamaManager(IGpuDetectorService gpuDetector, OllamaInstaller installer, OllamaProcess clientProcess, ILogger<OllamaManager> logger)
+	public OllamaManager(OllamaInstaller installer, OllamaProcess clientProcess, ILogger<OllamaManager> logger)
 	{
-		_gpuDetector = gpuDetector ?? throw new ArgumentNullException(nameof(gpuDetector));
 		_installer = installer ?? throw new ArgumentNullException(nameof(installer));
 		_clientProcess = clientProcess ?? throw new ArgumentNullException(nameof(clientProcess));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));

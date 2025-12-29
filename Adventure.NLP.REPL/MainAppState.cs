@@ -36,9 +36,9 @@ internal class MainAppState : AppState
 
 		_systemIntentEvaluator.AddCommands(new List<ISystemCommand>()
 		{
-			new ExitCommand(args => {
+			new ExitCommand(async args => {
 				AnsiConsole.MarkupLine("[grey]Goodbye.[/]");
-				Environment.Exit(0);
+				await LeaveAsync();
 			}),
 			new HelpCommand(args => RenderHelp()),
 			new ClearCommand(args => RenderHeader()),

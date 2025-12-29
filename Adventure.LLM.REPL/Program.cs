@@ -1,2 +1,9 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿namespace Adventure.LLM.REPL;
+
+internal static class Program
+{
+	public static async Task Main(params string[] args)
+	{
+		await new Bootstrap().Start<AppSettings, OllamaAppEngine, MainAppState>(args);
+	}
+}

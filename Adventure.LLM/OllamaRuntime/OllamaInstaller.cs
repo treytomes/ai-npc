@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 
-namespace Adventure;
+namespace Adventure.LLM.OllamaRuntime;
 
 public sealed class OllamaInstaller
 {

@@ -1,6 +1,7 @@
+using Adventure.LLM.OllamaRuntime;
 using Microsoft.Extensions.Hosting;
 
-namespace Adventure.Services;
+namespace Adventure.LLM.Services;
 
 sealed class OllamaLifetimeHook : IHostedService
 {

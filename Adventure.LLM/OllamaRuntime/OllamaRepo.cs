@@ -1,11 +1,10 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using OllamaSharp;
 
-namespace Adventure.OllamaRuntime;
+namespace Adventure.LLM.OllamaRuntime;
 
-class OllamaRepo : IDisposable
+public sealed class OllamaRepo : IDisposable
 {
 	#region Fields
 
@@ -19,10 +18,10 @@ class OllamaRepo : IDisposable
 
 	#region Constructors
 
-	public OllamaRepo(IOptions<AppSettingsV0> settings, ILogger<OllamaRepo> logger, OllamaManager manager)
+	public OllamaRepo(OllamaRepoProps props, ILogger<OllamaRepo> logger, OllamaManager manager)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-		_serverUri = new Uri(settings.Value?.OllamaUrl ?? throw new ArgumentNullException(nameof(settings)));
+		_serverUri = new Uri(props.OllamaUrl ?? throw new ArgumentNullException(nameof(props)));
 		_manager = manager ?? throw new ArgumentNullException(nameof(manager));
 	}
 
@@ -131,7 +130,7 @@ class OllamaRepo : IDisposable
 		return new Chat(_client, systemPrompt);
 	}
 
-	protected virtual void Dispose(bool disposing)
+	private void Dispose(bool disposing)
 	{
 		if (!_disposedValue)
 		{

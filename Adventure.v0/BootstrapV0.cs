@@ -1,6 +1,6 @@
 using Adventure.Gpu.Services;
+using Adventure.LLM;
 using Adventure.NLP;
-using Adventure.OllamaRuntime;
 using Adventure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,16 +17,16 @@ internal class BootstrapV0 : Bootstrap
 	{
 		base.ConfigureServices<TAppSettings, TAppEngine, TMainState>(hostContext, services);
 
-		services.AddHostedService<OllamaLifetimeHook>();
+		services.AddSingleton(provider =>
+		{
+			var settings = provider.GetRequiredService<IOptions<AppSettings>>();
+			return new OllamaRepoProps(settings.Value.OllamaUrl);
+		});
 
 		services.AddSingleton<IProcessService, ProcessService>();
 		services.AddSingleton<IGpuVendorFactory, GpuVendorFactory>();
 		services.AddSingleton<IGpuDetectorService, GpuDetectorService>();
-		services.AddSingleton<OllamaInstaller>();
-		services.AddSingleton<OllamaProcess>();
-		services.AddSingleton<OllamaManager>();
-		services.AddSingleton<OllamaRepo>();
-
+		services.AddLLM();
 		services.AddNlpRuntime();
 	}
 }
