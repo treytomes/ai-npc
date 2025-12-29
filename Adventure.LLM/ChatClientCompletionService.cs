@@ -62,10 +62,6 @@ public class ChatClientCompletionService : IChatCompletionService
 		var messages = ConvertToChatMessages(chatHistory);
 		var options = ConvertToChatOptions(executionSettings);
 
-		Console.WriteLine("------------------------------------------------------");
-		Console.WriteLine((_chatClient as OllamaApiClient).Uri);
-		Console.WriteLine("------------------------------------------------------");
-
 		await foreach (var update in _chatClient.GetStreamingResponseAsync(
 			messages,
 			options,
