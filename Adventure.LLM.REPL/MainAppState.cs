@@ -8,13 +8,11 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.LLM.REPL;
 
-#region Plugin Definition
+#region Plugin Definitions
 
-public sealed class RoomRenderingPlugin
+internal sealed class RoomRendererPlugin
 {
-	#region Prompts
-
-	public const string RENDERER_SYSTEM_PROMPT = @"
+	private const string RENDERER_SYSTEM_PROMPT = @"
 You are an environment description renderer for a text adventure game.
 
 Rules:
@@ -29,74 +27,44 @@ Rules:
 You are a renderer, not a storyteller.
 ";
 
-	public const string VALIDATOR_SYSTEM_PROMPT = @"
-You are a compliance checker.
-
-Check the assistant output against these rules:
-- Second-person present tense
-- 3–5 sentences
-- No invented objects
-- No lists or dialogue
-
-Return ONLY one word:
-OK or REGENERATE
-";
-
-	#endregion
-
-	private readonly ILogger<RoomRenderingPlugin> _logger;
-	private readonly IChatCompletionService _renderer;
-	private readonly IChatCompletionService _validator;
+	private readonly IChatCompletionService _chatService;
 	private readonly Kernel _kernel;
 	private readonly ChatHistory _persistentHistory;
+	private readonly ILogger<RoomRendererPlugin> _logger;
 
-	public RoomRenderingPlugin(
-		ILogger<RoomRenderingPlugin> logger,
+	public RoomRendererPlugin(
 		Kernel kernel,
-		ChatHistory persistentHistory)
+		ChatHistory persistentHistory,
+		ILogger<RoomRendererPlugin> logger)
 	{
-		_logger = logger;
 		_kernel = kernel;
+		_chatService = kernel.GetRequiredService<IChatCompletionService>();
 		_persistentHistory = persistentHistory;
-
-		_renderer = _kernel.GetRequiredService<IChatCompletionService>();
-		_validator = _kernel.GetRequiredService<IChatCompletionService>();
+		_logger = logger;
 	}
 
-	[KernelFunction("RenderRoomWithValidation")]
-	[Description("Renders a room description with automatic validation and retry")]
-	public async Task<string> RenderRoomWithValidationAsync(
-		[Description("The room JSON data")] string roomJson,
-		[Description("User input or command")] string userInput)
+	[KernelFunction("RenderRoom")]
+	[Description("Renders a room description from JSON data")]
+	public async Task<string> RenderRoomAsync(
+		[Description("Room JSON")] string roomJson,
+		[Description("User input")] string userInput)
 	{
-		// Create ephemeral history for this render
+		// Create ephemeral history
 		var ephemeralHistory = new ChatHistory(_persistentHistory);
 		ephemeralHistory.AddUserMessage(roomJson);
 		ephemeralHistory.AddUserMessage(userInput);
 
-		string finalText;
-		int attempts = 0;
+		// Stream the response with visual feedback
+		var result = await StreamRenderAsync(ephemeralHistory);
 
-		do
-		{
-			attempts++;
-			finalText = await RenderAsync(ephemeralHistory);
-		}
-		while (attempts < 2 && !await ValidateAsync(finalText));
-
-		_logger.LogInformation("Render attempts: {Attempts}", attempts);
-
-		// Commit to persistent history
+		// Update persistent history
 		_persistentHistory.AddUserMessage(userInput);
-		_persistentHistory.AddAssistantMessage(finalText);
+		_persistentHistory.AddAssistantMessage(result);
 
-		return finalText;
+		return result;
 	}
 
-	[KernelFunction("StreamRenderRoom")]
-	[Description("Renders a room description with live streaming output")]
-	public async Task<string> StreamRenderRoomAsync(
-		[Description("The chat history")] ChatHistory history)
+	private async Task<string> StreamRenderAsync(ChatHistory history)
 	{
 		var sb = new StringBuilder();
 		var layout = (IRenderable)new Rows();
@@ -114,7 +82,7 @@ OK or REGENERATE
 
 		await AnsiConsole.Live(layout).StartAsync(async ctx =>
 		{
-			await foreach (var update in _renderer.GetStreamingChatMessageContentsAsync(
+			await foreach (var update in _chatService.GetStreamingChatMessageContentsAsync(
 				history,
 				executionSettings,
 				_kernel))
@@ -138,18 +106,46 @@ OK or REGENERATE
 
 		return sb.Append(sentenceBuffer).ToString().Trim();
 	}
+}
 
-	private async Task<string> RenderAsync(ChatHistory history)
+internal sealed class RoomValidatorPlugin
+{
+	private const string VALIDATOR_SYSTEM_PROMPT = @"
+You are a compliance checker.
+
+Check the assistant output against these rules:
+- Second-person present tense
+- 3–5 sentences
+- No invented objects
+- No lists or dialogue
+
+Return ONLY one word:
+OK or REGENERATE
+";
+
+	private readonly IChatCompletionService _chatService;
+	private readonly Kernel _kernel;
+	private readonly ILogger<RoomValidatorPlugin> _logger;
+
+	public RoomValidatorPlugin(
+		Kernel kernel,
+		ILogger<RoomValidatorPlugin> logger)
 	{
-		return await StreamRenderRoomAsync(history);
+		_kernel = kernel;
+		_chatService = kernel.GetRequiredService<IChatCompletionService>();
+		_logger = logger;
 	}
 
-	private async Task<bool> ValidateAsync(string text)
+	[KernelFunction("ValidateRoomDescription")]
+	[Description("Validates a room description meets requirements")]
+	[return: Description("Returns true if valid, false if regeneration needed")]
+	public async Task<bool> ValidateRoomDescriptionAsync(
+		[Description("The room description to validate")] string description)
 	{
-		var validationHistory = new ChatHistory(VALIDATOR_SYSTEM_PROMPT);
-		validationHistory.AddUserMessage(text);
+		var history = new ChatHistory(VALIDATOR_SYSTEM_PROMPT);
+		history.AddUserMessage(description);
 
-		var executionSettings = new PromptExecutionSettings
+		var settings = new PromptExecutionSettings
 		{
 			ExtensionData = new Dictionary<string, object>
 			{
@@ -158,15 +154,74 @@ OK or REGENERATE
 			}
 		};
 
-		var response = await _validator.GetChatMessageContentAsync(
-			validationHistory,
-			executionSettings,
-			_kernel);
-
+		var response = await _chatService.GetChatMessageContentAsync(history, settings, _kernel);
 		var verdict = response.Content?.Trim();
+
 		_logger.LogInformation("Validator verdict: {Verdict}", verdict);
 
 		return verdict == "OK";
+	}
+}
+
+internal sealed class RoomOrchestrationPlugin
+{
+	private readonly Kernel _kernel;
+	private readonly ILogger<RoomOrchestrationPlugin> _logger;
+
+	public RoomOrchestrationPlugin(
+		Kernel kernel,
+		ILogger<RoomOrchestrationPlugin> logger)
+	{
+		_kernel = kernel;
+		_logger = logger;
+	}
+
+	[KernelFunction("RenderValidatedRoom")]
+	[Description("Renders a room with automatic validation and retry")]
+	public async Task<string> RenderValidatedRoomAsync(
+		[Description("Room JSON data")] string roomJson,
+		[Description("User input")] string userInput)
+	{
+		string result = string.Empty;
+		int attempts = 0;
+		const int maxAttempts = 2;
+
+		do
+		{
+			attempts++;
+			_logger.LogInformation("Rendering attempt {Attempt}/{MaxAttempts}", attempts, maxAttempts);
+
+			// Render the room
+			result = await _kernel.InvokeAsync<string>(
+				"RoomRenderer",
+				"RenderRoom",
+				new KernelArguments
+				{
+					["roomJson"] = roomJson,
+					["userInput"] = userInput
+				});
+
+			// Validate the result
+			var isValid = await _kernel.InvokeAsync<bool>(
+				"RoomValidator",
+				"ValidateRoomDescription",
+				new KernelArguments
+				{
+					["description"] = result
+				});
+
+			if (isValid)
+			{
+				_logger.LogInformation("Validation passed on attempt {Attempt}", attempts);
+				break;
+			}
+
+			_logger.LogWarning("Validation failed on attempt {Attempt}", attempts);
+		}
+		while (attempts < maxAttempts);
+
+		_logger.LogInformation("Total render attempts: {Attempts}", attempts);
+		return result;
 	}
 }
 
@@ -179,7 +234,6 @@ internal sealed class MainAppState : AppState
 	private readonly ILogger<MainAppState> _logger;
 	private readonly Kernel _kernel;
 	private ChatHistory _persistentHistory = null!;
-	private RoomRenderingPlugin _renderingPlugin = null!;
 
 	#endregion
 
@@ -207,15 +261,28 @@ internal sealed class MainAppState : AppState
 
 	public override async Task OnLoadAsync()
 	{
-		// Initialize persistent history
-		_persistentHistory = new ChatHistory(RoomRenderingPlugin.RENDERER_SYSTEM_PROMPT);
+		// Initialize persistent history with system prompt
+		_persistentHistory = new ChatHistory(
+			"You are an environment description renderer for a text adventure game.");
 
-		// Create plugin instance
-		var pluginLogger = _kernel.LoggerFactory.CreateLogger<RoomRenderingPlugin>();
-		_renderingPlugin = new RoomRenderingPlugin(pluginLogger, _kernel, _persistentHistory);
+		// Create and register plugins
 
-		// Register plugin with kernel.
-		_kernel.Plugins.AddFromObject(_renderingPlugin, "RoomRenderer");
+		// 1. Room Renderer Plugin
+		var rendererLogger = _kernel.LoggerFactory.CreateLogger<RoomRendererPlugin>();
+		var rendererPlugin = new RoomRendererPlugin(_kernel, _persistentHistory, rendererLogger);
+		_kernel.Plugins.AddFromObject(rendererPlugin, "RoomRenderer");
+
+		// 2. Room Validator Plugin
+		var validatorLogger = _kernel.LoggerFactory.CreateLogger<RoomValidatorPlugin>();
+		var validatorPlugin = new RoomValidatorPlugin(_kernel, validatorLogger);
+		_kernel.Plugins.AddFromObject(validatorPlugin, "RoomValidator");
+
+		// 3. Room Orchestration Plugin
+		var orchestrationLogger = _kernel.LoggerFactory.CreateLogger<RoomOrchestrationPlugin>();
+		var orchestrationPlugin = new RoomOrchestrationPlugin(_kernel, orchestrationLogger);
+		_kernel.Plugins.AddFromObject(orchestrationPlugin, "RoomOrchestration");
+
+		_logger.LogInformation("Plugins registered: {PluginCount}", _kernel.Plugins.Count);
 
 		await Task.CompletedTask;
 	}
@@ -227,8 +294,12 @@ internal sealed class MainAppState : AppState
 
 	public override async Task OnUnloadAsync()
 	{
-		// Remove plugin
-		_kernel.Plugins.Remove(_kernel.Plugins.Single(x => x.Name == "RoomRenderer"));
+		// Remove all plugins
+		_kernel.Plugins.Remove("RoomRenderer");
+		_kernel.Plugins.Remove("RoomValidator");
+		_kernel.Plugins.Remove("RoomOrchestration");
+
+		_logger.LogInformation("All plugins unloaded");
 		await Task.CompletedTask;
 	}
 
@@ -251,10 +322,10 @@ internal sealed class MainAppState : AppState
 	{
 		try
 		{
-			// Use the plugin function
+			// Use the orchestration plugin to handle rendering with validation
 			var result = await _kernel.InvokeAsync<string>(
-				"RoomRenderer",
-				"RenderRoomWithValidation",
+				"RoomOrchestration",
+				"RenderValidatedRoom",
 				new KernelArguments
 				{
 					["roomJson"] = MainLabJson,
@@ -263,6 +334,12 @@ internal sealed class MainAppState : AppState
 
 			// Result is already displayed by the streaming renderer
 			// Additional processing could go here if needed
+
+			// Optional: Show validation status
+			if (_logger.IsEnabled(LogLevel.Debug))
+			{
+				AnsiConsole.MarkupLine("[grey]✓ Description validated[/]");
+			}
 		}
 		catch (Exception ex)
 		{
@@ -306,6 +383,12 @@ internal sealed class MainAppState : AppState
 			case ":history":
 				ShowHistory();
 				break;
+			case ":plugins":
+				ShowPlugins();
+				break;
+			case ":debug":
+				ToggleDebugMode();
+				break;
 		}
 	}
 
@@ -318,6 +401,8 @@ internal sealed class MainAppState : AppState
 			.AddRow(":exit", "Exit the application")
 			.AddRow(":clear", "Clear the screen")
 			.AddRow(":history", "Show conversation history")
+			.AddRow(":plugins", "Show loaded plugins and functions")
+			.AddRow(":debug", "Toggle debug mode")
 			.AddRow(":help", "Show this help");
 
 		AnsiConsole.Write(table);
@@ -345,6 +430,31 @@ internal sealed class MainAppState : AppState
 		}
 
 		AnsiConsole.WriteLine();
+	}
+
+	private void ShowPlugins()
+	{
+		var table = new Table()
+			.Border(TableBorder.Rounded)
+			.Title("[yellow]Loaded Plugins[/]")
+			.AddColumn("[cyan]Plugin[/]")
+			.AddColumn("[cyan]Functions[/]");
+
+		foreach (var plugin in _kernel.Plugins)
+		{
+			var functions = string.Join("\n", plugin.Select(f => f.Name));
+			table.AddRow(plugin.Name, functions);
+		}
+
+		AnsiConsole.Write(table);
+		AnsiConsole.WriteLine();
+	}
+
+	private void ToggleDebugMode()
+	{
+		// This would typically toggle a logger configuration
+		var currentLevel = _logger.IsEnabled(LogLevel.Debug);
+		AnsiConsole.MarkupLine($"[yellow]Debug mode: {(!currentLevel ? "ON" : "OFF")}[/]");
 	}
 
 	#endregion
@@ -380,117 +490,3 @@ internal sealed class MainAppState : AppState
 
 	#endregion
 }
-
-#region Alternative Plugin Implementations
-
-// If you want even more separation, you could create individual plugins for each concern:
-
-public sealed class RoomRendererPlugin
-{
-	private readonly IChatCompletionService _chatService;
-	private readonly ChatHistory _systemHistory;
-
-	public RoomRendererPlugin(IChatCompletionService chatService)
-	{
-		_chatService = chatService;
-		_systemHistory = new ChatHistory(RoomRenderingPlugin.RENDERER_SYSTEM_PROMPT);
-	}
-
-	[KernelFunction("RenderRoom")]
-	[Description("Renders a room description from JSON data")]
-	public async Task<string> RenderRoomAsync(
-		[Description("Room JSON")] string roomJson,
-		[Description("User input")] string userInput)
-	{
-		var history = new ChatHistory(_systemHistory);
-		history.AddUserMessage(roomJson);
-		history.AddUserMessage(userInput);
-
-		var settings = new PromptExecutionSettings
-		{
-			ExtensionData = new Dictionary<string, object>
-			{
-				["temperature"] = 0.15f,
-				["max_tokens"] = 120,
-				["stop"] = new[] { "\n\n" }
-			}
-		};
-
-		var response = await _chatService.GetChatMessageContentAsync(history, settings);
-		return response.Content ?? "";
-	}
-}
-
-public sealed class RoomValidatorPlugin
-{
-	private readonly IChatCompletionService _chatService;
-
-	public RoomValidatorPlugin(IChatCompletionService chatService)
-	{
-		_chatService = chatService;
-	}
-
-	[KernelFunction("ValidateRoomDescription")]
-	[Description("Validates a room description meets requirements")]
-	[return: Description("Returns true if valid, false if regeneration needed")]
-	public async Task<bool> ValidateRoomDescriptionAsync(
-		[Description("The room description to validate")] string description)
-	{
-		var history = new ChatHistory(RoomRenderingPlugin.VALIDATOR_SYSTEM_PROMPT);
-		history.AddUserMessage(description);
-
-		var settings = new PromptExecutionSettings
-		{
-			ExtensionData = new Dictionary<string, object>
-			{
-				["temperature"] = 0,
-				["max_tokens"] = 5
-			}
-		};
-
-		var response = await _chatService.GetChatMessageContentAsync(history, settings);
-		return response.Content?.Trim() == "OK";
-	}
-}
-
-// You could then compose these plugins using a planner or orchestrator:
-public sealed class RoomOrchestrationPlugin
-{
-	private readonly Kernel _kernel;
-
-	public RoomOrchestrationPlugin(Kernel kernel)
-	{
-		_kernel = kernel;
-	}
-
-	[KernelFunction("RenderValidatedRoom")]
-	public async Task<string> RenderValidatedRoomAsync(
-		string roomJson,
-		string userInput)
-	{
-		string result;
-		int attempts = 0;
-
-		do
-		{
-			result = await _kernel.InvokeAsync<string>(
-				"RoomRenderer",
-				"RenderRoom",
-				new() { ["roomJson"] = roomJson, ["userInput"] = userInput });
-
-			var isValid = await _kernel.InvokeAsync<bool>(
-				"RoomValidator",
-				"ValidateRoomDescription",
-				new() { ["description"] = result });
-
-			if (isValid) break;
-
-			attempts++;
-		}
-		while (attempts < 2);
-
-		return result;
-	}
-}
-
-#endregion
