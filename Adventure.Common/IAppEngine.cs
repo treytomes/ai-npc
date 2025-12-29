@@ -3,7 +3,7 @@ namespace Adventure;
 /// <summary>
 /// Load up required global resources and launch the initial state.
 /// </summary>
-interface IAppEngine : IStateManager
+public interface IAppEngine : IStateManager
 {
 	Task RunAsync<TAppState>() where TAppState : AppState;
 }

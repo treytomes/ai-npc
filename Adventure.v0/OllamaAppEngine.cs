@@ -10,14 +10,14 @@ class OllamaAppEngine : AppEngine
 {
 	#region Fields
 
-	private readonly AppSettings _settings;
+	private readonly AppSettingsV0 _settings;
 	private readonly OllamaRepo _ollamaRepo;
 
 	#endregion
 
 	#region Constructors
 
-	public OllamaAppEngine(IOptions<AppSettings> settings, IServiceProvider serviceProvider, ILogger<OllamaAppEngine> logger, OllamaRepo ollamaRepo)
+	public OllamaAppEngine(IOptions<AppSettingsV0> settings, IServiceProvider serviceProvider, ILogger<OllamaAppEngine> logger, OllamaRepo ollamaRepo)
 		: base(serviceProvider, logger)
 	{
 		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));

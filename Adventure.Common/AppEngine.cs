@@ -5,7 +5,7 @@ using Spectre.Console;
 namespace Adventure;
 
 /// <inheritdoc/>
-class AppEngine : IAppEngine
+public class AppEngine : IAppEngine
 {
 	#region Fields
 

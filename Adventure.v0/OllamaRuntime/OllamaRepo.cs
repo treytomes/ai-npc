@@ -19,7 +19,7 @@ class OllamaRepo : IDisposable
 
 	#region Constructors
 
-	public OllamaRepo(IOptions<AppSettings> settings, ILogger<OllamaRepo> logger, OllamaManager manager)
+	public OllamaRepo(IOptions<AppSettingsV0> settings, ILogger<OllamaRepo> logger, OllamaManager manager)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_serverUri = new Uri(settings.Value?.OllamaUrl ?? throw new ArgumentNullException(nameof(settings)));

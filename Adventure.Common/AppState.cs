@@ -1,6 +1,6 @@
 namespace Adventure;
 
-abstract class AppState
+public abstract class AppState
 {
 	#region Fields
 

@@ -1,6 +1,6 @@
 namespace Adventure;
 
-interface IStateManager
+public interface IStateManager
 {
 	Task EnterStateAsync<TAppState>() where TAppState : AppState;
 	Task LeaveStateAsync();
