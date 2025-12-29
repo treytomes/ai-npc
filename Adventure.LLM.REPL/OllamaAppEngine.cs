@@ -1,6 +1,6 @@
+using Adventure.LLM.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Adventure.LLM.OllamaRuntime;
 using Spectre.Console;
 
 namespace Adventure;
@@ -10,18 +10,17 @@ class OllamaAppEngine : AppEngine
 	#region Fields
 
 	private readonly LLM.REPL.AppSettings _settings;
-	private readonly OllamaRepo _ollamaRepo;
+	private readonly ILLMManager _llmManager;
 
 	#endregion
 
 	#region Constructors
 
-	public OllamaAppEngine(IOptions<LLM.REPL.AppSettings> settings, IServiceProvider serviceProvider, ILogger<OllamaAppEngine> logger, OllamaRepo ollamaRepo)
+	public OllamaAppEngine(IOptions<LLM.REPL.AppSettings> settings, IServiceProvider serviceProvider, ILogger<OllamaAppEngine> logger, ILLMManager llmManager)
 		: base(serviceProvider, logger)
 	{
 		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
-
-		_ollamaRepo = ollamaRepo ?? throw new ArgumentNullException(nameof(ollamaRepo));
+		_llmManager = llmManager ?? throw new ArgumentNullException(nameof(llmManager));
 	}
 
 	#endregion
@@ -37,12 +36,12 @@ class OllamaAppEngine : AppEngine
 
 		AnsiConsole.MarkupLine("[grey]Booting system...[/]");
 
-		await _ollamaRepo.InitializeAsync();
+		await _llmManager.InitializeAsync();
 
 		await AnsiConsole.Status()
 			.StartAsync("Selecting model...", async ctx =>
 			{
-				await _ollamaRepo.SetModelAsync(_settings.ModelId);
+				await _llmManager.SetModelAsync(_settings.ModelId);
 			});
 
 		AnsiConsole.MarkupLine($"[green]✔ Ollama server is running using model:[/] [yellow]{_settings.ModelId}[/]");
@@ -52,7 +51,7 @@ class OllamaAppEngine : AppEngine
 
 	protected override async Task DestroyAsync()
 	{
-		_ollamaRepo.Dispose();
+		_llmManager.Dispose();
 		AnsiConsole.MarkupLine("[red]Server stopped.[/]");
 		await Task.CompletedTask;
 	}

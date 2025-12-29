@@ -1,4 +1,4 @@
-using Adventure.LLM.OllamaRuntime;
+using Adventure.LLM.Ollama;
 using Microsoft.Extensions.Hosting;
 
 namespace Adventure.LLM.Services;
@@ -8,13 +8,13 @@ sealed class OllamaLifetimeHook : IHostedService
 	#region Fields
 
 	private readonly IHostApplicationLifetime _life;
-	private readonly OllamaManager _manager;
+	private readonly OllamaProcessManager _manager;
 
 	#endregion
 
 	#region Constructors
 
-	public OllamaLifetimeHook(IHostApplicationLifetime life, OllamaManager manager)
+	public OllamaLifetimeHook(IHostApplicationLifetime life, OllamaProcessManager manager)
 	{
 		_life = life;
 		_manager = manager;

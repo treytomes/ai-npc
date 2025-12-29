@@ -1,4 +1,4 @@
-using Adventure.LLM.OllamaRuntime;
+using Adventure.LLM.Ollama;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -13,7 +13,7 @@ internal class Bootstrap : Adventure.Bootstrap
 		services.AddSingleton(provider =>
 		{
 			var settings = provider.GetRequiredService<IOptions<AppSettings>>();
-			return new OllamaRepoProps(settings.Value.OllamaUrl);
+			return new OllamaProps(settings.Value.OllamaUrl);
 		});
 		services.AddLLM();
 	}

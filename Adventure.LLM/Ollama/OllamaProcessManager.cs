@@ -1,14 +1,14 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace Adventure.LLM.OllamaRuntime;
+namespace Adventure.LLM.Ollama;
 
-public sealed class OllamaManager : IDisposable
+internal sealed class OllamaProcessManager : IDisposable
 {
 	#region Fields
 
 	private readonly OllamaInstaller _installer;
-	private readonly ILogger<OllamaManager> _logger;
+	private readonly ILogger<OllamaProcessManager> _logger;
 
 	private string? _ollamaPath;
 
@@ -28,7 +28,7 @@ public sealed class OllamaManager : IDisposable
 
 	#region Constructors
 
-	public OllamaManager(OllamaInstaller installer, OllamaProcess clientProcess, ILogger<OllamaManager> logger)
+	public OllamaProcessManager(OllamaInstaller installer, OllamaProcess clientProcess, ILogger<OllamaProcessManager> logger)
 	{
 		_installer = installer ?? throw new ArgumentNullException(nameof(installer));
 		_clientProcess = clientProcess ?? throw new ArgumentNullException(nameof(clientProcess));

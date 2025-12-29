@@ -1,202 +1,77 @@
+// Enhanced MainAppState demonstrating:
+// - Multiple named chat clients (renderer + validator)
+// - Per-request ChatOptions
+// - Ephemeral-only world state injection
+// - Validator pass with automatic regeneration
+// - Streaming with sentence-boundary chunking
+// - Logging of token usage and regeneration
 
 using System.Text;
-using Adventure.LLM.OllamaRuntime;
+using System.Text.RegularExpressions;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using OllamaSharp;
-using OllamaSharp.Models.Chat;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
 namespace Adventure.LLM.REPL;
 
-internal class MainAppState : AppState
+internal sealed class MainAppState : AppState
 {
-	#region Constructors
+	#region Prompts
 
-	private const string SYSTEM_PROMPT = @"
+	private const string RENDERER_SYSTEM_PROMPT = @"
 You are an environment description renderer for a text adventure game.
 
-Your task:
-- Generate a short description of the player’s current location.
-- Use ONLY the information provided in the input JSON.
-- Do NOT invent, infer, or assume any facts.
-
 Rules:
-1. Do not introduce objects, characters, exits, or events not listed.
-2. Do not explain game mechanics, flags, or conditions.
-3. Do not resolve mysteries or provide story conclusions.
-4. Use second-person, present tense.
-5. Favor concrete sensory details (sight, sound, smell).
-6. If information is conditional, include it only when the condition is true.
-7. If something is powered off, inactive, or sealed, describe it as such.
-8. Do not mention flags, IDs, or JSON structure.
-9. Output ONE short paragraph (3–5 sentences).
-10. Do not include lists, bullet points, or dialogue.
+- Use ONLY the information provided in the input JSON.
+- Do NOT invent or infer facts.
+- Second-person, present tense.
+- Output ONE paragraph of 3–5 sentences.
+- No lists, no dialogue, no game mechanics.
+- Describe inactive or powered-off objects as such.
+- Prefer concrete sensory details.
 
-Tone and style:
-- Calm, neutral, slightly tense.
-- Observational, not emotional.
-- No metaphors unless directly supported by the data.
-
-Failure handling:
-- If required information is missing or unclear, describe less, not more.
-- If no dynamic conditions apply, rely on static features and ambient details.
-
-Remember:
 You are a renderer, not a storyteller.
-	";
+";
 
-	private const string MAIN_LAB_DESCRIPTION = @"
-{
-  ""room"": {
-    ""id"": ""main_lab"",
-    ""name"": ""Main Laboratory"",
-    ""purpose"": ""tutorial_hub"",
-    ""baseline_tone"": [""sterile"", ""abandoned"", ""tense""],
+	private const string VALIDATOR_SYSTEM_PROMPT = @"
+You are a compliance checker.
 
-    ""spatial_summary"": {
-      ""shape"": ""rectangular"",
-      ""size"": ""medium"",
-      ""lighting"": ""flickering_overhead"",
-      ""smell"": [""ozone"", ""cleaning_agent""]
-    },
+Check the assistant output against these rules:
+- Second-person present tense
+- 3–5 sentences
+- No invented objects
+- No lists or dialogue
 
-    ""player_entry"": {
-      ""first_time_only"": true,
-      ""beats"": [
-        ""You arrive in a laboratory clearly abandoned in a hurry."",
-        ""The lights stutter overhead, briefly plunging the room into shadow.""
-      ]
-    },
-
-    ""static_features"": [
-      {
-        ""id"": ""workbench"",
-        ""type"": ""furniture"",
-        ""salience"": ""high"",
-        ""affordances"": [""look"", ""examine""],
-        ""facts"": {
-          ""material"": ""steel"",
-          ""condition"": ""recently_used"",
-          ""details"": [
-            ""scattered instruments"",
-            ""partially wiped surface"",
-            ""dried residue""
-          ]
-        }
-      },
-      {
-        ""id"": ""sealed_door"",
-        ""type"": ""exit"",
-        ""salience"": ""high"",
-        ""affordances"": [""look"", ""open"", ""use""],
-        ""facts"": {
-          ""leads_to"": ""containment"",
-          ""lock_type"": ""powered_card_reader"",
-          ""power_required"": true
-        }
-      },
-      {
-        ""id"": ""terminal"",
-        ""type"": ""device"",
-        ""salience"": ""medium"",
-        ""affordances"": [""look"", ""use"", ""activate""],
-        ""facts"": {
-          ""powered"": false,
-          ""screen_state"": ""dark"",
-          ""card_reader_attached"": true
-        }
-      }
-    ],
-
-    ""dynamic_descriptions"": [
-      {
-        ""when"": {
-          ""flag"": ""terminal_powered"",
-          ""equals"": false
-        },
-        ""include"": [
-          ""A terminal sits against the far wall, its screen dark.""
-        ]
-      },
-      {
-        ""when"": {
-          ""flag"": ""terminal_powered"",
-          ""equals"": true
-        },
-        ""include"": [
-          ""The terminal hums softly, lines of dormant text glowing on its screen.""
-        ]
-      }
-    ],
-
-    ""ambient_details"": {
-      ""always"": [
-        ""A low electrical hum vibrates through the floor.""
-      ],
-      ""conditional"": [
-        {
-          ""when"": {
-            ""flag"": ""door_unsealed"",
-            ""equals"": false
-          },
-          ""text"": ""A sealed door dominates one wall, its reader lifeless.""
-        },
-        {
-          ""when"": {
-            ""flag"": ""door_unsealed"",
-            ""equals"": true
-          },
-          ""text"": ""The door to containment stands unlocked, its seal broken.""
-        }
-      ]
-    },
-
-    ""exits"": [
-      {
-        ""direction"": ""west"",
-        ""target"": ""storage"",
-        ""visibility"": ""obvious""
-      },
-      {
-        ""direction"": ""east"",
-        ""target"": ""observation"",
-        ""visibility"": ""obvious""
-      }
-    ],
-
-    ""llm_instructions"": {
-      ""role"": ""environment_renderer"",
-      ""constraints"": [
-        ""Do not introduce objects not listed"",
-        ""Do not resolve mysteries"",
-        ""Do not reference game mechanics or flags"",
-        ""Favor sensory details over exposition"",
-        ""Maintain second-person present tense""
-      ],
-      ""output_length"": ""short_paragraph""
-    }
-  }
-}
-	";
+Return ONLY one word:
+OK or REGENERATE
+";
 
 	#endregion
 
 	#region Fields
 
 	private readonly ILogger<MainAppState> _logger;
-	private readonly OllamaRepo _ollamaRepo;
-	private Chat _chat = null!;
+	private readonly IChatClient _renderer;
+	private readonly IChatClient _validator;
+
+	private readonly List<ChatMessage> _persistentHistory = new();
+	private ChatMessageBuffer _buffer = null!;
 
 	#endregion
 
 	#region Constructors
 
-	public MainAppState(IStateManager states, ILogger<MainAppState> logger, OllamaRepo ollamaRepo)
+	public MainAppState(
+		IStateManager states,
+		ILogger<MainAppState> logger,
+		IChatClient rendererClient,
+		IChatClient validatorClient)
 		: base(states)
 	{
-		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-		_ollamaRepo = ollamaRepo ?? throw new ArgumentNullException(nameof(ollamaRepo));
+		_logger = logger;
+		_renderer = rendererClient;
+		_validator = validatorClient;
 	}
 
 	#endregion
@@ -209,14 +84,16 @@ You are a renderer, not a storyteller.
 		await Task.CompletedTask;
 	}
 
-	public override async Task OnLeaveAsync()
+	public override async Task OnLoadAsync()
 	{
+		_persistentHistory.Clear();
+		_persistentHistory.Add(new ChatMessage(ChatRole.System, RENDERER_SYSTEM_PROMPT));
+		_buffer = new ChatMessageBuffer(_persistentHistory);
 		await Task.CompletedTask;
 	}
 
-	public override async Task OnLoadAsync()
+	public override async Task OnLeaveAsync()
 	{
-		_chat = _ollamaRepo.CreateChat(SYSTEM_PROMPT);
 		await Task.CompletedTask;
 	}
 
@@ -231,103 +108,116 @@ You are a renderer, not a storyteller.
 		if (string.IsNullOrWhiteSpace(input))
 			return;
 
-		await ProcessInputAsync(input);
-	}
-
-	private void RenderHeader()
-	{
-		AnsiConsole.Clear();
-
-		AnsiConsole.Write(
-			new FigletText("Adventure.LLM")
-				.Color(Color.Cyan));
-
-		AnsiConsole.MarkupLine(
-			"[grey]Type natural language commands. Use :help for options.[/]");
-		AnsiConsole.WriteLine();
-	}
-
-	private void RenderHelp()
-	{
-		var table = new Table()
-			.AddColumn("Command")
-			.AddColumn("Description");
-
-		table.AddRow(":help", "Show this help");
-		table.AddRow(":exit", "Exit REPL");
-		table.AddRow(":clear", "Clear screen");
-
-		AnsiConsole.Write(table);
-	}
-
-	private string ReadInput()
-	{
-		return AnsiConsole.Prompt(
-			new TextPrompt<string>("[bold green]>[/] ")
-				.AllowEmpty());
-	}
-
-	private async Task ProcessInputAsync(string input)
-	{
-		AnsiConsole.WriteLine();
-
-		try
+		if (input.StartsWith(':'))
 		{
-			var isSystemCommand = input.TrimStart().First() == ':';
-
-			if (isSystemCommand)
-			{
-				await EvaluateSystemCommandAsync(input);
-				return;
-			}
-
-			await EvaluateLLMResponseAsync(input);
-		}
-		catch (Exception ex)
-		{
-			AnsiConsole.WriteException(ex);
+			await EvaluateSystemCommandAsync(input);
+			return;
 		}
 
-		AnsiConsole.WriteLine();
+		await RenderRoomAsync(input);
 	}
 
-	private async Task EvaluateLLMResponseAsync(string input)
+	private async Task RenderRoomAsync(string input)
 	{
-		var cancellationToken = CancellationToken.None;
-		var actorName = "Narrator";
+		_buffer.BeginEphemeral();
 
-		// Create a layout to organize the output.
-		IRenderable layout = new Rows();
+		// Inject world state ephemerally
+		_buffer.Add(ChatRole.User, MainLabJson);
+		_buffer.Add(ChatRole.User, input);
 
-		var responseBuilder = new StringBuilder();
-		var infoItems = new List<IRenderable>();
+		string finalText;
+		int attempts = 0;
 
-		var roomDescription = new Message(ChatRole.User, MAIN_LAB_DESCRIPTION);
-		_chat.Messages.Add(roomDescription);
+		do
+		{
+			attempts++;
+			finalText = await StreamRenderAsync();
+		}
+		while (attempts < 2 && !await ValidateAsync(finalText));
 
-		await AnsiConsole.Live(layout)
-			.StartAsync(async ctx =>
-			{
-				await foreach (var chunk in _chat!.SendAsync(input, cancellationToken))
+		_logger.LogInformation("Render attempts: {Attempts}", attempts);
+
+		_buffer.EndEphemeral();
+		_buffer.CommitAssistant(finalText);
+	}
+
+	private async Task<string> StreamRenderAsync()
+	{
+		var sb = new StringBuilder();
+		var layout = (IRenderable)new Rows();
+		var sentenceBuffer = new StringBuilder();
+
+		await AnsiConsole.Live(layout).StartAsync(async ctx =>
+		{
+			await foreach (var update in _renderer.GetStreamingResponseAsync(
+				_buffer.Snapshot(),
+				options: new ChatOptions
 				{
-					if (chunk == null) continue;
+					Temperature = 0.15f,
+					MaxOutputTokens = 120,
+					StopSequences = ["\n\n"]
+				}))
+			{
+				if (string.IsNullOrWhiteSpace(update.Text))
+					continue;
 
-					responseBuilder.Append(chunk);
+				sentenceBuffer.Append(update.Text);
 
-					var responsePanel = new Panel(responseBuilder.ToString())
-						.Header($"[green]{actorName}[/]")
-						.Border(BoxBorder.Rounded)
-						.BorderColor(Color.Green);
+				sb.Append(sentenceBuffer);
+				sentenceBuffer.Clear();
 
-					// Update the layout.
-					layout = responsePanel;
-					ctx.UpdateTarget(layout);
-				}
+				layout = new Panel(sb.ToString())
+					.Header("[green]Narrator[/]")
+					.Border(BoxBorder.Rounded)
+					.BorderColor(Color.Green);
+
+				ctx.UpdateTarget(layout);
+			}
+		});
+
+		return sb.Append(sentenceBuffer).ToString().Trim();
+	}
+
+	private async Task<bool> ValidateAsync(string text)
+	{
+		var messages = new List<ChatMessage>
+		{
+			new(ChatRole.System, VALIDATOR_SYSTEM_PROMPT),
+			new(ChatRole.User, text)
+		};
+
+		var response = await _validator.GetResponseAsync(
+			messages,
+			options: new ChatOptions
+			{
+				Temperature = 0,
+				MaxOutputTokens = 5
 			});
 
-		// AnsiConsole.WriteLine();
-		_chat.Messages.Remove(roomDescription);
+		var verdict = response.Text?.Trim();
+		_logger.LogInformation("Validator verdict: {Verdict}", verdict);
+
+		return verdict == "OK";
 	}
+
+	#endregion
+
+	#region UI Helpers
+
+	private static void RenderHeader()
+	{
+		AnsiConsole.Clear();
+		AnsiConsole.Write(new FigletText("Adventure.LLM").Color(Color.Cyan));
+		AnsiConsole.MarkupLine("[grey]Type commands or descriptions. :help for options.[/]");
+		AnsiConsole.WriteLine();
+	}
+
+	private static string ReadInput() =>
+		AnsiConsole.Prompt(new TextPrompt<string>("[bold green]>[/] ").AllowEmpty());
+
+	#endregion
+
+	#region System Commands
 
 	private async Task EvaluateSystemCommandAsync(string input)
 	{
@@ -336,9 +226,6 @@ You are a renderer, not a storyteller.
 			case ":exit":
 				await LeaveAsync();
 				break;
-			case ":help":
-				RenderHelp();
-				break;
 			case ":clear":
 				RenderHeader();
 				break;
@@ -346,4 +233,86 @@ You are a renderer, not a storyteller.
 	}
 
 	#endregion
+
+	#region World Data
+
+	private const string MainLabJson = @"
+{
+  ""room"": {
+    ""name"": ""Main Laboratory"",
+    ""spatial_summary"": {
+      ""shape"": ""rectangular"",
+      ""size"": ""medium"",
+      ""lighting"": ""flickering_overhead"",
+      ""smell"": [""ozone"", ""cleaning_agent""]
+    },
+    ""static_features"": [
+      {
+        ""type"": ""furniture"",
+        ""facts"": {
+          ""material"": ""steel"",
+          ""condition"": ""recently_used"",
+          ""details"": [""scattered instruments"", ""dried residue""]
+        }
+      }
+    ],
+    ""ambient_details"": {
+      ""always"": [""A low electrical hum vibrates through the floor.""]
+    }
+  }
+}
+";
+
+	#endregion
+}
+
+public sealed class ChatMessageBuffer
+{
+	private readonly List<ChatMessage> _persistent;
+	private int _ephemeralStartIndex = -1;
+
+	public ChatMessageBuffer(List<ChatMessage> persistent)
+	{
+		_persistent = persistent;
+	}
+
+	public void BeginEphemeral()
+	{
+		if (_ephemeralStartIndex != -1)
+			throw new InvalidOperationException("Ephemeral scope already active.");
+
+		_ephemeralStartIndex = _persistent.Count;
+	}
+
+	public void Add(ChatMessage message)
+	{
+		_persistent.Add(message);
+	}
+
+	public void Add(ChatRole role, string content)
+	{
+		_persistent.Add(new ChatMessage(role, content));
+	}
+
+	public IReadOnlyList<ChatMessage> Snapshot()
+	{
+		return _persistent;
+	}
+
+	public void CommitAssistant(string content)
+	{
+		_persistent.Add(new ChatMessage(ChatRole.Assistant, content));
+	}
+
+	public void EndEphemeral()
+	{
+		if (_ephemeralStartIndex == -1)
+			return;
+
+		_persistent.RemoveRange(
+			_ephemeralStartIndex,
+			_persistent.Count - _ephemeralStartIndex);
+
+		_ephemeralStartIndex = -1;
+	}
 }

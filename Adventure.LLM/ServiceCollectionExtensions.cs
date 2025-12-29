@@ -1,5 +1,6 @@
-using Adventure.LLM.OllamaRuntime;
+using Adventure.LLM.Ollama;
 using Adventure.LLM.Services;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Adventure.LLM;
@@ -12,8 +13,15 @@ public static class ServiceCollectionExtensions
 
 		services.AddSingleton<OllamaInstaller>();
 		services.AddSingleton<OllamaProcess>();
-		services.AddSingleton<OllamaManager>();
-		services.AddSingleton<OllamaRepo>();
+		services.AddSingleton<OllamaProcessManager>();
+		services.AddSingleton<ILLMManager, OllamaLLMManager>();
+
+		services.AddSingleton<IChatClient>(sp =>
+		{
+			var repo = sp.GetRequiredService<ILLMManager>();
+			return repo.CreateChatClient().GetAwaiter().GetResult();
+		});
+
 		return services;
 	}
 }

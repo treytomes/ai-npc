@@ -2,9 +2,9 @@ using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-namespace Adventure.LLM.OllamaRuntime;
+namespace Adventure.LLM.Ollama;
 
-public sealed class OllamaProcess
+internal sealed class OllamaProcess
 {
 	#region Fields
 
