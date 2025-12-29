@@ -11,20 +11,25 @@ template: |
   - Prefer concrete sensory details.
   
   Room Data:
-  {{roomJson}}
+  {{roomYaml}}
   
   User Input:
   {{userInput}}
   
+  Focus on the room's {{#if focus}}{{focus}}{{else}}general atmosphere and visible features{{/if}}.
+  
   Generate a vivid description:
 input_variables:
-  - name: roomJson
-    description: The room JSON data
+  - name: roomYaml
+    description: The room data (YAML format)
   - name: userInput
     description: The user's input/command
   - name: sentenceCount
     description: Number of sentences (3-5)
     default: "3-5"
+  - name: focus
+    description: Optional focus area for the description
+    default: ""
 execution_settings:
   temperature: 0.15
   max_tokens: 120

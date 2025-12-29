@@ -1,5 +1,6 @@
 using Adventure.LLM.REPL.Configuration;
 using Adventure.LLM.REPL.Plugins;
+using Adventure.LLM.REPL.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -19,6 +20,7 @@ internal sealed class MainAppState : AppState
 
 	private const string ASSETS_ROOT_PATH = "assets";
 	private static readonly string PROMPT_ROOT_PATH = Path.Combine(ASSETS_ROOT_PATH, "prompts");
+	private static readonly string ROOMS_ROOT_PATH = Path.Combine(ASSETS_ROOT_PATH, "rooms");
 
 	#endregion
 
@@ -28,6 +30,8 @@ internal sealed class MainAppState : AppState
 	private readonly Kernel _kernel;
 	private ChatHistory _persistentHistory = null!;
 	private AppConfiguration _config = new();
+	private Dictionary<string, WorldData> _worldData = new();
+	private string _currentRoom = "main_lab";
 
 	#endregion
 
@@ -57,6 +61,9 @@ internal sealed class MainAppState : AppState
 	{
 		// Load configuration if exists
 		await LoadConfigurationAsync();
+
+		// Load world data
+		await LoadWorldDataAsync();
 
 		// Initialize persistent history with system prompt
 		_persistentHistory = new ChatHistory(
@@ -118,6 +125,39 @@ internal sealed class MainAppState : AppState
 		}
 	}
 
+	private async Task LoadWorldDataAsync()
+	{
+		try
+		{
+			var worldDataFiles = Directory.GetFiles(ROOMS_ROOT_PATH, "*.room.yaml");
+
+			if (worldDataFiles.Length == 0)
+			{
+				throw new FileNotFoundException("Unable to find any room files.");
+			}
+
+			var deserializer = new DeserializerBuilder()
+				.WithNamingConvention(UnderscoredNamingConvention.Instance)
+				.Build();
+
+			foreach (var file in worldDataFiles)
+			{
+				var yamlContent = await File.ReadAllTextAsync(file);
+				var worldData = deserializer.Deserialize<WorldData>(yamlContent);
+				var roomKey = Path.GetFileNameWithoutExtension(file).Replace(".room", "");
+				_worldData[roomKey] = worldData;
+				_logger.LogInformation("Loaded room data: {RoomKey} from {File}", roomKey, file);
+			}
+
+			AnsiConsole.MarkupLine($"[green]Loaded {_worldData.Count} room(s)[/]");
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Failed to load world data");
+			AnsiConsole.MarkupLine("[red]Failed to load world data[/]");
+		}
+	}
+
 	public override async Task OnLeaveAsync()
 	{
 		await Task.CompletedTask;
@@ -153,13 +193,23 @@ internal sealed class MainAppState : AppState
 	{
 		try
 		{
+			// Get current room data
+			if (!_worldData.TryGetValue(_currentRoom, out var worldData))
+			{
+				AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
+				return;
+			}
+
+			// Convert world data to JSON for the renderer (or modify renderer to accept YAML)
+			var roomYaml = ConvertWorldDataToYaml(worldData);
+
 			// Use the orchestration plugin to handle rendering with validation
 			var result = await _kernel.InvokeAsync<string>(
 				"RoomOrchestration",
 				"RenderValidatedRoom",
 				new KernelArguments
 				{
-					["roomJson"] = MainLabJson,
+					["roomYaml"] = roomYaml,
 					["userInput"] = input
 				});
 
@@ -177,6 +227,15 @@ internal sealed class MainAppState : AppState
 			_logger.LogError(ex, "Error rendering room");
 			AnsiConsole.MarkupLine("[red]Error: Failed to render room description[/]");
 		}
+	}
+
+	private string ConvertWorldDataToYaml(WorldData worldData)
+	{
+		var serializer = new SerializerBuilder()
+			.WithNamingConvention(UnderscoredNamingConvention.Instance)
+			.Build();
+
+		return serializer.Serialize(worldData);
 	}
 
 	#endregion
@@ -233,6 +292,118 @@ internal sealed class MainAppState : AppState
 			case ":test":
 				await TestTemplatesAsync(args);
 				break;
+			case ":rooms":
+				ShowRooms();
+				break;
+			case ":goto":
+				await ChangeRoomAsync(args);
+				break;
+			case ":room":
+				ShowCurrentRoom();
+				break;
+			case ":export":
+				await ExportRoomAsync(args);
+				break;
+		}
+	}
+
+	private void ShowRooms()
+	{
+		var table = new Table()
+			.Border(TableBorder.Rounded)
+			.Title("[yellow]Available Rooms[/]")
+			.AddColumn("[cyan]Key[/]")
+			.AddColumn("[cyan]Name[/]")
+			.AddColumn("[cyan]Features[/]");
+
+		foreach (var (key, data) in _worldData)
+		{
+			var featureCount = data.Room.StaticFeatures.Count;
+			var current = key == _currentRoom ? " [green](current)[/]" : "";
+			table.AddRow(
+				key + current,
+				data.Room.Name,
+				$"{featureCount} feature(s)"
+			);
+		}
+
+		AnsiConsole.Write(table);
+		AnsiConsole.WriteLine();
+	}
+
+	private async Task ChangeRoomAsync(string roomKey)
+	{
+		if (string.IsNullOrWhiteSpace(roomKey))
+		{
+			AnsiConsole.MarkupLine("[yellow]Usage: :goto <room_key>[/]");
+			return;
+		}
+
+		if (_worldData.ContainsKey(roomKey))
+		{
+			_currentRoom = roomKey;
+			AnsiConsole.MarkupLine($"[green]Moved to: {_worldData[roomKey].Room.Name}[/]");
+
+			// Optionally auto-render the new room
+			await RenderRoomAsync("look around");
+		}
+		else
+		{
+			AnsiConsole.MarkupLine($"[red]Unknown room: {roomKey}[/]");
+		}
+	}
+
+	private void ShowCurrentRoom()
+	{
+		if (!_worldData.TryGetValue(_currentRoom, out var worldData))
+		{
+			AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
+			return;
+		}
+
+		var room = worldData.Room;
+
+		var panel = new Panel($"""
+            [yellow]Name:[/] {room.Name}
+            [yellow]Shape:[/] {room.SpatialSummary.Shape}
+            [yellow]Size:[/] {room.SpatialSummary.Size}
+            [yellow]Lighting:[/] {room.SpatialSummary.Lighting}
+            [yellow]Smells:[/] {string.Join(", ", room.SpatialSummary.Smell)}
+            [yellow]Features:[/] {room.StaticFeatures.Count}
+            """)
+			.Header($"[cyan]Current Room: {_currentRoom}[/]")
+			.Border(BoxBorder.Rounded)
+			.BorderColor(Color.Cyan);
+
+		AnsiConsole.Write(panel);
+		AnsiConsole.WriteLine();
+	}
+
+	private async Task ExportRoomAsync(string format)
+	{
+		if (!_worldData.TryGetValue(_currentRoom, out var worldData))
+		{
+			AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
+			return;
+		}
+
+		format = format.ToLower();
+
+		switch (format)
+		{
+			case "yaml":
+				var serializer = new SerializerBuilder()
+					.WithNamingConvention(UnderscoredNamingConvention.Instance)
+					.Build();
+				var yaml = serializer.Serialize(worldData);
+				var yamlFile = $"{_currentRoom}_export.yaml";
+				await File.WriteAllTextAsync(yamlFile, yaml);
+				AnsiConsole.MarkupLine($"[green]Exported to {yamlFile}[/]");
+				break;
+
+			default:
+				AnsiConsole.MarkupLine("[yellow]Usage: :export [json|yaml][/]");
+				break;
 		}
 	}
 
@@ -249,7 +420,11 @@ internal sealed class MainAppState : AppState
 			.AddRow(":debug", "Toggle debug mode")
 			.AddRow(":config", "Show current configuration")
 			.AddRow(":reload", "Reload prompt templates")
-			.AddRow(":test [template]", "Test a specific template")
+			.AddRow(":test <template>", "Test a specific template")
+			.AddRow(":rooms", "List all available rooms")
+			.AddRow(":goto <room>", "Change to a different room")
+			.AddRow(":room", "Show current room details")
+			.AddRow(":export <yaml>", "Export current room data")
 			.AddRow(":help", "Show this help");
 
 		AnsiConsole.Write(table);
@@ -381,13 +556,23 @@ internal sealed class MainAppState : AppState
 	{
 		AnsiConsole.MarkupLine("[cyan]Testing Room Renderer Template[/]");
 
+		// Get current room data
+		if (!_worldData.TryGetValue(_currentRoom, out var worldData))
+		{
+			AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
+			return;
+		}
+
+		// Convert world data to JSON for the renderer (or modify renderer to accept YAML)
+		var roomYaml = ConvertWorldDataToYaml(worldData);
+
 		var testInput = "look around";
 		var result = await _kernel.InvokeAsync<string>(
 			"RoomRenderer",
 			"RenderRoom",
 			new KernelArguments
 			{
-				["roomJson"] = MainLabJson,
+				["roomYaml"] = roomYaml,
 				["userInput"] = testInput,
 				["sentenceCount"] = "3-5"
 			});
@@ -420,37 +605,6 @@ internal sealed class MainAppState : AppState
 		var currentLevel = _logger.IsEnabled(LogLevel.Debug);
 		AnsiConsole.MarkupLine($"[yellow]Debug mode: {(!currentLevel ? "ON" : "OFF")}[/]");
 	}
-
-	#endregion
-
-	#region World Data
-
-	private const string MainLabJson = @"
-{
-  ""room"": {
-    ""name"": ""Main Laboratory"",
-    ""spatial_summary"": {
-      ""shape"": ""rectangular"",
-      ""size"": ""medium"",
-      ""lighting"": ""flickering_overhead"",
-      ""smell"": [""ozone"", ""cleaning_agent""]
-    },
-    ""static_features"": [
-      {
-        ""type"": ""furniture"",
-        ""facts"": {
-          ""material"": ""steel"",
-          ""condition"": ""recently_used"",
-          ""details"": [""scattered instruments"", ""dried residue""]
-        }
-      }
-    ],
-    ""ambient_details"": {
-      ""always"": [""A low electrical hum vibrates through the floor.""]
-    }
-  }
-}
-";
 
 	#endregion
 }

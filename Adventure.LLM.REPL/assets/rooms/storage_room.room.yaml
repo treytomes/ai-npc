@@ -1,0 +1,27 @@
+room:
+  name: Storage Room
+  spatial_summary:
+    shape: square
+    size: small
+    lighting: dim_emergency
+    smell:
+      - dust
+      - old_paper
+  static_features:
+    - type: shelving
+      facts:
+        material: metal
+        condition: rusted
+        details:
+          - stacked boxes
+          - faded labels
+    - type: door
+      facts:
+        material: reinforced_steel
+        condition: locked
+        details:
+          - keypad panel
+          - warning signs
+  ambient_details:
+    always:
+      - Emergency lighting casts long shadows across the cluttered space.

@@ -85,14 +85,14 @@ internal sealed class RoomRendererPlugin
 	}
 
 	[KernelFunction("RenderRoom")]
-	[Description("Renders a room description from JSON data")]
+	[Description("Renders a room description from YAML data")]
 	public async Task<string> RenderRoomAsync(
-		[Description("Room JSON")] string roomJson,
+		[Description("Room YAML")] string roomYaml,
 		[Description("User input")] string userInput,
 		[Description("Number of sentences")] string sentenceCount = "3-5")
 	{
 		// Stream the response with visual feedback
-		var result = await StreamRenderAsync(roomJson, userInput, sentenceCount);
+		var result = await StreamRenderAsync(roomYaml, userInput, sentenceCount);
 
 		// Update persistent history
 		_persistentHistory.AddUserMessage(userInput);
@@ -101,7 +101,7 @@ internal sealed class RoomRendererPlugin
 		return result;
 	}
 
-	private async Task<string> StreamRenderAsync(string roomJson, string userInput, string sentenceCount)
+	private async Task<string> StreamRenderAsync(string roomYaml, string userInput, string sentenceCount)
 	{
 		var sb = new StringBuilder();
 		var layout = (IRenderable)new Rows();
@@ -109,7 +109,7 @@ internal sealed class RoomRendererPlugin
 
 		var arguments = new KernelArguments
 		{
-			["roomJson"] = roomJson,
+			["roomYaml"] = roomYaml,
 			["userInput"] = userInput,
 			["sentenceCount"] = sentenceCount
 		};

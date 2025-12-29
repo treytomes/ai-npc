@@ -29,7 +29,7 @@ internal sealed class RoomOrchestrationPlugin
 	[KernelFunction("RenderValidatedRoom")]
 	[Description("Renders a room with automatic validation and retry")]
 	public async Task<string> RenderValidatedRoomAsync(
-		[Description("Room JSON data")] string roomJson,
+		[Description("Room YAML data")] string roomYaml,
 		[Description("User input")] string userInput)
 	{
 		string result = string.Empty;
@@ -50,7 +50,7 @@ internal sealed class RoomOrchestrationPlugin
 				"RenderRoom",
 				new KernelArguments
 				{
-					["roomJson"] = roomJson,
+					["roomYaml"] = roomYaml,
 					["userInput"] = userInput,
 					["sentenceCount"] = sentenceCount
 				});

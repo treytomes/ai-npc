@@ -1,0 +1,20 @@
+room:
+  name: Main Laboratory
+  spatial_summary:
+    shape: rectangular
+    size: medium
+    lighting: flickering_overhead
+    smell:
+      - ozone
+      - cleaning_agent
+  static_features:
+    - type: furniture
+      facts:
+        material: steel
+        condition: recently_used
+        details:
+          - scattered instruments
+          - dried residue
+  ambient_details:
+    always:
+      - A low electrical hum vibrates through the floor.
