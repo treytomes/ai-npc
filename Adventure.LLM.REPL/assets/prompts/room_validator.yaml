@@ -1,0 +1,26 @@
+template: |
+  You are a compliance checker.
+  
+  Check the assistant output against these rules:
+  - Second-person present tense
+  - {{minSentences}}-{{maxSentences}} sentences
+  - No invented objects
+  - No lists or dialogue
+  
+  Description to validate:
+  {{description}}
+  
+  Return ONLY one word:
+  OK or REGENERATE
+input_variables:
+  - name: description
+    description: The room description to validate
+  - name: minSentences
+    description: Minimum sentences
+    default: "3"
+  - name: maxSentences
+    description: Maximum sentences
+    default: "5"
+execution_settings:
+  temperature: 0
+  max_tokens: 5

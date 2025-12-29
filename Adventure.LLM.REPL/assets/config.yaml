@@ -1,0 +1,9 @@
+rendering:
+  sentenceCount: "3-5"
+  temperature: 0.15
+  maxTokens: 120
+
+validation:
+  maxAttempts: 2
+  minSentences: "3"
+  maxSentences: "5"
