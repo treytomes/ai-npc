@@ -1,15 +1,7 @@
-// Enhanced MainAppState demonstrating:
-// - Multiple named chat clients (renderer + validator)
-// - Per-request ChatOptions
-// - Ephemeral-only world state injection
-// - Validator pass with automatic regeneration
-// - Streaming with sentence-boundary chunking
-// - Logging of token usage and regeneration
-
 using System.Text;
-using System.Text.RegularExpressions;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -52,11 +44,11 @@ OK or REGENERATE
 	#region Fields
 
 	private readonly ILogger<MainAppState> _logger;
-	private readonly IChatClient _renderer;
-	private readonly IChatClient _validator;
+	private readonly Kernel _kernel;
+	private readonly IChatCompletionService _renderer;
+	private readonly IChatCompletionService _validator;
 
-	private readonly List<ChatMessage> _persistentHistory = new();
-	private ChatMessageBuffer _buffer = null!;
+	private ChatHistory _persistentHistory = null!;
 
 	#endregion
 
@@ -65,13 +57,15 @@ OK or REGENERATE
 	public MainAppState(
 		IStateManager states,
 		ILogger<MainAppState> logger,
-		IChatClient rendererClient,
-		IChatClient validatorClient)
+		Kernel kernel)
 		: base(states)
 	{
 		_logger = logger;
-		_renderer = rendererClient;
-		_validator = validatorClient;
+		_kernel = kernel;
+
+		// Get the named services from the kernel
+		_renderer = _kernel.GetRequiredService<IChatCompletionService>();
+		_validator = _kernel.GetRequiredService<IChatCompletionService>();
 	}
 
 	#endregion
@@ -86,9 +80,7 @@ OK or REGENERATE
 
 	public override async Task OnLoadAsync()
 	{
-		_persistentHistory.Clear();
-		_persistentHistory.Add(new ChatMessage(ChatRole.System, RENDERER_SYSTEM_PROMPT));
-		_buffer = new ChatMessageBuffer(_persistentHistory);
+		_persistentHistory = new ChatHistory(RENDERER_SYSTEM_PROMPT);
 		await Task.CompletedTask;
 	}
 
@@ -119,11 +111,12 @@ OK or REGENERATE
 
 	private async Task RenderRoomAsync(string input)
 	{
-		_buffer.BeginEphemeral();
+		// Create ephemeral history for this render
+		var ephemeralHistory = new ChatHistory(_persistentHistory);
 
 		// Inject world state ephemerally
-		_buffer.Add(ChatRole.User, MainLabJson);
-		_buffer.Add(ChatRole.User, input);
+		ephemeralHistory.AddUserMessage(MainLabJson);
+		ephemeralHistory.AddUserMessage(input);
 
 		string finalText;
 		int attempts = 0;
@@ -131,37 +124,45 @@ OK or REGENERATE
 		do
 		{
 			attempts++;
-			finalText = await StreamRenderAsync();
+			finalText = await StreamRenderAsync(ephemeralHistory);
 		}
 		while (attempts < 2 && !await ValidateAsync(finalText));
 
 		_logger.LogInformation("Render attempts: {Attempts}", attempts);
 
-		_buffer.EndEphemeral();
-		_buffer.CommitAssistant(finalText);
+		// Commit the final response to persistent history
+		_persistentHistory.AddUserMessage(input);
+		_persistentHistory.AddAssistantMessage(finalText);
 	}
 
-	private async Task<string> StreamRenderAsync()
+	private async Task<string> StreamRenderAsync(ChatHistory history)
 	{
 		var sb = new StringBuilder();
 		var layout = (IRenderable)new Rows();
 		var sentenceBuffer = new StringBuilder();
 
+		var executionSettings = new PromptExecutionSettings
+		{
+			ExtensionData = new Dictionary<string, object>
+			{
+				["temperature"] = 0.15f,
+				["max_tokens"] = 120,
+				["stop"] = new[] { "\n\n" }
+			}
+		};
+
 		await AnsiConsole.Live(layout).StartAsync(async ctx =>
 		{
-			await foreach (var update in _renderer.GetStreamingResponseAsync(
-				_buffer.Snapshot(),
-				options: new ChatOptions
-				{
-					Temperature = 0.15f,
-					MaxOutputTokens = 120,
-					StopSequences = ["\n\n"]
-				}))
+			await foreach (var update in _renderer.GetStreamingChatMessageContentsAsync(
+				history,
+				executionSettings,
+				_kernel))
 			{
-				if (string.IsNullOrWhiteSpace(update.Text))
+				var text = update.Content;
+				if (string.IsNullOrWhiteSpace(text))
 					continue;
 
-				sentenceBuffer.Append(update.Text);
+				sentenceBuffer.Append(text);
 
 				sb.Append(sentenceBuffer);
 				sentenceBuffer.Clear();
@@ -180,21 +181,24 @@ OK or REGENERATE
 
 	private async Task<bool> ValidateAsync(string text)
 	{
-		var messages = new List<ChatMessage>
+		var validationHistory = new ChatHistory(VALIDATOR_SYSTEM_PROMPT);
+		validationHistory.AddUserMessage(text);
+
+		var executionSettings = new PromptExecutionSettings
 		{
-			new(ChatRole.System, VALIDATOR_SYSTEM_PROMPT),
-			new(ChatRole.User, text)
+			ExtensionData = new Dictionary<string, object>
+			{
+				["temperature"] = 0,
+				["max_tokens"] = 5
+			}
 		};
 
-		var response = await _validator.GetResponseAsync(
-			messages,
-			options: new ChatOptions
-			{
-				Temperature = 0,
-				MaxOutputTokens = 5
-			});
+		var response = await _validator.GetChatMessageContentAsync(
+			validationHistory,
+			executionSettings,
+			_kernel);
 
-		var verdict = response.Text?.Trim();
+		var verdict = response.Content?.Trim();
 		_logger.LogInformation("Validator verdict: {Verdict}", verdict);
 
 		return verdict == "OK";
@@ -264,55 +268,4 @@ OK or REGENERATE
 ";
 
 	#endregion
-}
-
-public sealed class ChatMessageBuffer
-{
-	private readonly List<ChatMessage> _persistent;
-	private int _ephemeralStartIndex = -1;
-
-	public ChatMessageBuffer(List<ChatMessage> persistent)
-	{
-		_persistent = persistent;
-	}
-
-	public void BeginEphemeral()
-	{
-		if (_ephemeralStartIndex != -1)
-			throw new InvalidOperationException("Ephemeral scope already active.");
-
-		_ephemeralStartIndex = _persistent.Count;
-	}
-
-	public void Add(ChatMessage message)
-	{
-		_persistent.Add(message);
-	}
-
-	public void Add(ChatRole role, string content)
-	{
-		_persistent.Add(new ChatMessage(role, content));
-	}
-
-	public IReadOnlyList<ChatMessage> Snapshot()
-	{
-		return _persistent;
-	}
-
-	public void CommitAssistant(string content)
-	{
-		_persistent.Add(new ChatMessage(ChatRole.Assistant, content));
-	}
-
-	public void EndEphemeral()
-	{
-		if (_ephemeralStartIndex == -1)
-			return;
-
-		_persistent.RemoveRange(
-			_ephemeralStartIndex,
-			_persistent.Count - _ephemeralStartIndex);
-
-		_ephemeralStartIndex = -1;
-	}
 }

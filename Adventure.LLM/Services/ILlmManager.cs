@@ -2,9 +2,9 @@ using Microsoft.Extensions.AI;
 
 namespace Adventure.LLM.Services;
 
-public interface ILLMManager : IDisposable
+public interface ILlmManager : IDisposable
 {
 	Task<IChatClient> CreateChatClient();
 	Task InitializeAsync();
-	Task SetModelAsync(string modelName);
+	void SetModel(string modelName);
 }

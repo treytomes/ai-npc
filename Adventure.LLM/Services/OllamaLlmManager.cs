@@ -5,11 +5,11 @@ using OllamaSharp;
 
 namespace Adventure.LLM.Services;
 
-internal sealed class OllamaLLMManager : ILLMManager
+internal sealed class OllamaLlmManager : ILlmManager
 {
 	#region Fields
 
-	private readonly ILogger<OllamaLLMManager> _logger;
+	private readonly ILogger<OllamaLlmManager> _logger;
 	private readonly Uri _serverUri;
 	private readonly OllamaProcessManager _manager;
 	private bool _disposedValue = false;
@@ -19,7 +19,7 @@ internal sealed class OllamaLLMManager : ILLMManager
 
 	#region Constructors
 
-	public OllamaLLMManager(OllamaProps props, ILogger<OllamaLLMManager> logger, OllamaProcessManager manager)
+	public OllamaLlmManager(OllamaProps props, ILogger<OllamaLlmManager> logger, OllamaProcessManager manager)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_serverUri = new Uri(props.Url ?? throw new ArgumentNullException(nameof(props)));
@@ -54,6 +54,11 @@ internal sealed class OllamaLLMManager : ILLMManager
 
 	public async Task InitializeAsync()
 	{
+		if (_manager.IsRunning)
+		{
+			return;
+		}
+
 		// Ensure Ollama exists.
 		if (!await _manager.EnsureInstalledAsync())
 		{
@@ -72,7 +77,7 @@ internal sealed class OllamaLLMManager : ILLMManager
 	/// <summary>
 	/// Pull and select the model.
 	/// </summary>
-	public async Task SetModelAsync(string modelName)
+	public void SetModel(string modelName)
 	{
 		_selectedModelName = modelName;
 	}

@@ -13,7 +13,7 @@ internal class Bootstrap : Adventure.Bootstrap
 		services.AddSingleton(provider =>
 		{
 			var settings = provider.GetRequiredService<IOptions<AppSettings>>();
-			return new OllamaProps(settings.Value.OllamaUrl);
+			return new OllamaProps(settings.Value.OllamaUrl, settings.Value.ModelId);
 		});
 		services.AddLLM();
 	}

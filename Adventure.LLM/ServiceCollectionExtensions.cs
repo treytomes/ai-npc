@@ -2,6 +2,8 @@ using Adventure.LLM.Ollama;
 using Adventure.LLM.Services;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace Adventure.LLM;
 
@@ -14,12 +16,42 @@ public static class ServiceCollectionExtensions
 		services.AddSingleton<OllamaInstaller>();
 		services.AddSingleton<OllamaProcess>();
 		services.AddSingleton<OllamaProcessManager>();
-		services.AddSingleton<ILLMManager, OllamaLLMManager>();
+		services.AddSingleton<ILlmManager, OllamaLlmManager>();
 
 		services.AddSingleton<IChatClient>(sp =>
 		{
-			var repo = sp.GetRequiredService<ILLMManager>();
-			return repo.CreateChatClient().GetAwaiter().GetResult();
+			var llmManager = sp.GetRequiredService<ILlmManager>();
+			// llmManager.InitializeAsync().GetAwaiter().GetResult();
+			return llmManager.CreateChatClient().GetAwaiter().GetResult();
+		});
+
+		services.AddSingleton<Kernel>(sp =>
+		{
+			var llmManager = sp.GetRequiredService<ILlmManager>();
+			// llmManager.InitializeAsync().GetAwaiter().GetResult();
+
+			var props = sp.GetRequiredService<OllamaProps>();
+
+			var builder = Kernel.CreateBuilder();
+			builder.Services.AddTransient<IChatCompletionService>(_ =>
+				new ChatClientCompletionService(llmManager.CreateChatClient().GetAwaiter().GetResult(), props.ModelId));
+
+			// // Add renderer chat client
+			// builder.AddChatClientChatCompletion(
+			// 	_ => llmManager.CreateChatClient().GetAwaiter().GetResult(),
+			// 	"renderer"
+			// );
+
+			// // Add validator chat client
+			// builder.AddChatClientChatCompletion(
+			// 	_ => llmManager.CreateChatClient().GetAwaiter().GetResult(),
+			// 	"validator"
+			// );
+
+			// Add any other services you need.
+			builder.Services.AddLogging();
+
+			return builder.Build();
 		});
 
 		return services;

@@ -5,20 +5,22 @@ using Spectre.Console;
 
 namespace Adventure;
 
-class OllamaAppEngine : AppEngine
+class LlmAppEngine : AppEngine
 {
 	#region Fields
 
+	private ILogger<LlmAppEngine> _logger;
 	private readonly LLM.REPL.AppSettings _settings;
-	private readonly ILLMManager _llmManager;
+	private readonly ILlmManager _llmManager;
 
 	#endregion
 
 	#region Constructors
 
-	public OllamaAppEngine(IOptions<LLM.REPL.AppSettings> settings, IServiceProvider serviceProvider, ILogger<OllamaAppEngine> logger, ILLMManager llmManager)
+	public LlmAppEngine(IOptions<LLM.REPL.AppSettings> settings, IServiceProvider serviceProvider, ILogger<LlmAppEngine> logger, ILlmManager llmManager)
 		: base(serviceProvider, logger)
 	{
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
 		_llmManager = llmManager ?? throw new ArgumentNullException(nameof(llmManager));
 	}
@@ -37,12 +39,7 @@ class OllamaAppEngine : AppEngine
 		AnsiConsole.MarkupLine("[grey]Booting system...[/]");
 
 		await _llmManager.InitializeAsync();
-
-		await AnsiConsole.Status()
-			.StartAsync("Selecting model...", async ctx =>
-			{
-				await _llmManager.SetModelAsync(_settings.ModelId);
-			});
+		_llmManager.SetModel(_settings.ModelId);
 
 		AnsiConsole.MarkupLine($"[green]✔ Ollama server is running using model:[/] [yellow]{_settings.ModelId}[/]");
 		AnsiConsole.WriteLine();
