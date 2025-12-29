@@ -1,31 +1,18 @@
-namespace Adventure.NLP.REPL;
+namespace Adventure.NLP.REPL.Renderables;
 
-public static class RenderingColors
+public class RenderingColors : Common.Renderables.RenderingColors
 {
-	// Primary grammatical elements
-	public const string Subject = "cyan";
-	public const string Verb = "yellow";
-	public const string IndirectObject = "magenta";
-	public const string DirectObject = "green";
-	public const string Preposition = "blue";
-
-	// Noun phrase elements
-	public const string Head = "green";
-	public const string Modifier = "yellow";
-	public const string Complement = "cyan";
-
-	// UI elements
-	public const string None = "grey";
-	public const string Dim = "dim";
-	public const string Bold = "bold";
-
-	// Common formatted strings
-	public const string NoneText = "<none>";
-	public const string NoVerbText = "<no verb>";
-
-	// Helper methods for common formatting patterns
-	public static string FormatNone() => $"[{None}]{NoneText}[/]";
-	public static string FormatNoVerb() => $"[{None}]{NoVerbText}[/]";
-	public static string FormatDim(string text) => $"[{Dim}]{text}[/]";
-	public static string FormatColor(string color, string text) => $"[{color}]{text}[/]";
+	/// <summary>
+	/// Gets the appropriate color for a part of speech.
+	/// </summary>
+	public static string GetPosColor(NlpPartOfSpeech pos) => pos switch
+	{
+		NlpPartOfSpeech.Noun => NounPhrase.Head,
+		NlpPartOfSpeech.Verb => Grammar.Verb,
+		NlpPartOfSpeech.Adjective => NounPhrase.Modifier,
+		NlpPartOfSpeech.Adverb => NounPhrase.Modifier,
+		NlpPartOfSpeech.Pronoun => Grammar.Subject,
+		NlpPartOfSpeech.Determiner => UI.Dim,
+		_ => UI.None
+	};
 }

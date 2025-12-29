@@ -4,7 +4,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.Renderables;
 
-internal class TextRenderable(string text) : Renderable
+internal class TextRenderable(string text) : Common.Renderables.Renderable
 {
 	#region Properties
 

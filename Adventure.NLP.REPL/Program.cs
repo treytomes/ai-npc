@@ -186,7 +186,7 @@ internal static class Program
 				}
 				else
 				{
-					parsed.ToSnapshotRenderable(input);
+					AnsiConsole.Write(parsed.ToSnapshotRenderable(input));
 				}
 			}
 
@@ -218,7 +218,7 @@ internal static class Program
 					}
 					else
 					{
-						parsed.ToParseTreeRenderable(input, intentSeed);
+						AnsiConsole.Write(parsed.ToParseTreeRenderable(input, intentSeed));
 					}
 				}
 			}

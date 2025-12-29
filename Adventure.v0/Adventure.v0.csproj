@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Adventure.Common/Adventure.Common.csproj" />
     <ProjectReference Include="../Adventure.NLP/Adventure.NLP.csproj" />
   </ItemGroup>
 

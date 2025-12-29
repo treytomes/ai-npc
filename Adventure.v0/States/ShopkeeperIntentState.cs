@@ -167,7 +167,7 @@ internal class ShopkeeperIntentState : AppState
 		// Display fired rules if any
 		if (result.FiredRules.Any())
 		{
-			new BulletListPanelRenderable("Processing Rules", result.FiredRules).Render();
+			AnsiConsole.Write(new BulletListPanelRenderable("Processing Rules", result.FiredRules));
 		}
 
 		// Handle no intents found
@@ -182,7 +182,7 @@ internal class ShopkeeperIntentState : AppState
 			};
 
 			var response = responses[Math.Abs(query.GetHashCode()) % responses.Length];
-			TextRenderable.Error(response).Render();
+			AnsiConsole.Write(TextRenderable.Error(response));
 			return;
 		}
 
@@ -195,7 +195,7 @@ internal class ShopkeeperIntentState : AppState
 		var bestIntent = intentsToShow.First();
 
 		// Show primary intent.
-		new IntentPanelRenderable(bestIntent, query, true).Render();
+		AnsiConsole.Write(new IntentPanelRenderable(bestIntent, query, true));
 
 		// Show alternative interpretations if confidence is low
 		if (bestIntent.Confidence < 0.8 && intentsToShow.Count > 1)
@@ -204,7 +204,7 @@ internal class ShopkeeperIntentState : AppState
 
 			foreach (var intent in intentsToShow.Skip(1))
 			{
-				new IntentPanelRenderable(intent, query, false).Render();
+				AnsiConsole.Write(new IntentPanelRenderable(intent, query, false));
 			}
 		}
 

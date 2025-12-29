@@ -87,7 +87,7 @@ internal class MainMenuState : AppState
 
 	private void DisplayHeader()
 	{
-		new HeaderRenderable("Adventure Demo", "Natural Language Understanding & Fuzzy Search").Render();
+		AnsiConsole.Write(new HeaderRenderable("Adventure Demo", "Natural Language Understanding & Fuzzy Search"));
 	}
 
 	private MenuChoice DisplayMainMenu()
