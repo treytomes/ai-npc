@@ -1,6 +1,6 @@
 namespace Adventure.NLP.REPL.Renderables;
 
-public class RenderingColors : Common.Renderables.RenderingColors
+public class RenderingColors : Adventure.Renderables.RenderingColors
 {
 	/// <summary>
 	/// Gets the appropriate color for a part of speech.

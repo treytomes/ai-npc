@@ -1,6 +1,6 @@
 namespace Adventure;
 
-internal static class StringExtensions
+public static class StringExtensions
 {
 	public static bool ContainsAny(this string @this, params string[] strings)
 	{

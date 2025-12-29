@@ -1,4 +1,4 @@
-namespace Adventure.NLP.REPL;
+namespace Adventure;
 
 public static class DictionaryExtensions
 {

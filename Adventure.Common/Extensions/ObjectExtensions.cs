@@ -3,7 +3,7 @@ using Spectre.Console;
 using Spectre.Console.Json;
 using Spectre.Console.Rendering;
 
-namespace LLM.NPL.REPL;
+namespace Adventure;
 
 public static class ObjectExtensions
 {

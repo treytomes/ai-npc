@@ -3,7 +3,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.NLP.REPL.Renderables;
 
-public class TokenTableRenderable : Common.Renderables.Renderable
+public class TokenTableRenderable : Adventure.Renderables.Renderable
 {
 	private readonly ParsedInput _parsed;
 	private readonly string? _title;

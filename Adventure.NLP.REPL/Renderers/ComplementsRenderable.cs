@@ -3,7 +3,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.NLP.REPL.Renderables;
 
-public class ComplementsRenderable : Common.Renderables.Renderable
+public class ComplementsRenderable : Adventure.Renderables.Renderable
 {
 	private readonly IReadOnlyDictionary<string, NounPhrase> _complements;
 

@@ -3,7 +3,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.NLP.REPL.Renderables;
 
-public class ParseTreeRenderable : Common.Renderables.Renderable
+public class ParseTreeRenderable : Adventure.Renderables.Renderable
 {
 	private readonly ParsedInput _parsed;
 	private readonly string _input;

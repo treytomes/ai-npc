@@ -3,7 +3,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.NLP.REPL.Renderables;
 
-public class CompactIntentSeedRenderable : Common.Renderables.Renderable
+public class CompactIntentSeedRenderable : Adventure.Renderables.Renderable
 {
 	private readonly IntentSeed _seed;
 

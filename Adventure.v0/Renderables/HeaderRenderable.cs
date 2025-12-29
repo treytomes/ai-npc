@@ -3,7 +3,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.Renderables;
 
-internal class HeaderRenderable(string title, string subtitle) : Common.Renderables.Renderable
+internal class HeaderRenderable(string title, string subtitle) : Renderables.Renderable
 {
 	#region Properties
 

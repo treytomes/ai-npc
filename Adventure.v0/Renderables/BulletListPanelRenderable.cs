@@ -4,7 +4,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.Renderables;
 
-internal class BulletListPanelRenderable(string title, IReadOnlyList<string> items) : Common.Renderables.Renderable
+internal class BulletListPanelRenderable(string title, IReadOnlyList<string> items) : Renderables.Renderable
 {
 	#region Properties
 

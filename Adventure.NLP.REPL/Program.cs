@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Adventure.NLP.REPL.SystemIntent;
-using LLM.NPL.REPL;
 using Adventure.NLP.REPL.SystemIntent.Commands;
 using Adventure.NLP.Services;
 using Adventure.NLP.SystemIntent;

@@ -1,6 +1,6 @@
 using Spectre.Console.Rendering;
 
-namespace Adventure.Common.Renderables;
+namespace Adventure.Renderables;
 
 public class CompositeRenderable : Renderable
 {

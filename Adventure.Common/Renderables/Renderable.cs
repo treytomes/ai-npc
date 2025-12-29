@@ -1,7 +1,7 @@
 using Spectre.Console.Rendering;
 using System.Collections;
 
-namespace Adventure.Common.Renderables;
+namespace Adventure.Renderables;
 
 public abstract class Renderable : IEnumerable<IRenderable>, IRenderable
 {

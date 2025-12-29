@@ -3,7 +3,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.NLP.REPL.Renderables;
 
-public class NounPhraseRenderable : Common.Renderables.Renderable
+public class NounPhraseRenderable : Adventure.Renderables.Renderable
 {
 	private readonly NounPhrase _phrase;
 	private readonly string? _title;

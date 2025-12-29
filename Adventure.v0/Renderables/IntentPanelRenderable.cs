@@ -5,7 +5,7 @@ namespace Adventure.Renderables;
 
 using Intent = Intent.Classification.Facts.Intent;
 
-internal class IntentPanelRenderable(Intent intent, string query, bool isPrimary) : Common.Renderables.Renderable
+internal class IntentPanelRenderable(Intent intent, string query, bool isPrimary) : Renderables.Renderable
 {
 	#region Properties
 

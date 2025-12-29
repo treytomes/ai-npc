@@ -1,7 +1,7 @@
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
-namespace Adventure.Common.Renderables;
+namespace Adventure.Renderables;
 
 public class RenderingColors
 {

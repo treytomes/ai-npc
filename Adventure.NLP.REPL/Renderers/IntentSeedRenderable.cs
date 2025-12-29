@@ -3,7 +3,7 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.NLP.REPL.Renderables;
 
-public class IntentSeedRenderable : Common.Renderables.Renderable
+public class IntentSeedRenderable : Adventure.Renderables.Renderable
 {
 	private readonly IntentSeed _seed;
 	private readonly string? _title;
