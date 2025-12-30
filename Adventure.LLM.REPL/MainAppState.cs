@@ -44,9 +44,6 @@ internal sealed class MainAppState : AppState
 		_kernel = kernel;
 		_roomRepository = roomRepository;
 		_navigationService = navigationService;
-
-		// Subscribe to room change events
-		_navigationService.RoomChanged += OnRoomChanged;
 	}
 
 	#endregion
@@ -55,6 +52,9 @@ internal sealed class MainAppState : AppState
 
 	public override async Task OnEnterAsync()
 	{
+		// Subscribe to room change events
+		_navigationService.RoomChanged += OnRoomChanged;
+
 		RenderHeader();
 
 		await RenderRoomAsync("look around");
@@ -142,6 +142,9 @@ internal sealed class MainAppState : AppState
 
 	public override async Task OnLeaveAsync()
 	{
+		// Unsubscribe to room change events.
+		_navigationService.RoomChanged -= OnRoomChanged;
+
 		await Task.CompletedTask;
 	}
 
@@ -162,7 +165,7 @@ internal sealed class MainAppState : AppState
 
 	public override async Task OnUpdateAsync()
 	{
-		var input = ReadInput();
+		var input = await ReadInputAsync();
 		if (string.IsNullOrWhiteSpace(input))
 			return;
 
@@ -363,8 +366,8 @@ internal sealed class MainAppState : AppState
 		));
 	}
 
-	private static string ReadInput() =>
-		AnsiConsole.Prompt(new TextPrompt<string>("[bold green]>[/] ").AllowEmpty());
+	private static async Task<string> ReadInputAsync() =>
+		await AnsiConsole.PromptAsync(new TextPrompt<string>("[bold green]>[/] ").AllowEmpty());
 
 	#endregion
 
