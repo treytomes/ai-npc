@@ -181,6 +181,20 @@ internal sealed class IntentAnalyzerPlugin
 			var focusValue = focusMatch.Groups[1].Value.Trim();
 			// Remove quotes if present
 			focusValue = focusValue.Trim('"', '\'');
+
+			// Validate focus isn't an abstract concept
+			var invalidFocusTerms = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+			{
+				"movement", "observation", "action", "interaction", "activity",
+				"inspection", "examination", "navigation", "locomotion"
+			};
+
+			if (invalidFocusTerms.Contains(focusValue))
+			{
+				_logger.LogWarning("Invalid abstract focus detected: {Focus}. Attempting fallback extraction.", focusValue);
+				focusValue = ExtractFallbackFocus(originalInput);
+			}
+
 			intent.Focus = focusValue;
 		}
 
@@ -226,12 +240,47 @@ internal sealed class IntentAnalyzerPlugin
 
 	private string ExtractFallbackFocus(string userInput)
 	{
-		// Simple extraction of potential focus words
-		var words = userInput.ToLower().Split(' ');
-		var skipWords = new HashSet<string> { "the", "a", "an", "at", "to", "around", "examine", "inspect", "look", "go", "walk" };
+		var lower = userInput.ToLower();
 
-		var focusWords = words.Where(w => !skipWords.Contains(w)).Take(2);
-		return string.Join(" ", focusWords);
+		// Remove common command words first
+		var commandWords = new HashSet<string>
+		{
+			"go", "walk", "move", "head", "travel", "enter", "exit", "leave",
+			"examine", "inspect", "look", "check", "study",
+			"take", "get", "grab", "pick", "pickup",
+			"use", "activate", "press", "pull", "push", "open", "close",
+			"smell", "sniff", "listen", "hear", "touch", "feel",
+			"tell", "me", "about", "more"
+		};
+
+		// Common prepositions and articles to skip
+		var skipWords = new HashSet<string>
+		{
+			"the", "a", "an", "at", "to", "through", "into", "onto",
+			"up", "down", "in", "on", "with", "from", "of"
+		};
+
+		// Split into words and filter
+		var words = lower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+		var remainingWords = new List<string>();
+
+		bool foundCommand = false;
+		foreach (var word in words)
+		{
+			if (commandWords.Contains(word))
+			{
+				foundCommand = true;
+				continue;
+			}
+
+			if (foundCommand && !skipWords.Contains(word))
+			{
+				remainingWords.Add(word);
+			}
+		}
+
+		// Join up to 2 words for compound objects like "strange device"
+		return string.Join(" ", remainingWords.Take(2));
 	}
 
 	[KernelFunction("GetIntentDescription")]

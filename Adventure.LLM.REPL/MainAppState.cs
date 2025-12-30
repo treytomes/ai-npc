@@ -437,11 +437,36 @@ internal sealed class MainAppState : AppState
 	{
 		if (string.IsNullOrWhiteSpace(testInput))
 		{
-			AnsiConsole.MarkupLine("[yellow]Usage: :intent <test input>[/]");
-			return;
-		}
+			// Show test examples if no input provided
+			var examples = new[]
+			{
+				"walk through the passage",
+				"go to the kitchen",
+				"examine the strange device",
+				"tell me more about the door",
+				"pick up the key",
+				"smell the flowers",
+				"listen carefully",
+				"look around"
+			};
 
-		AnsiConsole.MarkupLine($"[cyan]Analyzing: \"{testInput}\"[/]");
+			AnsiConsole.MarkupLine("[yellow]Testing intent analyzer with examples:[/]");
+
+			foreach (var example in examples)
+			{
+				await TestSingleIntent(example);
+				AnsiConsole.WriteLine();
+			}
+		}
+		else
+		{
+			await TestSingleIntent(testInput);
+		}
+	}
+
+	private async Task TestSingleIntent(string testInput)
+	{
+		AnsiConsole.MarkupLine($"[cyan]Input: \"{testInput}\"[/]");
 
 		try
 		{
@@ -452,29 +477,18 @@ internal sealed class MainAppState : AppState
 				{
 					["userInput"] = testInput
 				});
+
 			if (intent == null)
 			{
 				throw new NullReferenceException("Unable to parse user intent.");
 			}
 
-			var table = new Table()
-				.Border(TableBorder.Rounded)
-				.AddColumn("[yellow]Property[/]")
-				.AddColumn("[yellow]Value[/]")
-				.AddRow("Intent", intent.Intent)
-				.AddRow("Focus", string.IsNullOrEmpty(intent.Focus) ? "(none)" : intent.Focus)
-				.AddRow("Valid", intent.IsValid ? "[green]Yes[/]" : "[red]No[/]")
-				.AddRow("Error", intent.Error ?? "(none)");
+			AnsiConsole.MarkupLine($"→ Intent: [green]{intent.Intent}[/], Focus: [green]{(string.IsNullOrEmpty(intent.Focus) ? "(none)" : intent.Focus)}[/]");
 
-			AnsiConsole.Write(table);
-
-			// Show intent description
-			var description = await _kernel.InvokeAsync<string>(
-				"IntentAnalyzer",
-				"GetIntentDescription",
-				new KernelArguments { ["intent"] = intent.Intent });
-
-			AnsiConsole.MarkupLine($"[grey]Description: {description}[/]");
+			if (!intent.IsValid)
+			{
+				AnsiConsole.MarkupLine($"  [red]Warning: {intent.Error}[/]");
+			}
 		}
 		catch (Exception ex)
 		{
