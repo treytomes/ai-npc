@@ -4,6 +4,18 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+	<!--
+		Disabling this warning specifically:
+		
+		`
+			The analyzer assembly '/home/trey/.nuget/packages/ollamasharp/5.4.12/analyzers/dotnet/cs/OllamaSharp.SourceGenerators.dll'
+			references version '4.14.0.0' of the compiler, which is newer than the currently running version '4.12.0.0'.
+		`
+
+		We're not using the OllamaSharp source generators, so it's not really a big deal.
+	-->
+	<NoWarn>$(NoWarn);CS9057</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,7 +27,7 @@
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.1.1" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.68.0" />
     <PackageReference Include="Microsoft.SemanticKernel.PromptTemplates.Handlebars" Version="1.68.0" />
-    <PackageReference Include="OllamaSharp" Version="5.4.12" />
+	<PackageReference Include="OllamaSharp" Version="5.4.12" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 

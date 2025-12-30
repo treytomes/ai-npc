@@ -32,30 +32,31 @@ internal sealed class RoomOrchestrationPlugin
 		[Description("Room YAML data")] string roomYaml,
 		[Description("User input")] string userInput)
 	{
-		string result = string.Empty;
-		int attempts = 0;
-		var maxAttempts = (int)_config.GetValueOrDefault("maxAttempts", 2);
-		var sentenceCount = (string)_config.GetValueOrDefault("sentenceCount", "3-5");
-		var minSentences = (string)_config.GetValueOrDefault("minSentences", "3");
-		var maxSentences = (string)_config.GetValueOrDefault("maxSentences", "5");
+		var result = string.Empty;
+		var attempts = 0;
+		var maxAttempts = _config!.GetValueOrDefault("maxAttempts", 2)!;
+		var sentenceCount = _config!.GetValueOrDefault("sentenceCount", "3-5")!;
+		var minSentences = _config!.GetValueOrDefault("minSentences", "3")!;
+		var maxSentences = _config!.GetValueOrDefault("maxSentences", "5")!;
 
 		do
 		{
 			attempts++;
 			_logger.LogInformation("Rendering attempt {Attempt}/{MaxAttempts}", attempts, maxAttempts);
 
-			// Render the room
+			// Render the room.
+			var ct = CancellationToken.None;
 			result = await _kernel.InvokeAsync<string>(
 				"RoomRenderer",
 				"RenderRoom",
-				new KernelArguments
+				new()
 				{
 					["roomYaml"] = roomYaml,
 					["userInput"] = userInput,
 					["sentenceCount"] = sentenceCount
-				});
+				}, ct) ?? string.Empty;
 
-			// Validate the result
+			// Validate the result.
 			var isValid = await _kernel.InvokeAsync<bool>(
 				"RoomValidator",
 				"ValidateRoomDescription",
