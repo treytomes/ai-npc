@@ -1,5 +1,6 @@
 using Adventure.LLM.REPL.Configuration;
 using Adventure.LLM.REPL.Plugins;
+using Adventure.LLM.REPL.Renderables;
 using Adventure.LLM.REPL.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
@@ -286,7 +287,7 @@ internal sealed class MainAppState : AppState
 		};
 
 		// Use the orchestration plugin to handle rendering with validation
-		var result = await _kernel.InvokeAsync<string>(
+		var _ = await _kernel.InvokeAsync<string>(
 			"RoomOrchestration",
 			"RenderValidatedRoom",
 			new KernelArguments
@@ -368,9 +369,10 @@ internal sealed class MainAppState : AppState
 	private static void RenderHeader()
 	{
 		AnsiConsole.Clear();
-		AnsiConsole.Write(new FigletText("Adventure.LLM").Color(Color.Cyan));
-		AnsiConsole.MarkupLine("[grey]Type commands or descriptions. :help for options.[/]");
-		AnsiConsole.WriteLine();
+		AnsiConsole.Write(new HeaderRenderable(
+			"Adventure.LLM",
+			"Type commands or descriptions. :help for options."
+		));
 	}
 
 	private static string ReadInput() =>
@@ -395,28 +397,25 @@ internal sealed class MainAppState : AppState
 				RenderHeader();
 				break;
 			case ":help":
-				ShowHelp();
+				AnsiConsole.Write(new HelpRenderable());
 				break;
 			case ":history":
-				ShowHistory();
+				AnsiConsole.Write(new HistoryRenderable(_persistentHistory));
 				break;
 			case ":plugins":
-				ShowPlugins();
+				AnsiConsole.Write(new PluginsRenderable(_kernel.Plugins));
 				break;
 			case ":debug":
 				ToggleDebugMode();
 				break;
 			case ":config":
-				ShowConfiguration();
+				AnsiConsole.Write(new ConfigurationRenderable(_config));
 				break;
 			case ":reload":
 				await ReloadTemplatesAsync();
 				break;
-			case ":test":
-				await TestTemplatesAsync(args);
-				break;
 			case ":rooms":
-				ShowRooms();
+				AnsiConsole.Write(new RoomsRenderable(_worldData, _currentRoom));
 				break;
 			case ":goto":
 				await ChangeRoomAsync(args);
@@ -427,97 +426,7 @@ internal sealed class MainAppState : AppState
 			case ":export":
 				await ExportRoomAsync(args);
 				break;
-			case ":intent":
-				await TestIntentAnalyzer(args);
-				break;
 		}
-	}
-
-	private async Task TestIntentAnalyzer(string testInput)
-	{
-		if (string.IsNullOrWhiteSpace(testInput))
-		{
-			// Show test examples if no input provided
-			var examples = new[]
-			{
-				"walk through the passage",
-				"go to the kitchen",
-				"examine the strange device",
-				"tell me more about the door",
-				"pick up the key",
-				"smell the flowers",
-				"listen carefully",
-				"look around"
-			};
-
-			AnsiConsole.MarkupLine("[yellow]Testing intent analyzer with examples:[/]");
-
-			foreach (var example in examples)
-			{
-				await TestSingleIntent(example);
-				AnsiConsole.WriteLine();
-			}
-		}
-		else
-		{
-			await TestSingleIntent(testInput);
-		}
-	}
-
-	private async Task TestSingleIntent(string testInput)
-	{
-		AnsiConsole.MarkupLine($"[cyan]Input: \"{testInput}\"[/]");
-
-		try
-		{
-			var intent = await _kernel.InvokeAsync<UserIntent>(
-				"IntentAnalyzer",
-				"AnalyzeIntent",
-				new KernelArguments
-				{
-					["userInput"] = testInput
-				});
-
-			if (intent == null)
-			{
-				throw new NullReferenceException("Unable to parse user intent.");
-			}
-
-			AnsiConsole.MarkupLine($"→ Intent: [green]{intent.Intent}[/], Focus: [green]{(string.IsNullOrEmpty(intent.Focus) ? "(none)" : intent.Focus)}[/]");
-
-			if (!intent.IsValid)
-			{
-				AnsiConsole.MarkupLine($"  [red]Warning: {intent.Error}[/]");
-			}
-		}
-		catch (Exception ex)
-		{
-			AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
-		}
-	}
-
-	private void ShowRooms()
-	{
-		var table = new Table()
-			.Border(TableBorder.Rounded)
-			.Title("[yellow]Available Rooms[/]")
-			.AddColumn("[cyan]Key[/]")
-			.AddColumn("[cyan]Name[/]")
-			.AddColumn("[cyan]Features[/]");
-
-		foreach (var (key, data) in _worldData)
-		{
-			var featureCount = data.Room.StaticFeatures.Count;
-			var current = key == _currentRoom ? " [green](current)[/]" : "";
-			table.AddRow(
-				key + current,
-				data.Room.Name,
-				$"{featureCount} feature(s)"
-			);
-		}
-
-		AnsiConsole.Write(table);
-		AnsiConsole.WriteLine();
 	}
 
 	private async Task ChangeRoomAsync(string roomKey)
@@ -551,21 +460,7 @@ internal sealed class MainAppState : AppState
 		}
 
 		var room = worldData.Room;
-
-		var panel = new Panel($"""
-            [yellow]Name:[/] {room.Name}
-            [yellow]Shape:[/] {room.SpatialSummary.Shape}
-            [yellow]Size:[/] {room.SpatialSummary.Size}
-            [yellow]Lighting:[/] {room.SpatialSummary.Lighting}
-            [yellow]Smells:[/] {string.Join(", ", room.SpatialSummary.Smell)}
-            [yellow]Features:[/] {room.StaticFeatures.Count}
-            """)
-			.Header($"[cyan]Current Room: {_currentRoom}[/]")
-			.Border(BoxBorder.Rounded)
-			.BorderColor(Color.Cyan);
-
-		AnsiConsole.Write(panel);
-		AnsiConsole.WriteLine();
+		AnsiConsole.Write(new RoomRenderable(room));
 	}
 
 	private async Task ExportRoomAsync(string format)
@@ -596,117 +491,6 @@ internal sealed class MainAppState : AppState
 		}
 	}
 
-	private void ShowHelp()
-	{
-		var table = new Table()
-			.Border(TableBorder.Rounded)
-			.AddColumn("[yellow]Command[/]")
-			.AddColumn("[yellow]Description[/]")
-			.AddRow(":exit", "Exit the application")
-			.AddRow(":clear", "Clear the screen")
-			.AddRow(":history", "Show conversation history")
-			.AddRow(":plugins", "Show loaded plugins and functions")
-			.AddRow(":debug", "Toggle debug mode")
-			.AddRow(":config", "Show current configuration")
-			.AddRow(":reload", "Reload prompt templates")
-			.AddRow(":test <template>", "Test a specific template")
-			.AddRow(":rooms", "List all available rooms")
-			.AddRow(":goto <room>", "Change to a different room")
-			.AddRow(":room", "Show current room details")
-			.AddRow(":export <yaml>", "Export current room data")
-			.AddRow(":intent <input>", "Test intent analyzer with input")
-			.AddRow(":help", "Show this help");
-
-		AnsiConsole.Write(table);
-		AnsiConsole.WriteLine();
-
-		// Add examples section
-		var examplesPanel = new Panel(
-			"[cyan]General:[/]\n" +
-			"  look around - Full room description\n" +
-			"  look - Full room description\n\n" +
-			"[cyan]Focused:[/]\n" +
-			"  smell the air - Describe only smells\n" +
-			"  listen carefully - Describe only sounds\n" +
-			"  examine furniture - Describe only furniture\n" +
-			"  inspect the door - Describe only the door\n" +
-			"  look at the lighting - Describe only lighting"
-		)
-		.Header("[yellow]Example Commands[/]")
-		.Border(BoxBorder.Rounded)
-		.BorderColor(Color.Yellow);
-
-		AnsiConsole.Write(examplesPanel);
-		AnsiConsole.WriteLine();
-	}
-
-	private void ShowHistory()
-	{
-		if (_persistentHistory.Count == 0)
-		{
-			AnsiConsole.MarkupLine("[grey]No history yet.[/]");
-			return;
-		}
-
-		var panel = new Panel("[grey]Conversation History[/]")
-			.Border(BoxBorder.Rounded)
-			.BorderColor(Color.Grey);
-
-		AnsiConsole.Write(panel);
-
-		foreach (var message in _persistentHistory.Skip(1)) // Skip system prompt
-		{
-			var role = message.Role == AuthorRole.User ? "[blue]User[/]" : "[green]Assistant[/]";
-			AnsiConsole.MarkupLine($"{role}: {Markup.Escape(message.Content ?? "")}");
-		}
-
-		AnsiConsole.WriteLine();
-	}
-
-	private void ShowPlugins()
-	{
-		var table = new Table()
-			.Border(TableBorder.Rounded)
-			.Title("[yellow]Loaded Plugins[/]")
-			.AddColumn("[cyan]Plugin[/]")
-			.AddColumn("[cyan]Functions[/]")
-			.AddColumn("[cyan]Template[/]");
-
-		foreach (var plugin in _kernel.Plugins)
-		{
-			var functions = string.Join("\n", plugin.Select(f => f.Name));
-			var templateFile = plugin.Name switch
-			{
-				"RoomRenderer" => Path.Combine(PROMPT_ROOT_PATH, "room_renderer.yaml"),
-				"RoomValidator" => Path.Combine(PROMPT_ROOT_PATH, "room_validator.yaml"),
-				_ => "N/A"
-			};
-			table.AddRow(plugin.Name, functions, templateFile);
-		}
-
-		AnsiConsole.Write(table);
-		AnsiConsole.WriteLine();
-	}
-
-	private void ShowConfiguration()
-	{
-		var table = new Table()
-			.Border(TableBorder.Rounded)
-			.Title("[yellow]Current Configuration[/]")
-			.AddColumn("[cyan]Setting[/]")
-			.AddColumn("[cyan]Value[/]");
-
-		table.AddRow("Sentence Count", _config.Rendering.SentenceCount);
-		table.AddRow("Temperature", _config.Rendering.Temperature.ToString());
-		table.AddRow("Max Tokens", _config.Rendering.MaxTokens.ToString());
-		table.AddRow("Max Validation Attempts", _config.Validation.MaxAttempts.ToString());
-		table.AddRow("Min Sentences", _config.Validation.MinSentences);
-		table.AddRow("Max Sentences", _config.Validation.MaxSentences);
-
-		AnsiConsole.Write(table);
-		AnsiConsole.WriteLine();
-	}
-
 	private async Task ReloadTemplatesAsync()
 	{
 		try
@@ -729,83 +513,6 @@ internal sealed class MainAppState : AppState
 			_logger.LogError(ex, "Failed to reload templates");
 			AnsiConsole.MarkupLine("[red]✗ Failed to reload templates[/]");
 		}
-	}
-
-	private async Task TestTemplatesAsync(string templateName)
-	{
-		try
-		{
-			if (string.IsNullOrWhiteSpace(templateName))
-			{
-				AnsiConsole.MarkupLine("[yellow]Usage: :test [renderer|validator][/]");
-				return;
-			}
-
-			switch (templateName.ToLower())
-			{
-				case "renderer":
-					await TestRendererTemplate();
-					break;
-				case "validator":
-					await TestValidatorTemplate();
-					break;
-				default:
-					AnsiConsole.MarkupLine($"[red]Unknown template: {templateName}[/]");
-					break;
-			}
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, "Template test failed");
-			AnsiConsole.MarkupLine("[red]Template test failed[/]");
-		}
-	}
-
-	private async Task TestRendererTemplate()
-	{
-		AnsiConsole.MarkupLine("[cyan]Testing Room Renderer Template[/]");
-
-		// Get current room data
-		if (!_worldData.TryGetValue(_currentRoom, out var worldData))
-		{
-			AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
-			return;
-		}
-
-		// Convert world data to JSON for the renderer (or modify renderer to accept YAML)
-		var roomData = ConvertWorldDataToYaml(worldData);
-
-		var testInput = "look around";
-		var result = await _kernel.InvokeAsync<string>(
-			"RoomRenderer",
-			"RenderRoom",
-			new KernelArguments
-			{
-				["roomData"] = roomData,
-				["userInput"] = testInput,
-				["sentenceCount"] = "3-5"
-			});
-
-		AnsiConsole.MarkupLine("[green]Test completed![/]");
-	}
-
-	private async Task TestValidatorTemplate()
-	{
-		AnsiConsole.MarkupLine("[cyan]Testing Room Validator Template[/]");
-
-		var testDescription = "You stand in the main laboratory. The steel furniture shows signs of recent use, with scattered instruments and dried residue visible. A low electrical hum vibrates through the floor.";
-
-		var result = await _kernel.InvokeAsync<bool>(
-			"RoomValidator",
-			"ValidateRoomDescription",
-			new KernelArguments
-			{
-				["description"] = testDescription,
-				["minSentences"] = "3",
-				["maxSentences"] = "5"
-			});
-
-		AnsiConsole.MarkupLine($"[green]Validation result: {(result ? "OK" : "REGENERATE")}[/]");
 	}
 
 	private void ToggleDebugMode()
