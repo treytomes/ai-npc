@@ -2,6 +2,8 @@ using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Json;
 using Spectre.Console.Rendering;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace Adventure;
 
@@ -25,5 +27,14 @@ public static class ObjectExtensions
 			.NumberColor(Color.Aqua)
 			.BooleanColor(Color.Magenta)
 			.NullColor(Color.Grey);
+	}
+
+	public static string ToYaml<T>(this T @this)
+	{
+		var serializer = new SerializerBuilder()
+			.WithNamingConvention(UnderscoredNamingConvention.Instance)
+			.Build();
+
+		return serializer.Serialize(@this);
 	}
 }

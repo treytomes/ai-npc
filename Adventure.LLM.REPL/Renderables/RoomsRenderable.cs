@@ -5,9 +5,9 @@ using Spectre.Console.Rendering;
 
 namespace Adventure.LLM.REPL.Renderables;
 
-internal sealed class RoomsRenderable(Dictionary<string, WorldData> worldData, string currentRoom) : Adventure.Renderables.Renderable
+internal sealed class RoomsRenderable(IReadOnlyDictionary<string, WorldData> worldData, string currentRoom) : Adventure.Renderables.Renderable
 {
-	private readonly Dictionary<string, WorldData> _worldData = worldData ?? throw new ArgumentNullException(nameof(worldData));
+	private readonly IReadOnlyDictionary<string, WorldData> _worldData = worldData ?? throw new ArgumentNullException(nameof(worldData));
 	private readonly string _currentRoom = currentRoom ?? throw new ArgumentNullException(nameof(currentRoom));
 
 	public override IEnumerator<IRenderable> GetEnumerator()

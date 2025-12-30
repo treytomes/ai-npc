@@ -19,12 +19,9 @@ internal sealed class HelpRenderable : Adventure.Renderables.Renderable
 			.AddRow(":debug", "Toggle debug mode")
 			.AddRow(":config", "Show current configuration")
 			.AddRow(":reload", "Reload prompt templates")
-			.AddRow(":test <template>", "Test a specific template")
 			.AddRow(":rooms", "List all available rooms")
 			.AddRow(":goto <room>", "Change to a different room")
 			.AddRow(":room", "Show current room details")
-			.AddRow(":export <yaml>", "Export current room data")
-			.AddRow(":intent <input>", "Test intent analyzer with input")
 			.AddRow(":help", "Show this help");
 
 		yield return new NewLineRenderable();

@@ -2,7 +2,6 @@ using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Services;
-using OllamaSharp;
 using System.Runtime.CompilerServices;
 
 namespace Adventure.LLM;

@@ -1,8 +1,11 @@
 using Adventure.LLM.REPL.Configuration;
+using Adventure.LLM.REPL.Persistence;
 using Adventure.LLM.REPL.Plugins;
 using Adventure.LLM.REPL.Renderables;
+using Adventure.LLM.REPL.Services;
 using Adventure.LLM.REPL.ValueObjects;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Spectre.Console;
@@ -11,41 +14,39 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Adventure.LLM.REPL;
 
-#region Configuration
-
-#endregion
-
 internal sealed class MainAppState : AppState
 {
-	#region Constants
-
-	private const string ASSETS_ROOT_PATH = "assets";
-	private static readonly string PROMPT_ROOT_PATH = Path.Combine(ASSETS_ROOT_PATH, "prompts");
-	private static readonly string ROOMS_ROOT_PATH = Path.Combine(ASSETS_ROOT_PATH, "rooms");
-
-	#endregion
-
 	#region Fields
 
 	private readonly ILogger<MainAppState> _logger;
+	private readonly AppSettings _settings;
 	private readonly Kernel _kernel;
+	private readonly IRoomRepository _roomRepository;
+	private readonly IRoomNavigationService _navigationService;
 	private ChatHistory _persistentHistory = null!;
 	private AppConfiguration _config = new();
-	private Dictionary<string, WorldData> _worldData = new();
-	private string _currentRoom = "main_lab";
 
 	#endregion
 
 	#region Constructors
 
 	public MainAppState(
+		IOptions<AppSettings> settings,
 		IStateManager states,
 		ILogger<MainAppState> logger,
-		Kernel kernel)
-		: base(states)
+		Kernel kernel,
+		IRoomRepository roomRepository,
+		IRoomNavigationService navigationService
+	) : base(states)
 	{
+		_settings = settings.Value;
 		_logger = logger;
 		_kernel = kernel;
+		_roomRepository = roomRepository;
+		_navigationService = navigationService;
+
+		// Subscribe to room change events
+		_navigationService.RoomChanged += OnRoomChanged;
 	}
 
 	#endregion
@@ -55,36 +56,38 @@ internal sealed class MainAppState : AppState
 	public override async Task OnEnterAsync()
 	{
 		RenderHeader();
-		await Task.CompletedTask;
+
+		await RenderRoomAsync("look around");
 	}
 
 	public override async Task OnLoadAsync()
 	{
-		// Load configuration if exists
+		// Load configuration if exists.
 		await LoadConfigurationAsync();
 
-		// Load world data
-		await LoadWorldDataAsync();
+		// Load world data through repository.
+		await _roomRepository.LoadRoomsAsync();
 
-		// Initialize persistent history with system prompt
-		_persistentHistory = new ChatHistory(
-			"You are an environment description renderer for a text adventure game.");
+		// Initialize persistent history with system prompt.
+		_persistentHistory = new ChatHistory("You are an environment description renderer for a text adventure game.");
 
-		// Create and register plugins
+		// Create and register plugins.
+
+		var promptsPath = Path.Combine(_settings.AssetsPath, _settings.PromptAssetsPath);
 
 		// 1. Intent Analyzer Plugin (NEW)
 		var intentLogger = _kernel.LoggerFactory.CreateLogger<IntentAnalyzerPlugin>();
-		var intentPlugin = new IntentAnalyzerPlugin(PROMPT_ROOT_PATH, _kernel, intentLogger);
+		var intentPlugin = new IntentAnalyzerPlugin(promptsPath, _kernel, intentLogger);
 		_kernel.Plugins.AddFromObject(intentPlugin, "IntentAnalyzer");
 
 		// 2. Room Renderer Plugin
 		var rendererLogger = _kernel.LoggerFactory.CreateLogger<RoomRendererPlugin>();
-		var rendererPlugin = new RoomRendererPlugin(PROMPT_ROOT_PATH, _kernel, _persistentHistory, rendererLogger);
+		var rendererPlugin = new RoomRendererPlugin(promptsPath, _kernel, _persistentHistory, rendererLogger);
 		_kernel.Plugins.AddFromObject(rendererPlugin, "RoomRenderer");
 
 		// 3. Room Validator Plugin
 		var validatorLogger = _kernel.LoggerFactory.CreateLogger<RoomValidatorPlugin>();
-		var validatorPlugin = new RoomValidatorPlugin(PROMPT_ROOT_PATH, _kernel, validatorLogger);
+		var validatorPlugin = new RoomValidatorPlugin(promptsPath, _kernel, validatorLogger);
 		_kernel.Plugins.AddFromObject(validatorPlugin, "RoomValidator");
 
 		// 4. Room Orchestration Plugin
@@ -103,17 +106,21 @@ internal sealed class MainAppState : AppState
 		_logger.LogInformation("Using prompt templates from YAML files");
 		_logger.LogInformation("Using AI-powered intent analysis with Polly retry logic");
 
-
 		await Task.CompletedTask;
+	}
+
+	private void OnRoomChanged(object? sender, RoomChangedEventArgs e)
+	{
+		_logger.LogInformation("Room changed from {Previous} to {New}", e.PreviousRoomKey, e.NewRoomKey);
 	}
 
 	private async Task LoadConfigurationAsync()
 	{
 		try
 		{
-			if (File.Exists(Path.Combine(ASSETS_ROOT_PATH, "config.yaml")))
+			if (File.Exists(Path.Combine(_settings.AssetsPath, "config.yaml")))
 			{
-				var yamlContent = await File.ReadAllTextAsync(Path.Combine(ASSETS_ROOT_PATH, "config.yaml"));
+				var yamlContent = await File.ReadAllTextAsync(Path.Combine(_settings.AssetsPath, "config.yaml"));
 				var deserializer = new DeserializerBuilder()
 					.WithNamingConvention(CamelCaseNamingConvention.Instance)
 					.Build();
@@ -133,39 +140,6 @@ internal sealed class MainAppState : AppState
 		}
 	}
 
-	private async Task LoadWorldDataAsync()
-	{
-		try
-		{
-			var worldDataFiles = Directory.GetFiles(ROOMS_ROOT_PATH, "*.room.yaml");
-
-			if (worldDataFiles.Length == 0)
-			{
-				throw new FileNotFoundException("Unable to find any room files.");
-			}
-
-			var deserializer = new DeserializerBuilder()
-				.WithNamingConvention(UnderscoredNamingConvention.Instance)
-				.Build();
-
-			foreach (var file in worldDataFiles)
-			{
-				var yamlContent = await File.ReadAllTextAsync(file);
-				var worldData = deserializer.Deserialize<WorldData>(yamlContent);
-				var roomKey = Path.GetFileNameWithoutExtension(file).Replace(".room", "");
-				_worldData[roomKey] = worldData;
-				_logger.LogInformation("Loaded room data: {RoomKey} from {File}", roomKey, file);
-			}
-
-			AnsiConsole.MarkupLine($"[green]Loaded {_worldData.Count} room(s)[/]");
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, "Failed to load world data");
-			AnsiConsole.MarkupLine("[red]Failed to load world data[/]");
-		}
-	}
-
 	public override async Task OnLeaveAsync()
 	{
 		await Task.CompletedTask;
@@ -173,7 +147,11 @@ internal sealed class MainAppState : AppState
 
 	public override async Task OnUnloadAsync()
 	{
+		// Unsubscribe from events
+		_navigationService.RoomChanged -= OnRoomChanged;
+
 		// Remove all plugins
+		_kernel.Plugins.Remove("IntentAnalyzer");
 		_kernel.Plugins.Remove("RoomRenderer");
 		_kernel.Plugins.Remove("RoomValidator");
 		_kernel.Plugins.Remove("RoomOrchestration");
@@ -266,17 +244,18 @@ internal sealed class MainAppState : AppState
 
 	private async Task HandleObservationIntent(UserIntent intent)
 	{
-		// Get current room data
-		if (!_worldData.TryGetValue(_currentRoom, out var worldData))
+		// Get current room data from navigation service.
+		var worldData = _navigationService.CurrentRoom;
+		if (worldData == null)
 		{
 			AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
 			return;
 		}
 
-		// Convert world data to YAML for the renderer
-		var roomData = ConvertWorldDataToYaml(worldData);
+		// Convert world data to YAML for the renderer.
+		var roomData = worldData.ToYaml();
 
-		// Map intent to focus for renderer
+		// Map intent to focus for renderer.
 		var focus = intent.Intent switch
 		{
 			IntentTypes.Smell => "smells and odors",
@@ -286,7 +265,7 @@ internal sealed class MainAppState : AppState
 			_ => intent.Focus
 		};
 
-		// Use the orchestration plugin to handle rendering with validation
+		// Use the orchestration plugin to handle rendering with validation.
 		var _ = await _kernel.InvokeAsync<string>(
 			"RoomOrchestration",
 			"RenderValidatedRoom",
@@ -306,24 +285,42 @@ internal sealed class MainAppState : AppState
 			return;
 		}
 
-		// Check if the destination exists
-		var possibleRoom = _worldData.Keys.FirstOrDefault(k =>
-			k.Contains(intent.Focus, StringComparison.OrdinalIgnoreCase));
+		// Try to find a matching room
+		var possibleRoom = _roomRepository.GetRoomKeys()
+			.FirstOrDefault(k => k.Contains(intent.Focus, StringComparison.OrdinalIgnoreCase));
 
 		if (possibleRoom != null)
 		{
-			await ChangeRoomAsync(possibleRoom);
+			var result = await _navigationService.NavigateToAsync(possibleRoom);
+
+			if (result.Success)
+			{
+				var newRoom = _navigationService.CurrentRoom;
+				AnsiConsole.MarkupLine($"[green]You move to: {newRoom?.Room.Name}[/]");
+
+				// Auto-render the new room
+				await RenderRoomAsync("look around");
+			}
+			else
+			{
+				AnsiConsole.MarkupLine($"[yellow]{result.Message}[/]");
+				ShowAvailableExits();
+			}
 		}
 		else
 		{
 			AnsiConsole.MarkupLine($"[yellow]You can't go to '{intent.Focus}' from here.[/]");
+			ShowAvailableExits();
+		}
+	}
 
-			// Show available exits
-			var availableRooms = _worldData.Keys.Where(k => k != _currentRoom).ToList();
-			if (availableRooms.Any())
-			{
-				AnsiConsole.MarkupLine("[grey]Available locations: " + string.Join(", ", availableRooms) + "[/]");
-			}
+	private void ShowAvailableExits()
+	{
+		var availableDestinations = _navigationService.GetAvailableDestinations().ToList();
+		if (availableDestinations.Any())
+		{
+			AnsiConsole.MarkupLine("[grey]Available locations: " +
+				string.Join(", ", availableDestinations) + "[/]");
 		}
 	}
 
@@ -351,15 +348,6 @@ internal sealed class MainAppState : AppState
 		// For now, just indicate the action isn't implemented
 		AnsiConsole.MarkupLine($"[yellow]You can't use the {intent.Focus} right now.[/]");
 		await Task.CompletedTask;
-	}
-
-	private string ConvertWorldDataToYaml(WorldData worldData)
-	{
-		var serializer = new SerializerBuilder()
-			.WithNamingConvention(UnderscoredNamingConvention.Instance)
-			.Build();
-
-		return serializer.Serialize(worldData);
 	}
 
 	#endregion
@@ -415,16 +403,15 @@ internal sealed class MainAppState : AppState
 				await ReloadTemplatesAsync();
 				break;
 			case ":rooms":
-				AnsiConsole.Write(new RoomsRenderable(_worldData, _currentRoom));
+				var allRooms = _roomRepository.GetAllRooms();
+				var currentKey = _navigationService.CurrentRoomKey;
+				AnsiConsole.Write(new RoomsRenderable(allRooms, currentKey));
 				break;
 			case ":goto":
 				await ChangeRoomAsync(args);
 				break;
 			case ":room":
-				ShowCurrentRoom();
-				break;
-			case ":export":
-				await ExportRoomAsync(args);
+				AnsiConsole.Write(new CurrentRoomRenderable(_navigationService.CurrentRoom));
 				break;
 		}
 	}
@@ -437,57 +424,19 @@ internal sealed class MainAppState : AppState
 			return;
 		}
 
-		if (_worldData.ContainsKey(roomKey))
+		var result = await _navigationService.NavigateToAsync(roomKey);
+
+		if (result.Success)
 		{
-			_currentRoom = roomKey;
-			AnsiConsole.MarkupLine($"[green]Moved to: {_worldData[roomKey].Room.Name}[/]");
+			var newRoom = _navigationService.CurrentRoom;
+			AnsiConsole.MarkupLine($"[green]Moved to: {newRoom?.Room.Name}[/]");
 
 			// Optionally auto-render the new room
 			await RenderRoomAsync("look around");
 		}
 		else
 		{
-			AnsiConsole.MarkupLine($"[red]Unknown room: {roomKey}[/]");
-		}
-	}
-
-	private void ShowCurrentRoom()
-	{
-		if (!_worldData.TryGetValue(_currentRoom, out var worldData))
-		{
-			AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
-			return;
-		}
-
-		var room = worldData.Room;
-		AnsiConsole.Write(new RoomRenderable(room));
-	}
-
-	private async Task ExportRoomAsync(string format)
-	{
-		if (!_worldData.TryGetValue(_currentRoom, out var worldData))
-		{
-			AnsiConsole.MarkupLine("[red]Error: Current room data not found[/]");
-			return;
-		}
-
-		format = format.ToLower();
-
-		switch (format)
-		{
-			case "yaml":
-				var serializer = new SerializerBuilder()
-					.WithNamingConvention(UnderscoredNamingConvention.Instance)
-					.Build();
-				var yaml = serializer.Serialize(worldData);
-				var yamlFile = $"{_currentRoom}_export.yaml";
-				await File.WriteAllTextAsync(yamlFile, yaml);
-				AnsiConsole.MarkupLine($"[green]Exported to {yamlFile}[/]");
-				break;
-
-			default:
-				AnsiConsole.MarkupLine("[yellow]Usage: :export [json|yaml][/]");
-				break;
+			AnsiConsole.MarkupLine($"[red]{result.Message}[/]");
 		}
 	}
 
@@ -496,17 +445,20 @@ internal sealed class MainAppState : AppState
 		try
 		{
 			AnsiConsole.Status()
-				.Start("Reloading templates...", ctx =>
+				.Start("Reloading templates and rooms...", ctx =>
 				{
 					ctx.Spinner(Spinner.Known.Star);
 					ctx.SpinnerStyle(Style.Parse("green"));
 				});
 
+			// Reload rooms
+			await _roomRepository.ReloadRoomsAsync();
+
 			// Unload and reload plugins
 			await OnUnloadAsync();
 			await OnLoadAsync();
 
-			AnsiConsole.MarkupLine("[green]✓ Templates reloaded successfully[/]");
+			AnsiConsole.MarkupLine("[green]✓ Templates and rooms reloaded successfully[/]");
 		}
 		catch (Exception ex)
 		{
