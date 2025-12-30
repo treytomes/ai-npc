@@ -4,11 +4,19 @@ template: |
   Check the assistant output against these rules:
   - Second-person present tense
   - {{minSentences}}-{{maxSentences}} sentences
-  - No invented objects
+  - No invented objects or details
   - No lists or dialogue
+  {{#if isFocused}}
+  - Description should focus ONLY on the requested aspect
+  - Should NOT include general room description
+  {{/if}}
   
   Description to validate:
   {{description}}
+  
+  {{#if isFocused}}
+  Focus requested: {{focus}}
+  {{/if}}
   
   Return ONLY one word:
   OK or REGENERATE
@@ -21,6 +29,12 @@ input_variables:
   - name: maxSentences
     description: Maximum sentences
     default: "5"
+  - name: isFocused
+    description: Whether this is a focused description
+    default: "false"
+  - name: focus
+    description: The focus area if applicable
+    default: ""
 execution_settings:
   temperature: 0
   max_tokens: 5

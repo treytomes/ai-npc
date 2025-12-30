@@ -61,9 +61,18 @@ internal sealed class RoomOrchestrationPlugin
 		[Description("Room YAML data")] string roomYaml,
 		[Description("User input")] string userInput)
 	{
-		var sentenceCount = _config!.GetValueOrDefault("sentenceCount", "3-5")!;
-		var minSentences = _config!.GetValueOrDefault("minSentences", "3")!;
-		var maxSentences = _config!.GetValueOrDefault("maxSentences", "5")!;
+		// Analyze user input to determine focus
+		var (focus, isSpecific) = FocusAnalyzer.DetermineFocus(userInput);
+
+		// Adjust sentence count based on whether it's a focused description
+		var sentenceCount = isSpecific ? "2-3" : _config!.GetValueOrDefault("sentenceCount", "3-5")!;
+		var minSentences = isSpecific ? "2" : _config!.GetValueOrDefault("minSentences", "3")!;
+		var maxSentences = isSpecific ? "3" : _config!.GetValueOrDefault("maxSentences", "5")!;
+
+		if (!string.IsNullOrEmpty(focus))
+		{
+			_logger.LogInformation("Detected focus area: {Focus} (Specific: {IsSpecific})", focus, isSpecific);
+		}
 
 		var context = new Context
 		{
@@ -89,7 +98,8 @@ internal sealed class RoomOrchestrationPlugin
 					{
 						["roomYaml"] = ctx["roomYaml"],
 						["userInput"] = ctx["userInput"],
-						["sentenceCount"] = ctx["sentenceCount"]
+						["sentenceCount"] = ctx["sentenceCount"],
+						["focus"] = focus,
 					}) ?? string.Empty;
 
 				// Validate the result
@@ -100,7 +110,9 @@ internal sealed class RoomOrchestrationPlugin
 					{
 						["description"] = rendered,
 						["minSentences"] = ctx["minSentences"],
-						["maxSentences"] = ctx["maxSentences"]
+						["maxSentences"] = ctx["maxSentences"],
+						["isFocused"] = isSpecific,
+						["focus"] = focus,
 					});
 
 				if (isValid)

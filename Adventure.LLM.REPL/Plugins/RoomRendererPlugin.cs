@@ -14,12 +14,18 @@ namespace Adventure.LLM.REPL.Plugins;
 
 internal sealed class RoomRendererPlugin
 {
+	#region Fields
+
 	private readonly string _promptRootPath;
 	private readonly IChatCompletionService _chatService;
 	private readonly Kernel _kernel;
 	private readonly ChatHistory _persistentHistory;
 	private readonly ILogger<RoomRendererPlugin> _logger;
 	private readonly KernelFunction _renderFunction;
+
+	#endregion
+
+	#region Constructors
 
 	public RoomRendererPlugin(
 		string promptRootPath,
@@ -36,6 +42,10 @@ internal sealed class RoomRendererPlugin
 		// Load and create the render function from template
 		_renderFunction = CreateRenderFunction();
 	}
+
+	#endregion
+
+	#region Methods
 
 	private KernelFunction CreateRenderFunction()
 	{
@@ -89,10 +99,12 @@ internal sealed class RoomRendererPlugin
 	public async Task<string> RenderRoomAsync(
 		[Description("Room YAML")] string roomYaml,
 		[Description("User input")] string userInput,
-		[Description("Number of sentences")] string sentenceCount = "3-5")
+		[Description("Number of sentences")] string sentenceCount = "3-5",
+		[Description("Optional focus area")] string focus = ""
+	)
 	{
 		// Stream the response with visual feedback
-		var result = await StreamRenderAsync(roomYaml, userInput, sentenceCount);
+		var result = await StreamRenderAsync(roomYaml, userInput, sentenceCount, focus);
 
 		// Update persistent history
 		_persistentHistory.AddUserMessage(userInput);
@@ -101,7 +113,7 @@ internal sealed class RoomRendererPlugin
 		return result;
 	}
 
-	private async Task<string> StreamRenderAsync(string roomYaml, string userInput, string sentenceCount)
+	private async Task<string> StreamRenderAsync(string roomYaml, string userInput, string sentenceCount, string focus)
 	{
 		var sb = new StringBuilder();
 		var layout = (IRenderable)new Rows();
@@ -111,8 +123,14 @@ internal sealed class RoomRendererPlugin
 		{
 			["roomYaml"] = roomYaml,
 			["userInput"] = userInput,
-			["sentenceCount"] = sentenceCount
+			["sentenceCount"] = sentenceCount,
+			["focus"] = focus,
 		};
+
+		// Determine header based on focus
+		var header = string.IsNullOrEmpty(focus)
+			? "[green]Narrator[/]"
+			: $"[green]Narrator[/] [grey](focusing on: {focus})[/]";
 
 		await AnsiConsole.Live(layout).StartAsync(async ctx =>
 		{
@@ -128,7 +146,7 @@ internal sealed class RoomRendererPlugin
 				sentenceBuffer.Clear();
 
 				layout = new Panel(sb.ToString())
-					.Header("[green]Narrator[/]")
+					.Header(header)
 					.Border(BoxBorder.Rounded)
 					.BorderColor(Color.Green);
 
@@ -138,4 +156,6 @@ internal sealed class RoomRendererPlugin
 
 		return sb.Append(sentenceBuffer).ToString().Trim();
 	}
+
+	#endregion
 }

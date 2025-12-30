@@ -200,7 +200,7 @@ internal sealed class MainAppState : AppState
 				return;
 			}
 
-			// Convert world data to JSON for the renderer (or modify renderer to accept YAML)
+			// Convert world data to YAML for the renderer.
 			var roomYaml = ConvertWorldDataToYaml(worldData);
 
 			// Use the orchestration plugin to handle rendering with validation
@@ -216,7 +216,17 @@ internal sealed class MainAppState : AppState
 			// Result is already displayed by the streaming renderer
 			// Additional processing could go here if needed
 
-			// Optional: Show validation status
+			// Show what focus was used (in debug mode).
+			if (_logger.IsEnabled(LogLevel.Debug))
+			{
+				var (focus, isSpecific) = FocusAnalyzer.DetermineFocus(input);
+				if (!string.IsNullOrEmpty(focus))
+				{
+					AnsiConsole.MarkupLine($"[grey]✓ Description focused on: {focus} (is specific: {isSpecific})[/]");
+				}
+			}
+
+			// Show validation status.
 			if (_logger.IsEnabled(LogLevel.Debug))
 			{
 				AnsiConsole.MarkupLine("[grey]✓ Description validated[/]");
@@ -225,6 +235,10 @@ internal sealed class MainAppState : AppState
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error rendering room");
+			if (_logger.IsEnabled(LogLevel.Debug))
+			{
+				AnsiConsole.WriteException(ex);
+			}
 			AnsiConsole.MarkupLine("[red]Error: Failed to render room description[/]");
 		}
 	}
@@ -428,6 +442,25 @@ internal sealed class MainAppState : AppState
 			.AddRow(":help", "Show this help");
 
 		AnsiConsole.Write(table);
+		AnsiConsole.WriteLine();
+
+		// Add examples section
+		var examplesPanel = new Panel(
+			"[cyan]General:[/]\n" +
+			"  look around - Full room description\n" +
+			"  look - Full room description\n\n" +
+			"[cyan]Focused:[/]\n" +
+			"  smell the air - Describe only smells\n" +
+			"  listen carefully - Describe only sounds\n" +
+			"  examine furniture - Describe only furniture\n" +
+			"  inspect the door - Describe only the door\n" +
+			"  look at the lighting - Describe only lighting"
+		)
+		.Header("[yellow]Example Commands[/]")
+		.Border(BoxBorder.Rounded)
+		.BorderColor(Color.Yellow);
+
+		AnsiConsole.Write(examplesPanel);
 		AnsiConsole.WriteLine();
 	}
 

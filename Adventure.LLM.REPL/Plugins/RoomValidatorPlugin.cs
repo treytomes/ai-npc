@@ -84,19 +84,24 @@ internal sealed class RoomValidatorPlugin
 	public async Task<bool> ValidateRoomDescriptionAsync(
 		[Description("The room description to validate")] string description,
 		[Description("Minimum sentences")] string minSentences = "3",
-		[Description("Maximum sentences")] string maxSentences = "5")
+		[Description("Maximum sentences")] string maxSentences = "5",
+		[Description("Whether this is a focused description")] bool isFocused = false,
+		[Description("The focus area if applicable")] string focus = ""
+	)
 	{
 		var arguments = new KernelArguments
 		{
 			["description"] = description,
 			["minSentences"] = minSentences,
-			["maxSentences"] = maxSentences
+			["maxSentences"] = maxSentences,
+			["isFocused"] = isFocused.ToString().ToLower(),
+			["focus"] = focus,
 		};
 
 		var response = await _kernel.InvokeAsync<string>(_validateFunction, arguments);
 		var verdict = response?.Trim();
 
-		_logger.LogInformation("Validator verdict: {Verdict}", verdict);
+		_logger.LogInformation("Validator verdict: {Verdict} (Focused: {IsFocused})", verdict, isFocused);
 
 		return verdict == "OK";
 	}
