@@ -58,13 +58,14 @@ internal sealed class RoomOrchestrationPlugin
 	[KernelFunction("RenderValidatedRoom")]
 	[Description("Renders a room with automatic validation and retry")]
 	public async Task<string> RenderValidatedRoomAsync(
-		[Description("Room YAML data")] string roomYaml,
-		[Description("User input")] string userInput)
+		[Description("Room YAML data")] string roomData,
+		[Description("User input")] string userInput,
+		[Description("Optional focus area")] string focus = "")
 	{
-		// Analyze user input to determine focus
-		var (focus, isSpecific) = FocusAnalyzer.DetermineFocus(userInput);
+		// Determine if this is a focused description.
+		var isSpecific = !string.IsNullOrEmpty(focus);
 
-		// Adjust sentence count based on whether it's a focused description
+		// Adjust sentence count based on whether it's a focused description.
 		var sentenceCount = isSpecific ? "2-3" : _config!.GetValueOrDefault("sentenceCount", "3-5")!;
 		var minSentences = isSpecific ? "2" : _config!.GetValueOrDefault("minSentences", "3")!;
 		var maxSentences = isSpecific ? "3" : _config!.GetValueOrDefault("maxSentences", "5")!;
@@ -76,7 +77,7 @@ internal sealed class RoomOrchestrationPlugin
 
 		var context = new Context
 		{
-			["roomYaml"] = roomYaml,
+			["roomData"] = roomData,
 			["userInput"] = userInput,
 			["sentenceCount"] = sentenceCount,
 			["minSentences"] = minSentences,
@@ -96,7 +97,7 @@ internal sealed class RoomOrchestrationPlugin
 					"RenderRoom",
 					new KernelArguments
 					{
-						["roomYaml"] = ctx["roomYaml"],
+						["roomData"] = ctx["roomData"],
 						["userInput"] = ctx["userInput"],
 						["sentenceCount"] = ctx["sentenceCount"],
 						["focus"] = focus,

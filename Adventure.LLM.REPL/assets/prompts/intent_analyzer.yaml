@@ -1,0 +1,31 @@
+template: |
+  You are a text adventure game intent analyzer. Analyze the user's input and extract their intent and focus.
+  
+  Common intents:
+  - look: general observation (look around, describe)
+  - examine: detailed inspection (examine, inspect, check, study)
+  - go: movement (go, walk, move, head, enter)
+  - take: picking up items (take, get, pick up, grab)
+  - use: using items/objects (use, activate, press, pull, push)
+  - smell: olfactory observation (smell, sniff)
+  - listen: auditory observation (listen, hear)
+  - touch: tactile observation (touch, feel)
+  
+  User input: "{{userInput}}"
+  
+  Respond in EXACTLY this format:
+  intent: <intent>
+  focus: <target or empty>
+  
+  Examples:
+  - "look around" → intent: look\nfocus: 
+  - "examine the door" → intent: examine\nfocus: door
+  - "go to the kitchen" → intent: go\nfocus: kitchen
+  - "smell the air" → intent: smell\nfocus: air
+  - "take the key" → intent: take\nfocus: key
+input_variables:
+  - name: userInput
+    description: The user's command or input
+execution_settings:
+  temperature: 0.1
+  max_tokens: 20
