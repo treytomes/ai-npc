@@ -1,14 +1,23 @@
 using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
+using Polly;
+using Polly.Retry;
 
 namespace Adventure.LLM.REPL.Plugins;
 
 internal sealed class RoomOrchestrationPlugin
 {
+	#region Fields
+
 	private readonly Kernel _kernel;
 	private readonly ILogger<RoomOrchestrationPlugin> _logger;
 	private readonly Dictionary<string, object> _config;
+	private readonly AsyncRetryPolicy<(string Result, bool IsValid)> _retryPolicy;
+
+	#endregion
+
+	#region Constructors
 
 	public RoomOrchestrationPlugin(
 		Kernel kernel,
@@ -24,7 +33,27 @@ internal sealed class RoomOrchestrationPlugin
 			["minSentences"] = "3",
 			["maxSentences"] = "5"
 		};
+
+		// Create the retry policy
+		var maxAttempts = Convert.ToInt32(_config!.GetValueOrDefault("maxAttempts", 2));
+
+		_retryPolicy = Policy
+			.HandleResult<(string Result, bool IsValid)>(r => !r.IsValid)
+			.WaitAndRetryAsync(
+				retryCount: maxAttempts - 1, // -1 because the first attempt isn't a retry.
+				sleepDurationProvider: retryAttempt => TimeSpan.FromMilliseconds(100 * retryAttempt), // Optional backoff.
+				onRetry: (outcome, timespan, retryCount, context) =>
+				{
+					_logger.LogWarning(
+						"Validation failed on attempt {Attempt}. Retrying in {Delay}ms...",
+						retryCount,
+						timespan.TotalMilliseconds);
+				});
 	}
+
+	#endregion
+
+	#region Methods
 
 	[KernelFunction("RenderValidatedRoom")]
 	[Description("Renders a room with automatic validation and retry")]
@@ -32,52 +61,60 @@ internal sealed class RoomOrchestrationPlugin
 		[Description("Room YAML data")] string roomYaml,
 		[Description("User input")] string userInput)
 	{
-		var result = string.Empty;
-		var attempts = 0;
-		var maxAttempts = _config!.GetValueOrDefault("maxAttempts", 2)!;
 		var sentenceCount = _config!.GetValueOrDefault("sentenceCount", "3-5")!;
 		var minSentences = _config!.GetValueOrDefault("minSentences", "3")!;
 		var maxSentences = _config!.GetValueOrDefault("maxSentences", "5")!;
 
-		do
+		var context = new Context
 		{
-			attempts++;
-			_logger.LogInformation("Rendering attempt {Attempt}/{MaxAttempts}", attempts, maxAttempts);
+			["roomYaml"] = roomYaml,
+			["userInput"] = userInput,
+			["sentenceCount"] = sentenceCount,
+			["minSentences"] = minSentences,
+			["maxSentences"] = maxSentences
+		};
 
-			// Render the room.
-			var ct = CancellationToken.None;
-			result = await _kernel.InvokeAsync<string>(
-				"RoomRenderer",
-				"RenderRoom",
-				new()
-				{
-					["roomYaml"] = roomYaml,
-					["userInput"] = userInput,
-					["sentenceCount"] = sentenceCount
-				}, ct) ?? string.Empty;
-
-			// Validate the result.
-			var isValid = await _kernel.InvokeAsync<bool>(
-				"RoomValidator",
-				"ValidateRoomDescription",
-				new KernelArguments
-				{
-					["description"] = result,
-					["minSentences"] = minSentences,
-					["maxSentences"] = maxSentences
-				});
-
-			if (isValid)
+		var attempt = 0;
+		var result = await _retryPolicy.ExecuteAsync(
+			async (ctx) =>
 			{
-				_logger.LogInformation("Validation passed on attempt {Attempt}", attempts);
-				break;
-			}
+				attempt++;
+				_logger.LogInformation("Rendering attempt {Attempt}", attempt);
 
-			_logger.LogWarning("Validation failed on attempt {Attempt}", attempts);
-		}
-		while (attempts < maxAttempts);
+				// Render the room
+				var rendered = await _kernel.InvokeAsync<string>(
+					"RoomRenderer",
+					"RenderRoom",
+					new KernelArguments
+					{
+						["roomYaml"] = ctx["roomYaml"],
+						["userInput"] = ctx["userInput"],
+						["sentenceCount"] = ctx["sentenceCount"]
+					}) ?? string.Empty;
 
-		_logger.LogInformation("Total render attempts: {Attempts}", attempts);
-		return result;
+				// Validate the result
+				var isValid = await _kernel.InvokeAsync<bool>(
+					"RoomValidator",
+					"ValidateRoomDescription",
+					new KernelArguments
+					{
+						["description"] = rendered,
+						["minSentences"] = ctx["minSentences"],
+						["maxSentences"] = ctx["maxSentences"]
+					});
+
+				if (isValid)
+				{
+					_logger.LogInformation("Validation passed on attempt {Attempt}", attempt);
+				}
+
+				return (Result: rendered, IsValid: isValid);
+			},
+			context);
+
+		_logger.LogInformation("Total render attempts: {Attempts}", attempt);
+		return result.Result;
 	}
+
+	#endregion
 }
