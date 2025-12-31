@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adventure.LLM", "Adventure.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adventure.LLM.REPL", "Adventure.LLM.REPL\Adventure.LLM.REPL.csproj", "{89596A98-4700-43FB-97C5-D494E81EB38F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adventure.LLM.Training", "Adventure.LLM.Training\Adventure.LLM.Training.csproj", "{7A126D7B-9444-40C7-8B30-C7234B1BCE71}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{89596A98-4700-43FB-97C5-D494E81EB38F}.Release|x64.Build.0 = Release|Any CPU
 		{89596A98-4700-43FB-97C5-D494E81EB38F}.Release|x86.ActiveCfg = Release|Any CPU
 		{89596A98-4700-43FB-97C5-D494E81EB38F}.Release|x86.Build.0 = Release|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Debug|x64.Build.0 = Debug|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Debug|x86.Build.0 = Debug|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Release|x64.ActiveCfg = Release|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Release|x64.Build.0 = Release|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Release|x86.ActiveCfg = Release|Any CPU
+		{7A126D7B-9444-40C7-8B30-C7234B1BCE71}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
