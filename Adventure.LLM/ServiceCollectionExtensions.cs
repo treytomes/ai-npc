@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Adventure.LLM.Ollama;
 using Adventure.LLM.Services;
 using Microsoft.Extensions.AI;
@@ -13,7 +14,19 @@ public static class ServiceCollectionExtensions
 	{
 		services.AddHostedService<OllamaLifetimeHook>();
 
-		services.AddSingleton<OllamaInstaller>();
+		if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+		{
+			services.AddSingleton<OllamaInstaller, LinuxOllamaInstaller>();
+		}
+		else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+		{
+			services.AddSingleton<OllamaInstaller, WindowsOllamaInstaller>();
+		}
+		else
+		{
+			throw new ApplicationException($"Unsupported OS: {RuntimeInformation.OSDescription}");
+		}
+
 		services.AddSingleton<OllamaProcess>();
 		services.AddSingleton<OllamaProcessManager>();
 		services.AddSingleton<ILlmManager, OllamaLlmManager>();

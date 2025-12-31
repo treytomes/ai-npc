@@ -1,105 +1,18 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 
 namespace Adventure.LLM.Ollama;
 
-internal sealed class OllamaInstaller
+internal sealed class LinuxOllamaInstaller(HttpClient httpClient, ILogger<OllamaInstaller> logger)
+	: OllamaInstaller(httpClient, logger)
 {
-	#region Fields
-
-	private readonly HttpClient _httpClient;
-	private readonly ILogger<OllamaInstaller> _logger;
-
-	#endregion
-
-	#region Constructors
-
-	public OllamaInstaller(HttpClient httpClient, ILogger<OllamaInstaller> logger)
-	{
-		_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	}
-
-	#endregion
-
-	#region Methods
-
 	/// <summary>
-	/// Entry point: Ensure Ollama is installed & return the path to the ollama executable.
+	/// Official static Linux tgz.
 	/// </summary>
-	public async Task<string?> EnsureInstalledAsync()
+	private const string URL = "https://ollama.ai/download/ollama-linux-amd64.tgz";
+
+	protected override async Task<string?> InstallAsync(string installDir)
 	{
-		var installDir = GetInstallDir();
-		var ollamaExe = GetOllamaExecutablePath(installDir);
-
-		if (File.Exists(ollamaExe))
-		{
-			_logger.LogInformation($"Ollama already installed at: {ollamaExe}");
-			return ollamaExe;
-		}
-
-		_logger.LogInformation("Ollama not found. Installing…");
-
-		Directory.CreateDirectory(installDir);
-
-		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			return await InstallWindowsAsync(installDir);
-
-		if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			return await InstallLinuxAsync(installDir);
-
-		_logger.LogInformation("Unsupported OS.");
-		return null;
-	}
-
-	// ---------------------------
-	// WINDOWS INSTALL
-	// ---------------------------
-	private async Task<string?> InstallWindowsAsync(string installDir)
-	{
-		// Official static build tarball
-		const string URL = "https://ollama.ai/download/ollama-windows-amd64.zip";
-
-		var zipPath = Path.Combine(installDir, "ollama.zip");
-
-		try
-		{
-			_logger.LogInformation($"Downloading Ollama Windows build from: {URL}");
-			await DownloadFileAsync(URL, zipPath);
-
-			_logger.LogInformation("Extracting...");
-			System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, installDir, overwriteFiles: true);
-
-			File.Delete(zipPath);
-
-			// Windows build ships with "ollama.exe"
-			var exe = Path.Combine(installDir, "ollama.exe");
-
-			if (!File.Exists(exe))
-			{
-				_logger.LogError("Install failed: ollama.exe missing.");
-				return null;
-			}
-
-			_logger.LogInformation($"Ollama installed at: {exe}");
-			return exe;
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError($"Windows install error: {ex}");
-			return null;
-		}
-	}
-
-	// ---------------------------
-	// LINUX INSTALL
-	// ---------------------------
-	private async Task<string?> InstallLinuxAsync(string installDir)
-	{
-		// Official static Linux tgz
-		const string URL = "https://ollama.ai/download/ollama-linux-amd64.tgz";
-
 		var tgzPath = Path.Combine(installDir, "ollama.tgz");
 
 		try
@@ -138,10 +51,81 @@ internal sealed class OllamaInstaller
 		}
 	}
 
-	// ---------------------------
-	// UTILITY HELPERS
-	// ---------------------------
-	private async Task DownloadFileAsync(string url, string filePath)
+	private static string RunProcess(string exe, string args)
+	{
+		try
+		{
+			var psi = new ProcessStartInfo()
+			{
+				FileName = exe,
+				Arguments = args,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				UseShellExecute = false,
+			};
+
+			using var p = Process.Start(psi);
+			if (p == null) return "";
+
+			var stdout = p.StandardOutput.ReadToEnd();
+			var stderr = p.StandardError.ReadToEnd();
+
+			p.WaitForExit(4000);
+
+			return $"{stdout}{stderr}".Trim();
+		}
+		catch (Exception ex)
+		{
+			return ex.ToString();
+		}
+	}
+
+	protected override string GetInstallDir() =>
+		Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+			".adventure",
+			"ollama"
+		);
+
+	protected override string GetOllamaExecutablePath(string installDir) =>
+		Path.Combine(installDir, "bin", "ollama");
+}
+
+internal abstract class OllamaInstaller(HttpClient httpClient, ILogger<OllamaInstaller> logger)
+{
+	#region Fields
+
+	private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+	protected readonly ILogger<OllamaInstaller> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+	#endregion
+
+	#region Methods
+
+	/// <summary>
+	/// Entry point: Ensure Ollama is installed & return the path to the ollama executable.
+	/// </summary>
+	public async Task<string?> EnsureInstalledAsync()
+	{
+		var installDir = GetInstallDir();
+		var ollamaExe = GetOllamaExecutablePath(installDir);
+
+		if (File.Exists(ollamaExe))
+		{
+			_logger.LogInformation($"Ollama already installed at: {ollamaExe}");
+			return ollamaExe;
+		}
+
+		_logger.LogInformation("Ollama not found. Installing…");
+
+		Directory.CreateDirectory(installDir);
+
+		return await InstallAsync(installDir);
+	}
+
+	protected abstract Task<string?> InstallAsync(string installDir);
+
+	protected async Task DownloadFileAsync(string url, string filePath)
 	{
 		const int maxRetries = 4;
 		const int bufferSize = 64 * 1024; // 64 KB
@@ -190,7 +174,7 @@ internal sealed class OllamaInstaller
 				long bytesDownloaded = existingSize;
 				int bytesRead;
 
-				var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+				var stopwatch = Stopwatch.StartNew();
 				long lastProgressReportTime = 0;
 
 				while ((bytesRead = await networkStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
@@ -253,54 +237,9 @@ internal sealed class OllamaInstaller
 		}
 	}
 
-	private static string RunProcess(string exe, string args)
-	{
-		try
-		{
-			var psi = new ProcessStartInfo()
-			{
-				FileName = exe,
-				Arguments = args,
-				RedirectStandardOutput = true,
-				RedirectStandardError = true,
-				UseShellExecute = false,
-			};
+	protected abstract string GetInstallDir();
 
-			using var p = Process.Start(psi);
-			if (p == null) return "";
-
-			var stdout = p.StandardOutput.ReadToEnd();
-			var stderr = p.StandardError.ReadToEnd();
-
-			p.WaitForExit(4000);
-
-			return $"{stdout}{stderr}".Trim();
-		}
-		catch (Exception ex)
-		{
-			return ex.ToString();
-		}
-	}
-
-	private static string GetInstallDir()
-	{
-		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-		{
-			var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-			return Path.Combine(baseDir, "Adventure", "ollama");
-		}
-
-		// Linux/macOS-like path
-		var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-		return Path.Combine(home, ".adventure", "ollama");
-	}
-
-	private static string GetOllamaExecutablePath(string installDir)
-	{
-		return RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-			? Path.Combine(installDir, "ollama.exe")
-			: Path.Combine(installDir, "bin", "ollama");
-	}
+	protected abstract string GetOllamaExecutablePath(string installDir);
 
 	#endregion
 }
