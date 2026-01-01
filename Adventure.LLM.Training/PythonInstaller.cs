@@ -1,17 +1,21 @@
 ﻿using System.Diagnostics;
 using System.IO.Compression;
+using System.Reactive.Subjects;
 using System.Runtime.InteropServices;
 
-public class PythonInstaller
+namespace Adventure.LLM.Training;
+
+internal class PythonInstaller : IDisposable
 {
-	public event Action<int, string> ProgressChanged;
-	public event Action<string> OutputReceived;
+	private readonly Subject<ProgressChangedEventArgs> _progressChangedSubject = new();
+	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
 
 	private readonly string _appDataPath;
 	private readonly string _pythonVersion = "3.11.7";
 	private readonly HttpClient _httpClient = new HttpClient();
 	private readonly bool _isWindows;
 	private readonly bool _isLinux;
+	private bool _disposedValue = false;
 
 	public PythonInstaller()
 	{
@@ -19,6 +23,9 @@ public class PythonInstaller
 		_isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 		_isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 	}
+
+	public IObservable<ProgressChangedEventArgs> WhenProgressChanged => _progressChangedSubject;
+	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
 
 	protected string GetInstallDir() =>
 		RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
@@ -212,7 +219,7 @@ public class PythonInstaller
 	{
 		if (_isWindows)
 		{
-			string pthFile = Directory.GetFiles(pythonPath, "*.pth").FirstOrDefault();
+			var pthFile = Directory.GetFiles(pythonPath, "*.pth").FirstOrDefault();
 			if (pthFile != null)
 			{
 				string content = File.ReadAllText(pthFile);
@@ -316,7 +323,7 @@ public class PythonInstaller
 			startInfo.Environment["LD_LIBRARY_PATH"] = libDir;
 			startInfo.Environment["PYTHONHOME"] = pythonPath;
 
-			using var process = Process.Start(startInfo);
+			using var process = Process.Start(startInfo) ?? throw new NullReferenceException($"Unable to run '{pythonExe}'.");
 
 			var outputTask = Task.Run(async () =>
 			{
@@ -379,7 +386,7 @@ public class PythonInstaller
 		// For Linux, ensure LD_LIBRARY_PATH is set if we're running Python
 		if (_isLinux && (fileName.Contains("python") || fileName.Contains("pip")))
 		{
-			string pythonHome = Path.GetDirectoryName(Path.GetDirectoryName(fileName));
+			var pythonHome = Path.GetDirectoryName(Path.GetDirectoryName(fileName));
 			if (!string.IsNullOrEmpty(pythonHome))
 			{
 				string libDir = Path.Combine(pythonHome, "lib");
@@ -393,7 +400,7 @@ public class PythonInstaller
 			}
 		}
 
-		using var process = Process.Start(startInfo);
+		using var process = Process.Start(startInfo) ?? throw new NullReferenceException($"Unable to run '{fileName}");
 
 		// Create tasks to read stdout and stderr simultaneously
 		var outputTask = Task.Run(async () =>
@@ -432,12 +439,12 @@ public class PythonInstaller
 
 	private void ReportProgress(int percentage, string message)
 	{
-		ProgressChanged?.Invoke(percentage, message);
+		_progressChangedSubject.OnNext(new(percentage, message));
 	}
 
 	private void ReportOutput(string message)
 	{
-		OutputReceived?.Invoke(message);
+		_outputReceivedSubject.OnNext(new(message));
 	}
 
 	public string GetPythonExecutablePath()
@@ -474,5 +481,38 @@ public class PythonInstaller
 		{
 			throw new PlatformNotSupportedException();
 		}
+	}
+
+	protected virtual void Dispose(bool disposing)
+	{
+		if (!_disposedValue)
+		{
+			if (disposing)
+			{
+				_progressChangedSubject.OnCompleted();
+				_progressChangedSubject.Dispose();
+
+				_outputReceivedSubject.OnCompleted();
+				_outputReceivedSubject.Dispose();
+			}
+
+			// TODO: free unmanaged resources (unmanaged objects) and override finalizer
+			// TODO: set large fields to null
+			_disposedValue = true;
+		}
+	}
+
+	// // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+	// ~PythonInstaller()
+	// {
+	//     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+	//     Dispose(disposing: false);
+	// }
+
+	public void Dispose()
+	{
+		// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+		Dispose(disposing: true);
+		GC.SuppressFinalize(this);
 	}
 }

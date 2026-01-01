@@ -1,19 +1,23 @@
 using System.Diagnostics;
+using System.Reactive.Subjects;
 using System.Runtime.InteropServices;
 using Python.Runtime;
 
-public class PythonEnvironmentManager
+namespace Adventure.LLM.Training;
+
+internal class PythonEnvironmentManager : IDisposable
 {
-	public event Action<string> OutputReceived;
+	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
 
 	private readonly string _appDataPath;
 	private readonly string _pythonVersion = "3.11.7";
-	private string _pythonHome;
-	private string _pythonDll;
-	private string _pipPath;
+	private string? _pythonHome;
+	private string? _pythonDll;
+	private string? _pipPath;
 	private readonly bool _isWindows;
 	private readonly bool _isLinux;
 	private static bool _isConfigured = false;
+	private bool _disposedValue;
 
 	public PythonEnvironmentManager(string appName)
 	{
@@ -38,9 +42,11 @@ public class PythonEnvironmentManager
 		}
 		else
 		{
-			throw new PlatformNotSupportedException();
+			throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}.");
 		}
 	}
+
+	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
 
 	public async Task<bool> SetupEnvironmentAsync()
 	{
@@ -50,14 +56,14 @@ public class PythonEnvironmentManager
 			var installer = new PythonInstaller();
 
 			// Forward output from installer
-			installer.OutputReceived += (output) => OutputReceived?.Invoke(output);
+			installer.WhenOutputReceived.Subscribe(_outputReceivedSubject.OnNext);
 
 			_pythonHome = await installer.InstallPythonAsync();
 
 			// Set paths based on OS
 			if (_isWindows)
 			{
-				string majorMinor = string.Join("", _pythonVersion.Split('.').Take(2));
+				var majorMinor = string.Join("", _pythonVersion.Split('.').Take(2));
 				_pythonDll = Path.Combine(_pythonHome, $"python{majorMinor}.dll");
 				_pipPath = Path.Combine(_pythonHome, "Scripts", "pip.exe");
 			}
@@ -121,6 +127,8 @@ public class PythonEnvironmentManager
 		{
 			return;
 		}
+
+		if (string.IsNullOrWhiteSpace(_pythonHome)) throw new NullReferenceException("Python home isn't set.");
 
 		try
 		{
@@ -203,8 +211,8 @@ public class PythonEnvironmentManager
 				}
 
 				// Also add the directory containing the Python shared library
-				string pythonDllDir = Path.GetDirectoryName(_pythonDll);
-				if (!ldPaths.Contains(pythonDllDir) && !string.IsNullOrEmpty(pythonDllDir))
+				var pythonDllDir = Path.GetDirectoryName(_pythonDll);
+				if (!string.IsNullOrWhiteSpace(pythonDllDir) && !ldPaths.Contains(pythonDllDir))
 				{
 					ldPaths.Insert(0, pythonDllDir);
 				}
@@ -247,6 +255,8 @@ public class PythonEnvironmentManager
 	{
 		ReportOutput($"Installing {packageName}...");
 
+		if (string.IsNullOrWhiteSpace(_pythonHome)) throw new NullReferenceException("Python home isn't set.");
+
 		var startInfo = new ProcessStartInfo
 		{
 			FileName = _pipPath,
@@ -266,10 +276,10 @@ public class PythonEnvironmentManager
 		{
 			// Ensure LD_LIBRARY_PATH is set for the subprocess
 			string libPath = Path.Combine(_pythonHome, "lib");
-			string pythonDllDir = Path.GetDirectoryName(_pythonDll);
+			var pythonDllDir = Path.GetDirectoryName(_pythonDll);
 			string ldPath = $"{pythonDllDir}:{libPath}";
 
-			string existingLdPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
+			var existingLdPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
 			if (!string.IsNullOrEmpty(existingLdPath))
 			{
 				ldPath = $"{ldPath}:{existingLdPath}";
@@ -284,7 +294,7 @@ public class PythonEnvironmentManager
 			}
 		}
 
-		using var process = Process.Start(startInfo);
+		using var process = Process.Start(startInfo) ?? throw new NullReferenceException("Unable to run 'pip'.");
 
 		// Stream output in real-time
 		var outputTask = Task.Run(async () =>
@@ -379,6 +389,8 @@ public class PythonEnvironmentManager
 
 	private void VerifyPythonPaths()
 	{
+		if (string.IsNullOrWhiteSpace(_pythonHome)) throw new NullReferenceException("Python home isn't set.");
+
 		// Verify that the standard library exists
 		if (_isWindows)
 		{
@@ -440,7 +452,7 @@ public class PythonEnvironmentManager
 		}
 	}
 
-	public string GetPythonHome()
+	public string? GetPythonHome()
 	{
 		return _pythonHome;
 	}
@@ -482,6 +494,36 @@ public class PythonEnvironmentManager
 
 	private void ReportOutput(string message)
 	{
-		OutputReceived?.Invoke(message);
+		_outputReceivedSubject.OnNext(new(message));
+	}
+
+	protected virtual void Dispose(bool disposing)
+	{
+		if (!_disposedValue)
+		{
+			if (disposing)
+			{
+				_outputReceivedSubject.OnCompleted();
+				_outputReceivedSubject.Dispose();
+			}
+
+			// TODO: free unmanaged resources (unmanaged objects) and override finalizer
+			// TODO: set large fields to null
+			_disposedValue = true;
+		}
+	}
+
+	// // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+	// ~PythonEnvironmentManager()
+	// {
+	//     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+	//     Dispose(disposing: false);
+	// }
+
+	public void Dispose()
+	{
+		// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+		Dispose(disposing: true);
+		GC.SuppressFinalize(this);
 	}
 }

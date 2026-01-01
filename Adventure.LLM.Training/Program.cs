@@ -2,9 +2,11 @@ using System.Runtime.InteropServices;
 using Python.Runtime;
 using Spectre.Console;
 
-class Program
+namespace Adventure.LLM.Training;
+
+internal static class Program
 {
-	static async Task Main(string[] args)
+	public static async Task Main(string[] args)
 	{
 		AnsiConsole.Write(
 			new FigletText("Python Installer Test")
@@ -73,21 +75,21 @@ class Program
 		string currentStatus = "Starting installation...";
 		bool showingOutput = false;
 
-		installer.ProgressChanged += (progress, message) =>
+		installer.WhenProgressChanged.Subscribe(args =>
 		{
-			currentStatus = message;
+			currentStatus = args.Message;
 			if (!showingOutput)
 			{
-				AnsiConsole.MarkupLine($"[grey][[{progress}%]][/] [yellow]{Markup.Escape(message)}[/]");
+				AnsiConsole.MarkupLine($"[grey][[{args.Percentage}%]][/] [yellow]{Markup.Escape(args.Message)}[/]");
 			}
-		};
+		});
 
-		installer.OutputReceived += (output) =>
+		installer.WhenOutputReceived.Subscribe(args =>
 		{
 			showingOutput = true;
 			// Display build output in dim color so it's visible but not overwhelming
-			AnsiConsole.MarkupLine($"[dim]{Markup.Escape(output)}[/]");
-		};
+			AnsiConsole.MarkupLine($"[dim]{Markup.Escape(args.OutputText)}[/]");
+		});
 
 		string pythonPath = await installer.InstallPythonAsync();
 
@@ -132,7 +134,7 @@ class Program
 
 	static async Task<string> TestEnvironmentSetup()
 	{
-		string pythonHome = null;
+		string? pythonHome = null;
 
 		var rule = new Rule("[yellow]Test 2: Environment Setup[/]");
 		rule.LeftJustified();
@@ -141,10 +143,10 @@ class Program
 		var envManager = new PythonEnvironmentManager("Adventure");
 
 		// Subscribe to output events
-		envManager.OutputReceived += (output) =>
+		envManager.WhenOutputReceived.Subscribe(args =>
 		{
-			AnsiConsole.MarkupLine($"[dim]{Markup.Escape(output)}[/]");
-		};
+			AnsiConsole.MarkupLine($"[dim]{Markup.Escape(args.OutputText)}[/]");
+		});
 
 		AnsiConsole.MarkupLine("[yellow]Setting up Python environment...[/]");
 		bool setupSuccess = await envManager.SetupEnvironmentAsync();
@@ -154,7 +156,7 @@ class Program
 			throw new Exception("Environment setup failed!");
 		}
 
-		pythonHome = envManager.GetPythonHome();
+		pythonHome = envManager.GetPythonHome() ?? throw new NullReferenceException("Python home isn't set.");
 
 		var resultsTable = new Table()
 			.Border(TableBorder.Rounded)
@@ -333,7 +335,7 @@ class Program
 							try
 							{
 								dynamic module = Py.Import(pkg);
-								string pkgVersion = "N/A";
+								var pkgVersion = "N/A";
 
 								try
 								{

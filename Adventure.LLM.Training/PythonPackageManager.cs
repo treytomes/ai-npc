@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-public class PythonPackageManager
+namespace Adventure.LLM.Training;
+
+internal sealed class PythonPackageManager
 {
 	private readonly string _pythonHome;
 	private readonly string _pythonExe;
@@ -25,6 +27,10 @@ public class PythonPackageManager
 		{
 			_pythonExe = Path.Combine(_pythonHome, "bin", "python3");
 			_pipExe = Path.Combine(_pythonHome, "bin", "pip3");
+		}
+		else
+		{
+			throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}.");
 		}
 
 		_cacheDir = Path.Combine(_pythonHome, "pip-cache");
@@ -71,9 +77,10 @@ public class PythonPackageManager
 
 	private async Task<string> RunPipCommand(string arguments)
 	{
+		var filename = File.Exists(_pipExe) ? _pipExe : _pythonExe;
 		var startInfo = new ProcessStartInfo
 		{
-			FileName = File.Exists(_pipExe) ? _pipExe : _pythonExe,
+			FileName = filename,
 			Arguments = File.Exists(_pipExe) ? arguments : $"-m pip {arguments}",
 			UseShellExecute = false,
 			RedirectStandardOutput = true,
@@ -82,7 +89,7 @@ public class PythonPackageManager
 			WorkingDirectory = _pythonHome
 		};
 
-		using var process = Process.Start(startInfo);
+		using var process = Process.Start(startInfo) ?? throw new NullReferenceException($"Unable to run '{filename}'.");
 		string output = await process.StandardOutput.ReadToEndAsync();
 		string error = await process.StandardError.ReadToEndAsync();
 		await process.WaitForExitAsync();

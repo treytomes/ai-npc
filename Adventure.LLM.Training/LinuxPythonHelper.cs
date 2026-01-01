@@ -1,7 +1,8 @@
 using System.Diagnostics;
-using System.Text;
 
-public class LinuxPythonHelper
+namespace Adventure.LLM.Training;
+
+internal sealed class LinuxPythonHelper
 {
 	public static async Task<bool> EnsureDependencies()
 	{
@@ -100,7 +101,7 @@ public class LinuxPythonHelper
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
 				CreateNoWindow = true
-			});
+			}) ?? throw new NullReferenceException("Unable to run 'sudo'.");
 
 			await process.WaitForExitAsync();
 			return process.ExitCode == 0;
@@ -188,7 +189,7 @@ public class LinuxPythonHelper
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
 				CreateNoWindow = true
-			});
+			}) ?? throw new NullReferenceException("Unable to run 'dpkg'.");
 
 			await process.WaitForExitAsync();
 			return process.ExitCode == 0;
@@ -214,7 +215,7 @@ public class LinuxPythonHelper
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
 				CreateNoWindow = false // Show output
-			});
+			}) ?? throw new NullReferenceException("Unable to run 'sudo'.");
 
 			// Stream output
 			var updateOutputTask = Task.Run(async () =>
@@ -322,7 +323,7 @@ public class LinuxPythonHelper
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
 				CreateNoWindow = true
-			});
+			}) ?? throw new NullReferenceException("Unable to run 'which'.");
 
 			await whichProcess.WaitForExitAsync();
 
@@ -338,7 +339,7 @@ public class LinuxPythonHelper
 					RedirectStandardOutput = true,
 					RedirectStandardError = true,
 					CreateNoWindow = false
-				});
+				}) ?? throw new NullReferenceException("Unable to run 'pkexec'.");
 
 				await pkexecProcess.WaitForExitAsync();
 

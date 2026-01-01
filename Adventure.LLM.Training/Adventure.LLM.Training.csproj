@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="pythonnet" Version="3.0.5" />
+    <PackageReference Include="System.Reactive" Version="6.1.0" />
   </ItemGroup>
 
 </Project>
