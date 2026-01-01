@@ -1,10 +1,21 @@
 using System.Diagnostics;
+using System.Reactive.Subjects;
 
 namespace Adventure.LLM.Training;
 
-internal sealed class LinuxPythonHelper
+internal sealed class LinuxPythonHelper : IDisposable
 {
-	public static async Task<bool> EnsureDependencies()
+	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
+	private bool _disposedValue = false;
+
+	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
+
+	private void ReportOutput(string message)
+	{
+		_outputReceivedSubject.OnNext(new(message));
+	}
+
+	public async Task<bool> EnsureDependencies()
 	{
 		var requiredPackages = new[]
 		{
@@ -26,7 +37,7 @@ internal sealed class LinuxPythonHelper
 			"python3-pip",
 		};
 
-		Console.WriteLine("Checking for required system packages...");
+		ReportOutput("Checking for required system packages...");
 
 		var missingPackages = new List<string>();
 
@@ -40,16 +51,16 @@ internal sealed class LinuxPythonHelper
 
 		if (missingPackages.Count == 0)
 		{
-			Console.WriteLine("All required packages are already installed.");
+			ReportOutput("All required packages are already installed.");
 			return true;
 		}
 
-		Console.WriteLine($"Missing {missingPackages.Count} required package(s):");
+		ReportOutput($"Missing {missingPackages.Count} required package(s):");
 		foreach (var pkg in missingPackages)
 		{
-			Console.WriteLine($"  - {pkg}");
+			ReportOutput($"  - {pkg}");
 		}
-		Console.WriteLine();
+		ReportOutput(Environment.NewLine);
 
 		// Check if we have sudo access
 		bool hasSudoAccess = await CheckSudoAccess();
@@ -57,39 +68,39 @@ internal sealed class LinuxPythonHelper
 		// If no cached sudo access, request it
 		if (!hasSudoAccess)
 		{
-			Console.WriteLine("Sudo access is required to install system packages.");
-			Console.WriteLine("Requesting sudo privileges...");
+			ReportOutput("Sudo access is required to install system packages.");
+			ReportOutput("Requesting sudo privileges...");
 
 			hasSudoAccess = await RequestSudoAccess();
 
 			if (!hasSudoAccess)
 			{
-				Console.WriteLine();
-				Console.WriteLine("Error: Cannot install system packages without sudo access.");
-				Console.WriteLine("Please run the following command manually:");
-				Console.WriteLine();
-				Console.WriteLine($"  sudo apt-get update && sudo apt-get install -y {string.Join(" ", missingPackages)}");
-				Console.WriteLine();
+				ReportOutput(Environment.NewLine);
+				ReportOutput("Error: Cannot install system packages without sudo access.");
+				ReportOutput("Please run the following command manually:");
+				ReportOutput(Environment.NewLine);
+				ReportOutput($"  sudo apt-get update && sudo apt-get install -y {string.Join(" ", missingPackages)}");
+				ReportOutput(Environment.NewLine);
 				return false;
 			}
 		}
 
-		Console.WriteLine("Installing missing packages...");
+		ReportOutput("Installing missing packages...");
 		bool success = await InstallSystemPackages(missingPackages);
 
 		if (!success)
 		{
-			Console.WriteLine("Warning: Some packages failed to install.");
-			Console.WriteLine("You may need to install them manually:");
-			Console.WriteLine($"  sudo apt-get install -y {string.Join(" ", missingPackages)}");
+			ReportOutput("Warning: Some packages failed to install.");
+			ReportOutput("You may need to install them manually:");
+			ReportOutput($"  sudo apt-get install -y {string.Join(" ", missingPackages)}");
 			return false;
 		}
 
-		Console.WriteLine("All dependencies installed successfully.");
+		ReportOutput("All dependencies installed successfully.");
 		return true;
 	}
 
-	private static async Task<bool> CheckSudoAccess()
+	private async Task<bool> CheckSudoAccess()
 	{
 		try
 		{
@@ -112,7 +123,7 @@ internal sealed class LinuxPythonHelper
 		}
 	}
 
-	private static async Task<bool> RequestSudoAccess()
+	private async Task<bool> RequestSudoAccess()
 	{
 		try
 		{
@@ -137,12 +148,12 @@ internal sealed class LinuxPythonHelper
 
 			if (process.ExitCode == 0)
 			{
-				Console.WriteLine("Sudo access granted.");
+				ReportOutput("Sudo access granted.");
 				return true;
 			}
 
 			// If -v didn't work, try an interactive approach
-			Console.WriteLine("Attempting interactive sudo request...");
+			ReportOutput("Attempting interactive sudo request...");
 
 			var interactiveProcess = new Process
 			{
@@ -164,7 +175,7 @@ internal sealed class LinuxPythonHelper
 
 			if (interactiveProcess.ExitCode == 0)
 			{
-				Console.WriteLine("Sudo access granted.");
+				ReportOutput("Sudo access granted.");
 				return true;
 			}
 
@@ -172,12 +183,12 @@ internal sealed class LinuxPythonHelper
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Failed to request sudo access: {ex.Message}");
+			ReportOutput($"Failed to request sudo access: {ex.Message}");
 			return false;
 		}
 	}
 
-	private static async Task<bool> IsPackageInstalled(string packageName)
+	private async Task<bool> IsPackageInstalled(string packageName)
 	{
 		try
 		{
@@ -200,11 +211,11 @@ internal sealed class LinuxPythonHelper
 		}
 	}
 
-	private static async Task<bool> InstallSystemPackages(List<string> packages)
+	private async Task<bool> InstallSystemPackages(List<string> packages)
 	{
 		try
 		{
-			Console.WriteLine("Updating package lists...");
+			ReportOutput("Updating package lists...");
 
 			// Update package list first
 			var updateProcess = Process.Start(new ProcessStartInfo
@@ -225,7 +236,7 @@ internal sealed class LinuxPythonHelper
 					var line = await updateProcess.StandardOutput.ReadLineAsync();
 					if (!string.IsNullOrWhiteSpace(line))
 					{
-						Console.WriteLine($"  {line}");
+						ReportOutput($"  {line}");
 					}
 				}
 			});
@@ -235,11 +246,11 @@ internal sealed class LinuxPythonHelper
 
 			if (updateProcess.ExitCode != 0)
 			{
-				Console.WriteLine("Warning: apt-get update failed, continuing anyway...");
+				ReportOutput("Warning: apt-get update failed, continuing anyway...");
 			}
 
-			Console.WriteLine();
-			Console.WriteLine("Installing packages (this may take a few minutes)...");
+			ReportOutput(Environment.NewLine);
+			ReportOutput("Installing packages (this may take a few minutes)...");
 
 			// Install all packages in one command for efficiency
 			var installProcess = new Process
@@ -265,7 +276,7 @@ internal sealed class LinuxPythonHelper
 					var line = await installProcess.StandardOutput.ReadLineAsync();
 					if (!string.IsNullOrWhiteSpace(line))
 					{
-						Console.WriteLine($"  {line}");
+						ReportOutput($"  {line}");
 					}
 				}
 			});
@@ -276,16 +287,16 @@ internal sealed class LinuxPythonHelper
 			if (installProcess.ExitCode != 0)
 			{
 				string error = await installProcess.StandardError.ReadToEndAsync();
-				Console.WriteLine($"Installation error: {error}");
+				ReportOutput($"Installation error: {error}");
 				return false;
 			}
 
-			Console.WriteLine();
+			ReportOutput(Environment.NewLine);
 			return true;
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Exception during package installation: {ex.Message}");
+			ReportOutput($"Exception during package installation: {ex.Message}");
 			return false;
 		}
 	}
@@ -293,7 +304,7 @@ internal sealed class LinuxPythonHelper
 	/// <summary>
 	/// Checks if running in a terminal that supports interactive input
 	/// </summary>
-	public static bool IsInteractiveTerminal()
+	public bool IsInteractiveTerminal()
 	{
 		try
 		{
@@ -310,7 +321,7 @@ internal sealed class LinuxPythonHelper
 	/// Alternative method that uses pkexec (GUI sudo) if available
 	/// Useful for GUI applications
 	/// </summary>
-	public static async Task<bool> RequestSudoAccessGUI()
+	public async Task<bool> RequestSudoAccessGUI()
 	{
 		try
 		{
@@ -329,7 +340,7 @@ internal sealed class LinuxPythonHelper
 
 			if (whichProcess.ExitCode == 0)
 			{
-				Console.WriteLine("Using graphical authentication (pkexec)...");
+				ReportOutput("Using graphical authentication (pkexec)...");
 
 				var pkexecProcess = Process.Start(new ProcessStartInfo
 				{
@@ -357,5 +368,36 @@ internal sealed class LinuxPythonHelper
 		{
 			return false;
 		}
+	}
+
+	private void Dispose(bool disposing)
+	{
+		if (!_disposedValue)
+		{
+			if (disposing)
+			{
+				// TODO: dispose managed state (managed objects)
+				_outputReceivedSubject.OnCompleted();
+				_outputReceivedSubject.Dispose();
+			}
+
+			// TODO: free unmanaged resources (unmanaged objects) and override finalizer
+			// TODO: set large fields to null
+			_disposedValue = true;
+		}
+	}
+
+	// // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+	// ~LinuxPythonHelper()
+	// {
+	//     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+	//     Dispose(disposing: false);
+	// }
+
+	public void Dispose()
+	{
+		// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+		Dispose(disposing: true);
+		GC.SuppressFinalize(this);
 	}
 }

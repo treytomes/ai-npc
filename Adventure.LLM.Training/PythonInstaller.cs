@@ -61,7 +61,9 @@ internal class PythonInstaller : IDisposable
 		if (_isLinux)
 		{
 			ReportProgress(5, "Checking system dependencies...");
-			bool dependenciesReady = await LinuxPythonHelper.EnsureDependencies();
+			var helper = new LinuxPythonHelper();
+			helper.WhenOutputReceived.Subscribe(args => ReportOutput(args.OutputText));
+			bool dependenciesReady = await helper.EnsureDependencies();
 
 			if (!dependenciesReady)
 			{

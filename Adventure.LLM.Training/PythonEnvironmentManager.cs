@@ -114,8 +114,8 @@ internal class PythonEnvironmentManager : IDisposable
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Error setting up Python environment: {ex.Message}");
-			Console.WriteLine($"Stack trace: {ex.StackTrace}");
+			ReportOutput($"Error setting up Python environment: {ex.Message}");
+			ReportOutput($"Stack trace: {ex.StackTrace}");
 			return false;
 		}
 	}
@@ -361,27 +361,27 @@ internal class PythonEnvironmentManager : IDisposable
 				{
 					// Test that we can import basic modules
 					dynamic sys = Py.Import("sys");
-					Console.WriteLine($"Python version: {sys.version}");
-					Console.WriteLine($"Python executable: {sys.executable}");
+					ReportOutput($"Python version: {sys.version}");
+					ReportOutput($"Python executable: {sys.executable}");
 
 					// Verify encodings module is accessible
 					try
 					{
 						dynamic encodings = Py.Import("encodings");
-						Console.WriteLine("Successfully imported encodings module");
+						ReportOutput("Successfully imported encodings module");
 					}
 					catch (Exception ex)
 					{
-						Console.WriteLine($"Warning: Could not import encodings module: {ex.Message}");
+						ReportOutput($"Warning: Could not import encodings module: {ex.Message}");
 					}
 				}
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"Python initialization error: {ex.Message}");
-				Console.WriteLine($"Python DLL: {Runtime.PythonDLL}");
-				Console.WriteLine($"Python Home: {PythonEngine.PythonHome}");
-				Console.WriteLine($"Python Path: {PythonEngine.PythonPath}");
+				ReportOutput($"Python initialization error: {ex.Message}");
+				ReportOutput($"Python DLL: {Runtime.PythonDLL}");
+				ReportOutput($"Python Home: {PythonEngine.PythonHome}");
+				ReportOutput($"Python Path: {PythonEngine.PythonPath}");
 				throw;
 			}
 		}
@@ -447,8 +447,8 @@ internal class PythonEnvironmentManager : IDisposable
 		}
 		catch (Exception ex)
 		{
-			// Log but don't throw - shutdown errors are often not critical
-			Console.WriteLine($"Warning during Python shutdown: {ex.Message}");
+			// Log but don't throw - shutdown errors are often not critical.
+			ReportOutput($"Warning during Python shutdown: {ex.Message}");
 		}
 	}
 
@@ -466,7 +466,7 @@ internal class PythonEnvironmentManager : IDisposable
 				// First check if file exists
 				if (!File.Exists(_pythonDll))
 				{
-					Console.WriteLine($"Python DLL file not found: {_pythonDll}");
+					ReportOutput($"Python DLL file not found: {_pythonDll}");
 					return false;
 				}
 
@@ -482,11 +482,11 @@ internal class PythonEnvironmentManager : IDisposable
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Failed to load Python library: {ex.Message}");
-			Console.WriteLine($"Python DLL path: {_pythonDll}");
+			ReportOutput($"Failed to load Python library: {ex.Message}");
+			ReportOutput($"Python DLL path: {_pythonDll}");
 			if (_isLinux)
 			{
-				Console.WriteLine($"Make sure LD_LIBRARY_PATH includes: {Path.GetDirectoryName(_pythonDll)}");
+				ReportOutput($"Make sure LD_LIBRARY_PATH includes: {Path.GetDirectoryName(_pythonDll)}");
 			}
 			return false;
 		}
