@@ -5,12 +5,18 @@ namespace Adventure.LLM.Training;
 
 internal sealed class PythonPackageManager
 {
+	#region Fields
+
 	private readonly string _pythonHome;
 	private readonly string _pythonExe;
 	private readonly string _pipExe;
 	private readonly string _cacheDir;
 	private readonly bool _isWindows;
 	private readonly bool _isLinux;
+
+	#endregion
+
+	#region Constructors
 
 	public PythonPackageManager(string pythonHome)
 	{
@@ -36,6 +42,10 @@ internal sealed class PythonPackageManager
 		_cacheDir = Path.Combine(_pythonHome, "pip-cache");
 		Directory.CreateDirectory(_cacheDir);
 	}
+
+	#endregion
+
+	#region Methods
 
 	public async Task<bool> IsPackageInstalled(string packageName)
 	{
@@ -65,7 +75,7 @@ internal sealed class PythonPackageManager
 
 	public async Task InstallFromRequirements(string requirementsPath)
 	{
-		string args = $"install -r \"{requirementsPath}\" --cache-dir \"{_cacheDir}\"";
+		var args = $"install -r \"{requirementsPath}\" --cache-dir \"{_cacheDir}\"";
 
 		if (_isLinux)
 		{
@@ -90,8 +100,8 @@ internal sealed class PythonPackageManager
 		};
 
 		using var process = Process.Start(startInfo) ?? throw new NullReferenceException($"Unable to run '{filename}'.");
-		string output = await process.StandardOutput.ReadToEndAsync();
-		string error = await process.StandardError.ReadToEndAsync();
+		var output = await process.StandardOutput.ReadToEndAsync();
+		var error = await process.StandardError.ReadToEndAsync();
 		await process.WaitForExitAsync();
 
 		if (process.ExitCode != 0)
@@ -101,4 +111,6 @@ internal sealed class PythonPackageManager
 
 		return output;
 	}
+
+	#endregion
 }

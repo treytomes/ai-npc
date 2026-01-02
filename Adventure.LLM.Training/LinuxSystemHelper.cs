@@ -3,25 +3,39 @@ using System.Reactive.Subjects;
 
 namespace Adventure.LLM.Training;
 
-internal sealed class LinuxPythonHelper : IDisposable
+internal sealed class LinuxSystemHelper : ILinuxSystemHelper
 {
+	#region Fields
+
 	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
 	private readonly ITextReader _passwordReader;
 	private bool _disposedValue = false;
 
-	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
+	#endregion
 
-	public LinuxPythonHelper(ITextReader passwordReader)
+	#region Constructors
+
+	public LinuxSystemHelper(ITextReader passwordReader)
 	{
 		_passwordReader = passwordReader ?? throw new ArgumentNullException(nameof(passwordReader));
 	}
+
+	#endregion
+
+	#region Properties
+
+	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
+
+	#endregion
+
+	#region Methods
 
 	private void ReportOutput(string message)
 	{
 		_outputReceivedSubject.OnNext(new(message));
 	}
 
-	public async Task<bool> EnsureDependencies()
+	public async Task<bool> EnsurePythonDependencies()
 	{
 		var requiredPackages = new[]
 		{
@@ -101,7 +115,7 @@ internal sealed class LinuxPythonHelper : IDisposable
 		return true;
 	}
 
-	private async Task<bool> IsPackageInstalled(string packageName)
+	public async Task<bool> IsPackageInstalled(string packageName)
 	{
 		try
 		{
@@ -124,13 +138,19 @@ internal sealed class LinuxPythonHelper : IDisposable
 		}
 	}
 
-	private async Task<bool> InstallSystemPackages(List<string> packages, SudoSession sudoSession)
+	public async Task<bool> InstallSystemPackages(IEnumerable<string> packages)
+	{
+		using var sudoSession = new SudoSession(_passwordReader);
+		return await InstallSystemPackages(packages, sudoSession);
+	}
+
+	private async Task<bool> InstallSystemPackages(IEnumerable<string> packages, SudoSession sudoSession)
 	{
 		try
 		{
 			ReportOutput("Updating package lists...");
 
-			// Update package list first
+			// Update package list first.
 			var updateResult = await sudoSession.ExecuteElevatedAsync("apt-get", "update");
 
 			if (!string.IsNullOrWhiteSpace(updateResult.StandardOutput))
@@ -179,7 +199,7 @@ internal sealed class LinuxPythonHelper : IDisposable
 	}
 
 	/// <summary>
-	/// Checks if running in a terminal that supports interactive input
+	/// Checks if running in a terminal that supports interactive input.
 	/// </summary>
 	public bool IsInteractiveTerminal()
 	{
@@ -213,4 +233,6 @@ internal sealed class LinuxPythonHelper : IDisposable
 		Dispose(disposing: true);
 		GC.SuppressFinalize(this);
 	}
+
+	#endregion
 }

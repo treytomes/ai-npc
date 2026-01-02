@@ -7,6 +7,8 @@ namespace Adventure.LLM.Training;
 
 internal class PythonEnvironmentManager : IDisposable
 {
+	#region Fields
+
 	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
 
 	private readonly string _appDataPath;
@@ -18,6 +20,10 @@ internal class PythonEnvironmentManager : IDisposable
 	private readonly bool _isLinux;
 	private static bool _isConfigured = false;
 	private bool _disposedValue;
+
+	#endregion
+
+	#region Constructors
 
 	public PythonEnvironmentManager(string appName)
 	{
@@ -46,7 +52,15 @@ internal class PythonEnvironmentManager : IDisposable
 		}
 	}
 
+	#endregion
+
+	#region Properties
+
 	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
+
+	#endregion
+
+	#region Methods
 
 	public async Task<bool> SetupEnvironmentAsync()
 	{
@@ -526,4 +540,6 @@ internal class PythonEnvironmentManager : IDisposable
 		Dispose(disposing: true);
 		GC.SuppressFinalize(this);
 	}
+
+	#endregion
 }

@@ -7,6 +7,8 @@ namespace Adventure.LLM.Training;
 
 internal class PythonInstaller : IDisposable
 {
+	#region Fields
+
 	private readonly Subject<ProgressChangedEventArgs> _progressChangedSubject = new();
 	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
 
@@ -18,6 +20,10 @@ internal class PythonInstaller : IDisposable
 	private bool _disposedValue = false;
 	private readonly ITextReader _passwordReader;
 
+	#endregion
+
+	#region Constructors
+
 	public PythonInstaller(ITextReader passwordReader)
 	{
 		_passwordReader = passwordReader ?? throw new ArgumentNullException(nameof(passwordReader));
@@ -26,8 +32,16 @@ internal class PythonInstaller : IDisposable
 		_isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 	}
 
+	#endregion
+
+	#region Properties
+
 	public IObservable<ProgressChangedEventArgs> WhenProgressChanged => _progressChangedSubject;
 	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
+
+	#endregion
+
+	#region Methods
 
 	protected string GetInstallDir() =>
 		RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
@@ -63,9 +77,9 @@ internal class PythonInstaller : IDisposable
 		if (_isLinux)
 		{
 			ReportProgress(5, "Checking system dependencies...");
-			var helper = new LinuxPythonHelper(_passwordReader);
+			var helper = new LinuxSystemHelper(_passwordReader);
 			helper.WhenOutputReceived.Subscribe(args => ReportOutput(args.OutputText));
-			bool dependenciesReady = await helper.EnsureDependencies();
+			bool dependenciesReady = await helper.EnsurePythonDependencies();
 
 			if (!dependenciesReady)
 			{
@@ -519,4 +533,6 @@ internal class PythonInstaller : IDisposable
 		Dispose(disposing: true);
 		GC.SuppressFinalize(this);
 	}
+
+	#endregion
 }

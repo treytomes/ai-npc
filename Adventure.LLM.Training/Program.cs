@@ -8,10 +8,11 @@ internal static class Program
 {
 	public static async Task Main(string[] args)
 	{
-		await ExampleUsage();
-		await PythonHelperExample();
-		await AdvancedExample();
-		return;
+		// SudoSession examples.
+		// await ExampleUsage();
+		// await PythonHelperExample();
+		// await AdvancedExample();
+		// return;
 
 		AnsiConsole.Write(
 			new FigletText("Python Installer Test")
@@ -195,7 +196,7 @@ internal static class Program
 	{
 		Console.WriteLine("=== LinuxPythonHelper Example ===\n");
 
-		using (var pythonHelper = new LinuxPythonHelper(new ConsolePasswordTextReader()))
+		using (var pythonHelper = new LinuxSystemHelper(new ConsolePasswordTextReader()))
 		{
 			// Subscribe to output events
 			using var outputSubscription = pythonHelper.WhenOutputReceived
@@ -203,7 +204,7 @@ internal static class Program
 
 			Console.WriteLine("Checking and installing Python dependencies...\n");
 
-			if (await pythonHelper.EnsureDependencies())
+			if (await pythonHelper.EnsurePythonDependencies())
 			{
 				Console.WriteLine("\n✓ All Python dependencies are installed!");
 			}
