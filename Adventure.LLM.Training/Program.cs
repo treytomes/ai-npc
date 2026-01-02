@@ -8,6 +8,11 @@ internal static class Program
 {
 	public static async Task Main(string[] args)
 	{
+		await ExampleUsage();
+		await PythonHelperExample();
+		await AdvancedExample();
+		return;
+
 		AnsiConsole.Write(
 			new FigletText("Python Installer Test")
 				.LeftJustified()
@@ -64,13 +69,229 @@ internal static class Program
 		}
 	}
 
+	public static async Task ExampleUsage()
+	{
+		Console.WriteLine("=== SudoSession Example Usage ===\n");
+
+		using (var sudoSession = new SudoSession(new ConsolePasswordTextReader()))
+		{
+			// Subscribe to output events
+			using var outputSubscription = sudoSession.WhenOutputReceived
+				.Subscribe(e => Console.WriteLine($"[SudoSession] {e.OutputText}"));
+
+			Console.WriteLine("Attempting to activate sudo session...\n");
+
+			if (await sudoSession.ActivateAsync())
+			{
+				Console.WriteLine($"\n✓ Sudo session activated successfully!");
+				Console.WriteLine($"  Using: {(sudoSession.UsePkexec ? "pkexec (PolicyKit)" : "sudo")}\n");
+
+				// Example 1: Check system information
+				Console.WriteLine("Example 1: Getting system information...");
+				var unameResult = await sudoSession.ExecuteElevatedAsync("uname", "-a");
+				if (unameResult.Success)
+				{
+					Console.WriteLine($"System: {unameResult.StandardOutput.Trim()}");
+				}
+				else
+				{
+					Console.WriteLine($"Failed to get system info: {unameResult.StandardError}");
+				}
+
+				Console.WriteLine();
+
+				// Example 2: Check disk usage (requires privileges for some mount points)
+				Console.WriteLine("Example 2: Checking disk usage...");
+				var dfResult = await sudoSession.ExecuteElevatedAsync("df", "-h");
+				if (dfResult.Success)
+				{
+					Console.WriteLine("Disk usage:");
+					Console.WriteLine(dfResult.StandardOutput);
+				}
+
+				// Example 3: List files in a protected directory
+				Console.WriteLine("Example 3: Listing files in /root...");
+				var lsResult = await sudoSession.ExecuteElevatedAsync("ls", "-la /root");
+				if (lsResult.Success)
+				{
+					Console.WriteLine("Contents of /root:");
+					var lines = lsResult.StandardOutput.Split('\n').Take(5);
+					foreach (var line in lines.Where(l => !string.IsNullOrWhiteSpace(l)))
+					{
+						Console.WriteLine($"  {line}");
+					}
+					Console.WriteLine("  ...");
+				}
+				else
+				{
+					Console.WriteLine($"Failed to list /root: {lsResult.StandardError}");
+				}
+
+				Console.WriteLine();
+
+				// Example 4: Create and remove a test file in a protected location
+				Console.WriteLine("Example 4: Creating test file in /tmp...");
+				var testFile = "/tmp/sudotest_" + Guid.NewGuid().ToString("N");
+				var createResult = await sudoSession.ExecuteElevatedAsync("touch", testFile);
+
+				if (createResult.Success)
+				{
+					Console.WriteLine($"✓ Created test file: {testFile}");
+
+					// Write to the file
+					var writeResult = await sudoSession.ExecuteElevatedAsync("sh", $"-c \"echo 'Test content from SudoSession' > {testFile}\"");
+					if (writeResult.Success)
+					{
+						Console.WriteLine("✓ Wrote content to test file");
+
+						// Read it back
+						var readResult = await sudoSession.ExecuteElevatedAsync("cat", testFile);
+						if (readResult.Success)
+						{
+							Console.WriteLine($"✓ File contents: {readResult.StandardOutput.Trim()}");
+						}
+					}
+
+					// Clean up
+					var removeResult = await sudoSession.ExecuteElevatedAsync("rm", testFile);
+					if (removeResult.Success)
+					{
+						Console.WriteLine("✓ Cleaned up test file");
+					}
+				}
+
+				Console.WriteLine();
+
+				// Example 5: Run a command that would normally require sudo
+				Console.WriteLine("Example 5: Checking systemd service status...");
+				var serviceResult = await sudoSession.ExecuteElevatedAsync("systemctl", "status --no-pager ssh");
+				if (serviceResult.Success)
+				{
+					var lines = serviceResult.StandardOutput.Split('\n').Take(3);
+					foreach (var line in lines.Where(l => !string.IsNullOrWhiteSpace(l)))
+					{
+						Console.WriteLine($"  {line}");
+					}
+				}
+				else
+				{
+					Console.WriteLine("  SSH service not found or command failed");
+				}
+
+				Console.WriteLine("\n✓ All examples completed successfully!");
+			}
+			else
+			{
+				Console.WriteLine("\n✗ Could not obtain sudo access.");
+				Console.WriteLine("  Please check your credentials and try again.");
+			}
+		}
+
+		Console.WriteLine("\n[Note: Sudo session has been disposed and access revoked]");
+	}
+
+	// Additional example showing integration with LinuxPythonHelper
+	public static async Task PythonHelperExample()
+	{
+		Console.WriteLine("=== LinuxPythonHelper Example ===\n");
+
+		using (var pythonHelper = new LinuxPythonHelper(new ConsolePasswordTextReader()))
+		{
+			// Subscribe to output events
+			using var outputSubscription = pythonHelper.WhenOutputReceived
+				.Subscribe(e => Console.WriteLine($"[PythonHelper] {e.OutputText}"));
+
+			Console.WriteLine("Checking and installing Python dependencies...\n");
+
+			if (await pythonHelper.EnsureDependencies())
+			{
+				Console.WriteLine("\n✓ All Python dependencies are installed!");
+			}
+			else
+			{
+				Console.WriteLine("\n✗ Failed to install some dependencies.");
+				Console.WriteLine("  Please check the output above for details.");
+			}
+		}
+	}
+
+	// Example showing how to handle different scenarios
+	public static async Task AdvancedExample()
+	{
+		Console.WriteLine("=== Advanced SudoSession Example ===\n");
+
+		// Example with custom password reader that could get password from a secure source
+		ITextReader passwordReader;
+
+		if (Console.IsInputRedirected)
+		{
+			Console.WriteLine("Input is redirected, using environment variable for password...");
+			passwordReader = new EnvironmentPasswordReader("SUDO_PASSWORD");
+		}
+		else
+		{
+			Console.WriteLine("Using console for password input...");
+			passwordReader = new ConsolePasswordTextReader();
+		}
+
+		using (var sudoSession = new SudoSession(passwordReader))
+		{
+			var outputLog = new List<string>();
+			using var outputSubscription = sudoSession.WhenOutputReceived
+				.Subscribe(e =>
+				{
+					outputLog.Add($"[{DateTime.Now:HH:mm:ss}] {e.OutputText}");
+					Console.WriteLine($"[SudoSession] {e.OutputText}");
+				});
+
+			if (await sudoSession.ActivateAsync())
+			{
+				// Simulate running multiple commands
+				var commands = new[]
+				{
+				("id", ""),
+				("whoami", ""),
+				("pwd", ""),
+				("date", ""),
+			};
+
+				foreach (var (cmd, args) in commands)
+				{
+					var result = await sudoSession.ExecuteElevatedAsync(cmd, args);
+					Console.WriteLine($"{cmd}: {result.StandardOutput.Trim()}");
+				}
+
+				// Save session log
+				var logFile = Path.Combine(Path.GetTempPath(), $"sudosession_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+				await File.WriteAllLinesAsync(logFile, outputLog);
+				Console.WriteLine($"\nSession log saved to: {logFile}");
+			}
+		}
+	}
+
+	// Example implementation of environment-based password reader
+	public class EnvironmentPasswordReader : ITextReader
+	{
+		private readonly string _variableName;
+
+		public EnvironmentPasswordReader(string variableName)
+		{
+			_variableName = variableName;
+		}
+
+		public string Read()
+		{
+			return Environment.GetEnvironmentVariable(_variableName) ?? string.Empty;
+		}
+	}
+
 	static async Task TestPythonInstallation()
 	{
 		var rule = new Rule("[yellow]Test 1: Python Installation[/]");
 		rule.LeftJustified();
 		AnsiConsole.Write(rule);
 
-		var installer = new PythonInstaller();
+		var installer = new PythonInstaller(new ConsolePasswordTextReader());
 
 		string currentStatus = "Starting installation...";
 		bool showingOutput = false;

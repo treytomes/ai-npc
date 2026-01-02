@@ -6,9 +6,15 @@ namespace Adventure.LLM.Training;
 internal sealed class LinuxPythonHelper : IDisposable
 {
 	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
+	private readonly ITextReader _passwordReader;
 	private bool _disposedValue = false;
 
 	public IObservable<OutputReceivedEventArgs> WhenOutputReceived => _outputReceivedSubject;
+
+	public LinuxPythonHelper(ITextReader passwordReader)
+	{
+		_passwordReader = passwordReader ?? throw new ArgumentNullException(nameof(passwordReader));
+	}
 
 	private void ReportOutput(string message)
 	{
@@ -62,31 +68,26 @@ internal sealed class LinuxPythonHelper : IDisposable
 		}
 		ReportOutput(Environment.NewLine);
 
-		// Check if we have sudo access
-		bool hasSudoAccess = await CheckSudoAccess();
+		// Use SudoSession to handle elevated access
+		using var sudoSession = new SudoSession(_passwordReader);
 
-		// If no cached sudo access, request it
-		if (!hasSudoAccess)
+		// Subscribe to sudo session output
+		using var sudoOutputSubscription = sudoSession.WhenOutputReceived
+			.Subscribe(e => ReportOutput(e.OutputText));
+
+		if (!await sudoSession.ActivateAsync())
 		{
-			ReportOutput("Sudo access is required to install system packages.");
-			ReportOutput("Requesting sudo privileges...");
-
-			hasSudoAccess = await RequestSudoAccess();
-
-			if (!hasSudoAccess)
-			{
-				ReportOutput(Environment.NewLine);
-				ReportOutput("Error: Cannot install system packages without sudo access.");
-				ReportOutput("Please run the following command manually:");
-				ReportOutput(Environment.NewLine);
-				ReportOutput($"  sudo apt-get update && sudo apt-get install -y {string.Join(" ", missingPackages)}");
-				ReportOutput(Environment.NewLine);
-				return false;
-			}
+			ReportOutput(Environment.NewLine);
+			ReportOutput("Error: Cannot install system packages without elevated access.");
+			ReportOutput("Please run the following command manually:");
+			ReportOutput(Environment.NewLine);
+			ReportOutput($"  sudo apt-get update && sudo apt-get install -y {string.Join(" ", missingPackages)}");
+			ReportOutput(Environment.NewLine);
+			return false;
 		}
 
 		ReportOutput("Installing missing packages...");
-		bool success = await InstallSystemPackages(missingPackages);
+		bool success = await InstallSystemPackages(missingPackages, sudoSession);
 
 		if (!success)
 		{
@@ -98,94 +99,6 @@ internal sealed class LinuxPythonHelper : IDisposable
 
 		ReportOutput("All dependencies installed successfully.");
 		return true;
-	}
-
-	private async Task<bool> CheckSudoAccess()
-	{
-		try
-		{
-			var process = Process.Start(new ProcessStartInfo
-			{
-				FileName = "sudo",
-				Arguments = "-n true",
-				UseShellExecute = false,
-				RedirectStandardOutput = true,
-				RedirectStandardError = true,
-				CreateNoWindow = true
-			}) ?? throw new NullReferenceException("Unable to run 'sudo'.");
-
-			await process.WaitForExitAsync();
-			return process.ExitCode == 0;
-		}
-		catch
-		{
-			return false;
-		}
-	}
-
-	private async Task<bool> RequestSudoAccess()
-	{
-		try
-		{
-			// First, try with a simple sudo command that requires password
-			// This will cache sudo credentials for subsequent commands
-			var process = new Process
-			{
-				StartInfo = new ProcessStartInfo
-				{
-					FileName = "sudo",
-					Arguments = "-v", // Validates and refreshes sudo credentials
-					UseShellExecute = false,
-					RedirectStandardOutput = true,
-					RedirectStandardError = true,
-					RedirectStandardInput = false,
-					CreateNoWindow = false // Show terminal for password prompt
-				}
-			};
-
-			process.Start();
-			await process.WaitForExitAsync();
-
-			if (process.ExitCode == 0)
-			{
-				ReportOutput("Sudo access granted.");
-				return true;
-			}
-
-			// If -v didn't work, try an interactive approach
-			ReportOutput("Attempting interactive sudo request...");
-
-			var interactiveProcess = new Process
-			{
-				StartInfo = new ProcessStartInfo
-				{
-					FileName = "sudo",
-					Arguments = "echo 'Sudo access granted'",
-					UseShellExecute = false,
-					RedirectStandardOutput = true,
-					RedirectStandardError = false,
-					RedirectStandardInput = false,
-					CreateNoWindow = false
-				}
-			};
-
-			interactiveProcess.Start();
-			string output = await interactiveProcess.StandardOutput.ReadToEndAsync();
-			await interactiveProcess.WaitForExitAsync();
-
-			if (interactiveProcess.ExitCode == 0)
-			{
-				ReportOutput("Sudo access granted.");
-				return true;
-			}
-
-			return false;
-		}
-		catch (Exception ex)
-		{
-			ReportOutput($"Failed to request sudo access: {ex.Message}");
-			return false;
-		}
 	}
 
 	private async Task<bool> IsPackageInstalled(string packageName)
@@ -211,40 +124,25 @@ internal sealed class LinuxPythonHelper : IDisposable
 		}
 	}
 
-	private async Task<bool> InstallSystemPackages(List<string> packages)
+	private async Task<bool> InstallSystemPackages(List<string> packages, SudoSession sudoSession)
 	{
 		try
 		{
 			ReportOutput("Updating package lists...");
 
 			// Update package list first
-			var updateProcess = Process.Start(new ProcessStartInfo
-			{
-				FileName = "sudo",
-				Arguments = "apt-get update",
-				UseShellExecute = false,
-				RedirectStandardOutput = true,
-				RedirectStandardError = true,
-				CreateNoWindow = false // Show output
-			}) ?? throw new NullReferenceException("Unable to run 'sudo'.");
+			var updateResult = await sudoSession.ExecuteElevatedAsync("apt-get", "update");
 
-			// Stream output
-			var updateOutputTask = Task.Run(async () =>
+			if (!string.IsNullOrWhiteSpace(updateResult.StandardOutput))
 			{
-				while (!updateProcess.StandardOutput.EndOfStream)
+				foreach (var line in updateResult.StandardOutput.Split('\n'))
 				{
-					var line = await updateProcess.StandardOutput.ReadLineAsync();
 					if (!string.IsNullOrWhiteSpace(line))
-					{
 						ReportOutput($"  {line}");
-					}
 				}
-			});
+			}
 
-			await updateProcess.WaitForExitAsync();
-			await updateOutputTask;
-
-			if (updateProcess.ExitCode != 0)
+			if (!updateResult.Success)
 			{
 				ReportOutput("Warning: apt-get update failed, continuing anyway...");
 			}
@@ -253,41 +151,20 @@ internal sealed class LinuxPythonHelper : IDisposable
 			ReportOutput("Installing packages (this may take a few minutes)...");
 
 			// Install all packages in one command for efficiency
-			var installProcess = new Process
-			{
-				StartInfo = new ProcessStartInfo
-				{
-					FileName = "sudo",
-					Arguments = $"apt-get install -y {string.Join(" ", packages)}",
-					UseShellExecute = false,
-					RedirectStandardOutput = true,
-					RedirectStandardError = true,
-					CreateNoWindow = false
-				}
-			};
+			var installResult = await sudoSession.ExecuteElevatedAsync("apt-get", $"install -y {string.Join(" ", packages)}");
 
-			installProcess.Start();
-
-			// Stream output to show progress
-			var installOutputTask = Task.Run(async () =>
+			if (!string.IsNullOrWhiteSpace(installResult.StandardOutput))
 			{
-				while (!installProcess.StandardOutput.EndOfStream)
+				foreach (var line in installResult.StandardOutput.Split('\n'))
 				{
-					var line = await installProcess.StandardOutput.ReadLineAsync();
 					if (!string.IsNullOrWhiteSpace(line))
-					{
 						ReportOutput($"  {line}");
-					}
 				}
-			});
+			}
 
-			await installProcess.WaitForExitAsync();
-			await installOutputTask;
-
-			if (installProcess.ExitCode != 0)
+			if (!installResult.Success)
 			{
-				string error = await installProcess.StandardError.ReadToEndAsync();
-				ReportOutput($"Installation error: {error}");
+				ReportOutput($"Installation error: {installResult.StandardError}");
 				return false;
 			}
 
@@ -317,86 +194,22 @@ internal sealed class LinuxPythonHelper : IDisposable
 		}
 	}
 
-	/// <summary>
-	/// Alternative method that uses pkexec (GUI sudo) if available
-	/// Useful for GUI applications
-	/// </summary>
-	public async Task<bool> RequestSudoAccessGUI()
-	{
-		try
-		{
-			// Check if pkexec is available (common on Ubuntu/Debian with GUI)
-			var whichProcess = Process.Start(new ProcessStartInfo
-			{
-				FileName = "which",
-				Arguments = "pkexec",
-				UseShellExecute = false,
-				RedirectStandardOutput = true,
-				RedirectStandardError = true,
-				CreateNoWindow = true
-			}) ?? throw new NullReferenceException("Unable to run 'which'.");
-
-			await whichProcess.WaitForExitAsync();
-
-			if (whichProcess.ExitCode == 0)
-			{
-				ReportOutput("Using graphical authentication (pkexec)...");
-
-				var pkexecProcess = Process.Start(new ProcessStartInfo
-				{
-					FileName = "pkexec",
-					Arguments = "echo 'Access granted'",
-					UseShellExecute = false,
-					RedirectStandardOutput = true,
-					RedirectStandardError = true,
-					CreateNoWindow = false
-				}) ?? throw new NullReferenceException("Unable to run 'pkexec'.");
-
-				await pkexecProcess.WaitForExitAsync();
-
-				if (pkexecProcess.ExitCode == 0)
-				{
-					// Cache the credentials with sudo
-					await RequestSudoAccess();
-					return true;
-				}
-			}
-
-			return false;
-		}
-		catch
-		{
-			return false;
-		}
-	}
-
 	private void Dispose(bool disposing)
 	{
 		if (!_disposedValue)
 		{
 			if (disposing)
 			{
-				// TODO: dispose managed state (managed objects)
 				_outputReceivedSubject.OnCompleted();
 				_outputReceivedSubject.Dispose();
 			}
 
-			// TODO: free unmanaged resources (unmanaged objects) and override finalizer
-			// TODO: set large fields to null
 			_disposedValue = true;
 		}
 	}
 
-	// // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-	// ~LinuxPythonHelper()
-	// {
-	//     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-	//     Dispose(disposing: false);
-	// }
-
 	public void Dispose()
 	{
-		// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
 		Dispose(disposing: true);
 		GC.SuppressFinalize(this);
 	}

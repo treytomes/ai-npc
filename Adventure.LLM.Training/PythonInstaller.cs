@@ -16,9 +16,11 @@ internal class PythonInstaller : IDisposable
 	private readonly bool _isWindows;
 	private readonly bool _isLinux;
 	private bool _disposedValue = false;
+	private readonly ITextReader _passwordReader;
 
-	public PythonInstaller()
+	public PythonInstaller(ITextReader passwordReader)
 	{
+		_passwordReader = passwordReader ?? throw new ArgumentNullException(nameof(passwordReader));
 		_appDataPath = GetInstallDir();
 		_isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 		_isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
@@ -61,7 +63,7 @@ internal class PythonInstaller : IDisposable
 		if (_isLinux)
 		{
 			ReportProgress(5, "Checking system dependencies...");
-			var helper = new LinuxPythonHelper();
+			var helper = new LinuxPythonHelper(_passwordReader);
 			helper.WhenOutputReceived.Subscribe(args => ReportOutput(args.OutputText));
 			bool dependenciesReady = await helper.EnsureDependencies();
 
