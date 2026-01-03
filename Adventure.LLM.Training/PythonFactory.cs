@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Adventure.LLM.Training.Installers;
+using Adventure.LLM.Training.PackageManagers;
 
 namespace Adventure.LLM.Training;
 
@@ -14,15 +15,13 @@ internal class PythonFactory
 
 	private readonly bool _isWindows;
 	private readonly bool _isLinux;
-	private readonly ITextReader _passwordReader;
 
 	#endregion
 
 	#region Constructors
 
-	public PythonFactory(ITextReader passwordReader)
+	public PythonFactory()
 	{
-		_passwordReader = passwordReader ?? throw new ArgumentNullException(nameof(passwordReader));
 		_isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 		_isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 
@@ -36,13 +35,22 @@ internal class PythonFactory
 
 	#region Methods
 
-	public IPythonInstaller GetInstaller()
+	public IPythonInstaller GetInstaller(ITextReader passwordReader)
 	{
 		if (_isWindows)
 		{
-			return new WindowsPythonInstaller(_passwordReader);
+			return new WindowsPythonInstaller(passwordReader);
 		}
-		return new LinuxPythonInstaller(_passwordReader);
+		return new LinuxPythonInstaller(passwordReader);
+	}
+
+	public IPythonPackageManager GetPackageManager(string pythonHome)
+	{
+		if (_isWindows)
+		{
+			return new WindowsPythonPackageManager(pythonHome);
+		}
+		return new LinuxPythonPackageManager(pythonHome);
 	}
 
 	#endregion

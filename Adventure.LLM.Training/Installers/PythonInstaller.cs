@@ -20,7 +20,7 @@ internal abstract class PythonInstaller : IPythonInstaller
 
 	#region Constructors
 
-	public PythonInstaller(ITextReader passwordReader)
+	protected PythonInstaller(ITextReader passwordReader)
 	{
 		_passwordReader = passwordReader ?? throw new ArgumentNullException(nameof(passwordReader));
 		_appDataPath = GetInstallDir();

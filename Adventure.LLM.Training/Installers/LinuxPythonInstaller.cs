@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Adventure.LLM.Training.Installers;
 
-internal class LinuxPythonInstaller(ITextReader passwordReader)
+internal sealed class LinuxPythonInstaller(ITextReader passwordReader)
 	: PythonInstaller(passwordReader)
 {
 	protected override string GetPythonDownloadUrl() =>

@@ -292,7 +292,7 @@ internal static class Program
 		rule.LeftJustified();
 		AnsiConsole.Write(rule);
 
-		var installer = new PythonFactory(new ConsolePasswordTextReader()).GetInstaller();
+		var installer = new PythonFactory().GetInstaller(new ConsolePasswordTextReader());
 
 		string currentStatus = "Starting installation...";
 		bool showingOutput = false;
@@ -417,7 +417,7 @@ internal static class Program
 				rule.LeftJustified();
 				AnsiConsole.Write(rule);
 
-				var packageManager = new PythonPackageManager(pythonHome);
+				var packageManager = new PythonFactory().GetPackageManager(pythonHome);
 
 				var testPackages = new[] { "numpy", "torch", "transformers" };
 				var resultsTable = new Table()

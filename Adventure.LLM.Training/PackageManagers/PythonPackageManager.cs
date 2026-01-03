@@ -1,9 +1,8 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
-namespace Adventure.LLM.Training;
+namespace Adventure.LLM.Training.PackageManagers;
 
-internal sealed class PythonPackageManager
+internal class PythonPackageManager : IPythonPackageManager
 {
 	#region Fields
 
@@ -11,34 +10,16 @@ internal sealed class PythonPackageManager
 	private readonly string _pythonExe;
 	private readonly string _pipExe;
 	private readonly string _cacheDir;
-	private readonly bool _isWindows;
-	private readonly bool _isLinux;
 
 	#endregion
 
 	#region Constructors
 
-	public PythonPackageManager(string pythonHome)
+	protected PythonPackageManager(string pythonHome, string pythonExe, string pipExe)
 	{
 		_pythonHome = pythonHome;
-		_isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-		_isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-
-		if (_isWindows)
-		{
-			_pythonExe = Path.Combine(_pythonHome, "python.exe");
-			_pipExe = Path.Combine(_pythonHome, "Scripts", "pip.exe");
-		}
-		else if (_isLinux)
-		{
-			_pythonExe = Path.Combine(_pythonHome, "bin", "python3");
-			_pipExe = Path.Combine(_pythonHome, "bin", "pip3");
-		}
-		else
-		{
-			throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}.");
-		}
-
+		_pythonExe = pythonExe;
+		_pipExe = pipExe;
 		_cacheDir = Path.Combine(_pythonHome, "pip-cache");
 		Directory.CreateDirectory(_cacheDir);
 	}
@@ -63,27 +44,23 @@ internal sealed class PythonPackageManager
 	public async Task InstallPackageWithDependencies(string packageSpec)
 	{
 		// Use --prefer-binary to avoid compilation on Linux when possible
-		string args = $"install {packageSpec} --cache-dir \"{_cacheDir}\"";
-
-		if (_isLinux)
-		{
-			args += " --prefer-binary";
-		}
-
+		var args = string.Join(" ",
+			$"install {packageSpec} --cache-dir \"{_cacheDir}\"",
+			GetInstallArgs()
+		);
 		await RunPipCommand(args);
 	}
 
 	public async Task InstallFromRequirements(string requirementsPath)
 	{
-		var args = $"install -r \"{requirementsPath}\" --cache-dir \"{_cacheDir}\"";
-
-		if (_isLinux)
-		{
-			args += " --prefer-binary";
-		}
-
+		var args = string.Join(" ",
+			$"install -r \"{requirementsPath}\" --cache-dir \"{_cacheDir}\"",
+			GetInstallArgs()
+		);
 		await RunPipCommand(args);
 	}
+
+	protected virtual string GetInstallArgs() => string.Empty;
 
 	private async Task<string> RunPipCommand(string arguments)
 	{

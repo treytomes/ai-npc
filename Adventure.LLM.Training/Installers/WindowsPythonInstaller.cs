@@ -2,7 +2,7 @@ using System.IO.Compression;
 
 namespace Adventure.LLM.Training.Installers;
 
-internal class WindowsPythonInstaller(ITextReader passwordReader)
+internal sealed class WindowsPythonInstaller(ITextReader passwordReader)
 	: PythonInstaller(passwordReader)
 {
 	protected override string GetPythonDownloadUrl() =>
