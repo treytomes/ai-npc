@@ -41,7 +41,7 @@ internal class PythonPackageManager : IPythonPackageManager
 		}
 	}
 
-	public async Task InstallPackageWithDependenciesAsync(string packageSpec)
+	public async Task InstallPackageAsync(string packageSpec)
 	{
 		// Use --prefer-binary to avoid compilation on Linux when possible
 		var args = string.Join(" ",

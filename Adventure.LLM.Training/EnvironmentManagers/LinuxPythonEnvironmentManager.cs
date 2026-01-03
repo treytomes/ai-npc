@@ -4,11 +4,14 @@ using System.Runtime.InteropServices;
 namespace Adventure.LLM.Training.EnvironmentManagers;
 
 internal class LinuxPythonEnvironmentManager(string appName)
-	: PythonEnvironmentManager(Path.Combine(
-		Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-		$".{appName.ToLower()}",
-		"python"
-	))
+	: PythonEnvironmentManager(
+		appName,
+		Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+			$".{appName.ToLower()}",
+			"python"
+		)
+	)
 {
 	protected override void SetEnvironmentPaths()
 	{

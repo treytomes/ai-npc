@@ -7,6 +7,6 @@ internal interface IPythonEnvironmentManager : IDisposable
 	Task<bool> SetupEnvironmentAsync();
 	void Initialize();
 	void Shutdown();
-	string? GetPythonHome();
+	string GetPythonHome();
 	bool VerifyPythonLibrary();
 }

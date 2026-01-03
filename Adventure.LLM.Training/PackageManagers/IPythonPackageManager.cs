@@ -3,6 +3,6 @@ namespace Adventure.LLM.Training.PackageManagers;
 internal interface IPythonPackageManager
 {
 	Task<bool> IsPackageInstalledAsync(string packageName);
-	Task InstallPackageWithDependenciesAsync(string packageSpec);
+	Task InstallPackageAsync(string packageSpec);
 	Task InstallFromRequirementsAsync(string requirementsPath);
 }

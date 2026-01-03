@@ -1,11 +1,14 @@
 namespace Adventure.LLM.Training.EnvironmentManagers;
 
 internal class WindowsPythonEnvironmentManager(string appName)
-	: PythonEnvironmentManager(Path.Combine(
-		Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+	: PythonEnvironmentManager(
 		appName,
-		"Python"
-	))
+		Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+			appName,
+			"Python"
+		)
+	)
 {
 	protected override void SetEnvironmentPaths()
 	{

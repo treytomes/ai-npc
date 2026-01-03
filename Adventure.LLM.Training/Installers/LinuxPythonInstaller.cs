@@ -2,16 +2,18 @@ using System.Diagnostics;
 
 namespace Adventure.LLM.Training.Installers;
 
-internal sealed class LinuxPythonInstaller(ITextReader passwordReader)
+internal sealed class LinuxPythonInstaller(string appName, ITextReader passwordReader)
 	: PythonInstaller(passwordReader)
 {
+	private readonly string _appName = appName;
+
 	protected override string GetPythonDownloadUrl() =>
 		$"https://www.python.org/ftp/python/{_pythonVersion}/Python-{_pythonVersion}.tgz";
 
 	protected override string GetInstallDir() =>
 		Path.Combine(
 			Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-			".adventure"
+			$".{_appName.ToLower()}"
 		);
 
 	protected override ProcessStartInfo PreprocessStartInfo(ProcessStartInfo startInfo)
@@ -257,10 +259,30 @@ internal sealed class LinuxPythonInstaller(ITextReader passwordReader)
 
 	protected override async Task EnsureDependencies()
 	{
+		var requiredPackages = new[]
+		{
+			"build-essential",
+			"libssl-dev",
+			"zlib1g-dev",
+			"libncurses5-dev",
+			"libncursesw5-dev",
+			"libreadline-dev",
+			"libsqlite3-dev",
+			"libgdbm-dev",
+			"libdb5.3-dev",
+			"libbz2-dev",
+			"libexpat1-dev",
+			"liblzma-dev",
+			"libffi-dev",
+			"uuid-dev",
+			"python3-dev",
+			"python3-pip",
+		};
+
 		ReportProgress(5, "Checking system dependencies...");
-		var helper = new LinuxSystemHelper(_passwordReader);
+		var helper = new LinuxPackageManager(_passwordReader);
 		helper.WhenOutputReceived.Subscribe(args => ReportOutput(args.OutputText));
-		bool dependenciesReady = await helper.EnsurePythonDependencies();
+		bool dependenciesReady = await helper.EnsurePackagesAsync(requiredPackages);
 
 		if (!dependenciesReady)
 		{

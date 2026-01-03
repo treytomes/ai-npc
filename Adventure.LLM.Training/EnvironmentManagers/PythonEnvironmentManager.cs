@@ -4,12 +4,13 @@ using Python.Runtime;
 
 namespace Adventure.LLM.Training.EnvironmentManagers;
 
-internal abstract class PythonEnvironmentManager(string appDataPath) : IPythonEnvironmentManager
+internal abstract class PythonEnvironmentManager(string appName, string appDataPath) : IPythonEnvironmentManager
 {
 	#region Fields
 
 	private readonly Subject<OutputReceivedEventArgs> _outputReceivedSubject = new();
 
+	private readonly string _appName = appName;
 	private readonly string _appDataPath = appDataPath;
 	protected readonly string _pythonVersion = "3.11.7";
 	protected string? _pythonHome;
@@ -35,7 +36,7 @@ internal abstract class PythonEnvironmentManager(string appDataPath) : IPythonEn
 		try
 		{
 			// Install Python
-			var installer = new PythonFactory().GetInstaller(new ConsolePasswordTextReader());
+			var installer = new PythonFactory().GetInstaller(_appName, new ConsolePasswordTextReader());
 
 			// Forward output from installer
 			installer.WhenOutputReceived.Subscribe(_outputReceivedSubject.OnNext);
@@ -287,8 +288,9 @@ internal abstract class PythonEnvironmentManager(string appDataPath) : IPythonEn
 		}
 	}
 
-	public string? GetPythonHome()
+	public string GetPythonHome()
 	{
+		if (string.IsNullOrWhiteSpace(_pythonHome)) throw new NullReferenceException("Python home isn't set.");
 		return _pythonHome;
 	}
 

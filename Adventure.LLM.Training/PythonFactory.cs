@@ -38,13 +38,13 @@ internal class PythonFactory
 
 	#region Methods
 
-	public IPythonInstaller GetInstaller(ITextReader passwordReader)
+	public IPythonInstaller GetInstaller(string appName, ITextReader passwordReader)
 	{
 		if (_isWindows)
 		{
-			return new WindowsPythonInstaller(passwordReader);
+			return new WindowsPythonInstaller(appName, passwordReader);
 		}
-		return new LinuxPythonInstaller(passwordReader);
+		return new LinuxPythonInstaller(appName, passwordReader);
 	}
 
 	public IPythonPackageManager GetPackageManager(string pythonHome)

@@ -3,7 +3,7 @@ using System.Reactive.Subjects;
 
 namespace Adventure.LLM.Training;
 
-internal sealed class LinuxSystemHelper : ILinuxSystemHelper
+internal sealed class LinuxPackageManager : IPackageManager
 {
 	#region Fields
 
@@ -15,7 +15,7 @@ internal sealed class LinuxSystemHelper : ILinuxSystemHelper
 
 	#region Constructors
 
-	public LinuxSystemHelper(ITextReader passwordReader)
+	public LinuxPackageManager(ITextReader passwordReader)
 	{
 		_passwordReader = passwordReader ?? throw new ArgumentNullException(nameof(passwordReader));
 	}
@@ -30,40 +30,15 @@ internal sealed class LinuxSystemHelper : ILinuxSystemHelper
 
 	#region Methods
 
-	private void ReportOutput(string message)
+	public async Task<bool> EnsurePackagesAsync(IEnumerable<string> requiredPackages)
 	{
-		_outputReceivedSubject.OnNext(new(message));
-	}
-
-	public async Task<bool> EnsurePythonDependencies()
-	{
-		var requiredPackages = new[]
-		{
-			"build-essential",
-			"libssl-dev",
-			"zlib1g-dev",
-			"libncurses5-dev",
-			"libncursesw5-dev",
-			"libreadline-dev",
-			"libsqlite3-dev",
-			"libgdbm-dev",
-			"libdb5.3-dev",
-			"libbz2-dev",
-			"libexpat1-dev",
-			"liblzma-dev",
-			"libffi-dev",
-			"uuid-dev",
-			"python3-dev",
-			"python3-pip",
-		};
-
 		ReportOutput("Checking for required system packages...");
 
 		var missingPackages = new List<string>();
 
 		foreach (var package in requiredPackages)
 		{
-			if (!await IsPackageInstalled(package))
+			if (!await IsPackageInstalledAsync(package))
 			{
 				missingPackages.Add(package);
 			}
@@ -101,7 +76,7 @@ internal sealed class LinuxSystemHelper : ILinuxSystemHelper
 		}
 
 		ReportOutput("Installing missing packages...");
-		bool success = await InstallSystemPackages(missingPackages, sudoSession);
+		bool success = await InstallPackagesAsync(missingPackages, sudoSession);
 
 		if (!success)
 		{
@@ -115,7 +90,7 @@ internal sealed class LinuxSystemHelper : ILinuxSystemHelper
 		return true;
 	}
 
-	public async Task<bool> IsPackageInstalled(string packageName)
+	public async Task<bool> IsPackageInstalledAsync(string packageName)
 	{
 		try
 		{
@@ -138,13 +113,18 @@ internal sealed class LinuxSystemHelper : ILinuxSystemHelper
 		}
 	}
 
-	public async Task<bool> InstallSystemPackages(IEnumerable<string> packages)
+	public async Task<bool> InstallPackagesAsync(IEnumerable<string> packages)
 	{
 		using var sudoSession = new SudoSession(_passwordReader);
-		return await InstallSystemPackages(packages, sudoSession);
+		return await InstallPackagesAsync(packages, sudoSession);
 	}
 
-	private async Task<bool> InstallSystemPackages(IEnumerable<string> packages, SudoSession sudoSession)
+	private void ReportOutput(string message)
+	{
+		_outputReceivedSubject.OnNext(new(message));
+	}
+
+	private async Task<bool> InstallPackagesAsync(IEnumerable<string> packages, SudoSession sudoSession)
 	{
 		try
 		{
@@ -194,22 +174,6 @@ internal sealed class LinuxSystemHelper : ILinuxSystemHelper
 		catch (Exception ex)
 		{
 			ReportOutput($"Exception during package installation: {ex.Message}");
-			return false;
-		}
-	}
-
-	/// <summary>
-	/// Checks if running in a terminal that supports interactive input.
-	/// </summary>
-	public bool IsInteractiveTerminal()
-	{
-		try
-		{
-			// Check if stdin is redirected
-			return !Console.IsInputRedirected && !Console.IsOutputRedirected;
-		}
-		catch
-		{
 			return false;
 		}
 	}

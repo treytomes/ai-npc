@@ -2,16 +2,18 @@ using System.IO.Compression;
 
 namespace Adventure.LLM.Training.Installers;
 
-internal sealed class WindowsPythonInstaller(ITextReader passwordReader)
+internal sealed class WindowsPythonInstaller(string appName, ITextReader passwordReader)
 	: PythonInstaller(passwordReader)
 {
+	private readonly string _appName = appName;
+
 	protected override string GetPythonDownloadUrl() =>
 		$"https://www.python.org/ftp/python/{_pythonVersion}/python-{_pythonVersion}-embed-amd64.zip";
 
 	protected override string GetInstallDir() =>
 		Path.Combine(
 			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-			"Adventure"
+			_appName
 		);
 
 	protected override async Task ExtractPython(string archivePath, string destinationPath) =>
