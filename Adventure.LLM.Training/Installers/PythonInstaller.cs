@@ -44,6 +44,7 @@ internal abstract class PythonInstaller : IPythonInstaller
 	/// </summary>
 	protected virtual async Task EnsureDependencies()
 	{
+		await Task.CompletedTask;
 	}
 
 	public async Task<string> InstallPythonAsync()

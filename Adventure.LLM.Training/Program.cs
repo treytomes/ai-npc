@@ -362,7 +362,7 @@ internal static class Program
 		rule.LeftJustified();
 		AnsiConsole.Write(rule);
 
-		var envManager = new PythonEnvironmentManager("Adventure");
+		var envManager = new PythonFactory().GetEnvironmentManager("Adventure");
 
 		// Subscribe to output events
 		envManager.WhenOutputReceived.Subscribe(args =>
@@ -503,7 +503,7 @@ internal static class Program
 				rule.LeftJustified();
 				AnsiConsole.Write(rule);
 
-				var envManager = new PythonEnvironmentManager("Adventure");
+				var envManager = new PythonFactory().GetEnvironmentManager("Adventure");
 				await envManager.SetupEnvironmentAsync();
 
 				ctx.Status("[yellow]Initializing Python.NET...[/]");

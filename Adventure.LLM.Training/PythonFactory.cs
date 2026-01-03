@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Adventure.LLM.Training.EnvironmentManagers;
 using Adventure.LLM.Training.Installers;
 using Adventure.LLM.Training.PackageManagers;
 
@@ -7,6 +8,8 @@ namespace Adventure.LLM.Training;
 internal interface IPythonFactory
 {
 	IPythonInstaller GetInstaller();
+	IPythonPackageManager GetPackageManager(string pythonHome);
+	IPythonEnvironmentManager GetEnvironmentManager(string appName);
 }
 
 internal class PythonFactory
@@ -51,6 +54,15 @@ internal class PythonFactory
 			return new WindowsPythonPackageManager(pythonHome);
 		}
 		return new LinuxPythonPackageManager(pythonHome);
+	}
+
+	public IPythonEnvironmentManager GetEnvironmentManager(string appName)
+	{
+		if (_isWindows)
+		{
+			return new WindowsPythonEnvironmentManager(appName);
+		}
+		return new LinuxPythonEnvironmentManager(appName);
 	}
 
 	#endregion
