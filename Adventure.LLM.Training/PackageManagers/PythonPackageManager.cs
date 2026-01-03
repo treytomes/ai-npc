@@ -28,11 +28,11 @@ internal class PythonPackageManager : IPythonPackageManager
 
 	#region Methods
 
-	public async Task<bool> IsPackageInstalled(string packageName)
+	public async Task<bool> IsPackageInstalledAsync(string packageName)
 	{
 		try
 		{
-			var output = await RunPipCommand($"show {packageName}");
+			var output = await RunPipCommandAsync($"show {packageName}");
 			return !string.IsNullOrEmpty(output);
 		}
 		catch
@@ -41,28 +41,28 @@ internal class PythonPackageManager : IPythonPackageManager
 		}
 	}
 
-	public async Task InstallPackageWithDependencies(string packageSpec)
+	public async Task InstallPackageWithDependenciesAsync(string packageSpec)
 	{
 		// Use --prefer-binary to avoid compilation on Linux when possible
 		var args = string.Join(" ",
 			$"install {packageSpec} --cache-dir \"{_cacheDir}\"",
 			GetInstallArgs()
 		);
-		await RunPipCommand(args);
+		await RunPipCommandAsync(args);
 	}
 
-	public async Task InstallFromRequirements(string requirementsPath)
+	public async Task InstallFromRequirementsAsync(string requirementsPath)
 	{
 		var args = string.Join(" ",
 			$"install -r \"{requirementsPath}\" --cache-dir \"{_cacheDir}\"",
 			GetInstallArgs()
 		);
-		await RunPipCommand(args);
+		await RunPipCommandAsync(args);
 	}
 
 	protected virtual string GetInstallArgs() => string.Empty;
 
-	private async Task<string> RunPipCommand(string arguments)
+	private async Task<string> RunPipCommandAsync(string arguments)
 	{
 		var filename = File.Exists(_pipExe) ? _pipExe : _pythonExe;
 		var startInfo = new ProcessStartInfo

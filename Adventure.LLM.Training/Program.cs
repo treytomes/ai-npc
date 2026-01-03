@@ -430,7 +430,7 @@ internal static class Program
 				{
 					ctx.Status($"[yellow]Checking {package}...[/]");
 
-					bool isInstalled = await packageManager.IsPackageInstalled(package);
+					bool isInstalled = await packageManager.IsPackageInstalledAsync(package);
 
 					if (isInstalled)
 					{
@@ -455,7 +455,7 @@ internal static class Program
 
 				// Test installing a small package
 				string testPackage = "six";
-				bool sixInstalled = await packageManager.IsPackageInstalled(testPackage);
+				bool sixInstalled = await packageManager.IsPackageInstalledAsync(testPackage);
 
 				if (!sixInstalled)
 				{
@@ -472,13 +472,13 @@ internal static class Program
 							var task = progressCtx.AddTask($"Installing {testPackage}");
 							task.IsIndeterminate = true;
 
-							await packageManager.InstallPackageWithDependencies(testPackage);
+							await packageManager.InstallPackageWithDependenciesAsync(testPackage);
 
 							task.Value = 100;
 							task.StopTask();
 						});
 
-					bool verifyInstall = await packageManager.IsPackageInstalled(testPackage);
+					bool verifyInstall = await packageManager.IsPackageInstalledAsync(testPackage);
 					AnsiConsole.MarkupLine(
 						verifyInstall
 							? $"[green]✓ {testPackage} installed successfully![/]"

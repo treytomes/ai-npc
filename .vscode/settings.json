@@ -54,6 +54,8 @@
 		"rocm",
 		"SCONJ",
 		"Stopwords",
+		"sudosession",
+		"sudotest",
 		"timespan",
 		"vainfo",
 		"xunit"
