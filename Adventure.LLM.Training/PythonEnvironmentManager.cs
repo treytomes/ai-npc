@@ -67,7 +67,7 @@ internal class PythonEnvironmentManager : IDisposable
 		try
 		{
 			// Install Python
-			var installer = new PythonInstaller(new ConsolePasswordTextReader());
+			var installer = new PythonFactory(new ConsolePasswordTextReader()).GetInstaller();
 
 			// Forward output from installer
 			installer.WhenOutputReceived.Subscribe(_outputReceivedSubject.OnNext);

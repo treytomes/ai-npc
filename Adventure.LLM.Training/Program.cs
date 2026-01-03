@@ -292,7 +292,7 @@ internal static class Program
 		rule.LeftJustified();
 		AnsiConsole.Write(rule);
 
-		var installer = new PythonInstaller(new ConsolePasswordTextReader());
+		var installer = new PythonFactory(new ConsolePasswordTextReader()).GetInstaller();
 
 		string currentStatus = "Starting installation...";
 		bool showingOutput = false;
@@ -321,24 +321,24 @@ internal static class Program
 			.AddColumn("Status")
 			.AddColumn("Details");
 
-		// Verify installation
-		bool pathExists = Directory.Exists(pythonPath);
+		// Verify installation.
+		var pathExists = Directory.Exists(pythonPath);
 		resultsTable.AddRow(
 			"Installation Path",
 			pathExists ? "[green]✓[/]" : "[red]✗[/]",
 			Markup.Escape(pythonPath)
 		);
 
-		string pythonExe = installer.GetPythonExecutablePath();
-		bool exeExists = File.Exists(pythonExe);
+		var pythonExe = installer.GetPythonExecutablePath();
+		var exeExists = File.Exists(pythonExe);
 		resultsTable.AddRow(
 			"Python Executable",
 			exeExists ? "[green]✓[/]" : "[red]✗[/]",
 			Markup.Escape(pythonExe)
 		);
 
-		string pipExe = installer.GetPipExecutablePath();
-		bool pipExists = File.Exists(pipExe);
+		var pipExe = installer.GetPipExecutablePath();
+		var pipExists = File.Exists(pipExe);
 		resultsTable.AddRow(
 			"Pip Executable",
 			pipExists ? "[green]✓[/]" : "[red]✗[/]",
