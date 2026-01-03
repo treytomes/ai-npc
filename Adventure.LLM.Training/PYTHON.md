@@ -550,7 +550,7 @@ summary = f'Average age: {mean_age}, Highest score: {max_score}'
 - `Task<bool> IsPackageInstalledAsync(string packageName)` - Checks if package is installed
 - `Task InstallPackageAsync(string packageName)` - Installs a single package
 - `Task InstallPackagesAsync(IEnumerable<string> packageNames)` - Installs multiple packages
-- `Task InstallPackageWithDependenciesAsync(string packageName)` - Installs package with deps
+- `Task InstallPackage(string packageName)` - Installs package with deps
 - `Task<string> GetPipVersionAsync()` - Gets pip version
 
 ### SudoSession

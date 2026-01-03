@@ -66,6 +66,7 @@
 		"sudosession",
 		"sudotest",
 		"timespan",
+		"tril",
 		"vainfo",
 		"xunit"
 	],
