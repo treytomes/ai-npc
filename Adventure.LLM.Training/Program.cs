@@ -9,6 +9,15 @@ namespace Adventure.LLM.Training;
 
 internal sealed class NanoTransformerWrapper : IDisposable
 {
+	private static readonly string[] TOKENS = [
+		"H-1.0", "H-0.5", "H0.0", "H0.5", "H1.0",
+		"LEFT", "STAY", "RIGHT"
+	];
+
+	private static readonly int VOCAB = TOKENS.Length;
+
+	private const int D_MODEL = 12;
+
 	private readonly IPythonEnvironmentManager _envManager;
 	private PyObject? _testFn;
 	private bool _initialized;
@@ -37,6 +46,9 @@ internal sealed class NanoTransformerWrapper : IDisposable
 		using (Py.GIL())
 		using (var scope = Py.CreateScope())
 		{
+			scope.Set("TOKENS", TOKENS);
+			scope.Set("VOCAB", VOCAB);
+			scope.Set("D_MODEL", D_MODEL);
 			scope.Exec(PYTHON_SCRIPT);
 			_testFn = scope.Get("test");
 		}
@@ -91,14 +103,8 @@ import torch.optim as optim
 import math
 import random
 
-TOKENS = [
-    'H-1.0', 'H-0.5', 'H0.0', 'H0.5', 'H1.0',
-    'LEFT', 'STAY', 'RIGHT'
-]
-
 stoi = {t: i for i, t in enumerate(TOKENS)}
 itos = {i: t for t, i in stoi.items()}
-VOCAB = len(TOKENS)
 
 # -------------------------------
 # Tiny decoder transformer
@@ -132,9 +138,8 @@ class DecoderBlock(nn.Module):
         return x
 
 class NanoDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, d_model):
         super().__init__()
-        d_model = 16
         self.embed = nn.Embedding(VOCAB, d_model)
         self.block = DecoderBlock(d_model)
         self.head = nn.Linear(d_model, 3)
@@ -163,7 +168,7 @@ def generate_example():
 # -------------------------------
 # Train
 # -------------------------------
-model = NanoDecoder()
+model = NanoDecoder(D_MODEL)
 params = sum(p.numel() for p in model.parameters())
 print('Parameters:', params)
 
@@ -221,79 +226,118 @@ internal static class Program
 			Console.WriteLine("Model ready.\n");
 
 			// --------------------------------------------------
-			// Fixed test cases
+			// Automated Testing
 			// --------------------------------------------------
-			Console.WriteLine("Test Cases");
-			Console.WriteLine("----------");
+			const int NUM_TEST_CASES = 100;
+			var random = new Random(42); // Fixed seed for reproducibility
+			int correctPredictions = 0;
+			var results = new List<(double[] heats, string expected, string actual, bool correct)>();
 
-			var testCases = new[]
-			{
-				new[] { -0.9,  0.1,  0.8 },   // RIGHT
-				new[] {  0.9, -0.2, -0.5 },   // LEFT
-				new[] { -0.1,  0.0,  0.1 },   // RIGHT
-				new[] {  0.0,  1.0,  0.0 },   // STAY
-				new[] { -1.0, -0.5, -0.8 }    // STAY
-			};
+			Console.WriteLine($"Running {NUM_TEST_CASES} test cases...\n");
 
-			foreach (var heats in testCases)
+			for (int i = 0; i < NUM_TEST_CASES; i++)
 			{
-				var action = model.Predict(heats);
-				Console.WriteLine(
-					$"[{string.Join(", ", heats.Select(h => h.ToString("F2")))}] → {action}"
-				);
+				// Generate random heat values
+				var heats = new double[3];
+				for (int j = 0; j < 3; j++)
+				{
+					heats[j] = random.NextDouble() * 2 - 1; // Range: -1.0 to 1.0
+				}
+
+				// Calculate expected result (go to highest heat source)
+				int maxIndex = 0;
+				double maxHeat = heats[0];
+				for (int j = 1; j < 3; j++)
+				{
+					if (heats[j] > maxHeat)
+					{
+						maxHeat = heats[j];
+						maxIndex = j;
+					}
+				}
+
+				string expected = maxIndex switch
+				{
+					0 => "LEFT",
+					1 => "STAY",
+					2 => "RIGHT",
+					_ => throw new InvalidOperationException()
+				};
+
+				// Get model prediction
+				string actual = model.Predict(heats);
+
+				// Track results
+				bool isCorrect = expected == actual;
+				if (isCorrect) correctPredictions++;
+
+				results.Add((heats, expected, actual, isCorrect));
 			}
 
 			// --------------------------------------------------
-			// Interactive mode
+			// Display Results
 			// --------------------------------------------------
-			Console.WriteLine("\nInteractive Mode");
-			Console.WriteLine("----------------");
-			Console.WriteLine("Enter three heat values (-1.0 to 1.0), or 'quit' to exit.");
+			Console.WriteLine("Test Results");
+			Console.WriteLine("------------");
 
-			while (true)
+			// Show first 10 detailed results
+			Console.WriteLine("\nFirst 10 test cases:");
+			foreach (var (heats, expected, actual, correct) in results.Take(10))
 			{
-				Console.Write("> ");
-				var input = Console.ReadLine();
+				var status = correct ? "✓" : "✗";
+				Console.WriteLine($"{status} [{string.Join(", ", heats.Select(h => h.ToString("F2").PadLeft(5)))}] " +
+								$"Expected: {expected,-5} Actual: {actual,-5}");
+			}
 
-				if (string.IsNullOrWhiteSpace(input))
-					continue;
-
-				if (input.Trim().Equals("quit", StringComparison.OrdinalIgnoreCase))
-					break;
-
-				try
+			// Show some incorrect predictions if any
+			var incorrectResults = results.Where(r => !r.correct).ToList();
+			if (incorrectResults.Any())
+			{
+				Console.WriteLine($"\nSample incorrect predictions (showing up to 5):");
+				foreach (var (heats, expected, actual, _) in incorrectResults.Take(5))
 				{
-					var values = input
-						.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-						.Select(double.Parse)
-						.ToArray();
-
-					if (values.Length != 3)
-					{
-						Console.WriteLine("Please enter exactly 3 values.");
-						continue;
-					}
-
-					if (values.Any(v => v < -1.0 || v > 1.0))
-					{
-						Console.WriteLine("Values must be between -1.0 and 1.0.");
-						continue;
-					}
-
-					var action = model.Predict(values);
-					Console.WriteLine($"→ Recommended action: {action}");
-				}
-				catch (FormatException)
-				{
-					Console.WriteLine("Invalid input. Use numbers only.");
-				}
-				catch (Exception ex)
-				{
-					Console.WriteLine($"Error: {ex.Message}");
+					Console.WriteLine($"✗ [{string.Join(", ", heats.Select(h => h.ToString("F2").PadLeft(5)))}] " +
+									$"Expected: {expected,-5} Actual: {actual,-5}");
 				}
 			}
 
-			Console.WriteLine("\nExiting.");
+			// Calculate and display accuracy
+			double accuracy = (double)correctPredictions / NUM_TEST_CASES * 100;
+			double errorRate = 100 - accuracy;
+
+			Console.WriteLine("\n" + new string('=', 50));
+			Console.WriteLine("Summary Statistics");
+			Console.WriteLine(new string('=', 50));
+			Console.WriteLine($"Total test cases:    {NUM_TEST_CASES}");
+			Console.WriteLine($"Correct predictions: {correctPredictions}");
+			Console.WriteLine($"Incorrect predictions: {NUM_TEST_CASES - correctPredictions}");
+			Console.WriteLine($"Accuracy:            {accuracy:F2}%");
+			Console.WriteLine($"Error rate:          {errorRate:F2}%");
+
+			// Analyze errors by position
+			var errorsByPosition = results
+				.Where(r => !r.correct)
+				.GroupBy(r => Array.IndexOf(r.heats, r.heats.Max()))
+				.Select(g => new { Position = g.Key, Count = g.Count() })
+				.OrderBy(x => x.Position);
+
+			if (errorsByPosition.Any())
+			{
+				Console.WriteLine("\nErrors by correct position:");
+				foreach (var error in errorsByPosition)
+				{
+					string position = error.Position switch
+					{
+						0 => "LEFT",
+						1 => "STAY",
+						2 => "RIGHT",
+						_ => "UNKNOWN"
+					};
+					Console.WriteLine($"  {position}: {error.Count} errors");
+				}
+			}
+
+			Console.WriteLine("\nTest complete.");
 		}
 		catch (Exception ex)
 		{
