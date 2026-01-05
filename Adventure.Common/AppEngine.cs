@@ -25,9 +25,16 @@ public class AppEngine : IAppEngine
 
 	#endregion
 
+	#region Properties
+
+	protected bool HasState => _states.Any();
+	protected AppState CurrentState => _states.Peek();
+
+	#endregion
+
 	#region Methods
 
-	public async Task RunAsync<TAppState>()
+	public virtual async Task RunAsync<TAppState>()
 		where TAppState : AppState
 	{
 		try
@@ -36,10 +43,9 @@ public class AppEngine : IAppEngine
 
 			await EnterStateAsync<TAppState>();
 
-			while (_states.Count > 0)
+			while (HasState)
 			{
-				var currentState = _states.Peek();
-				await currentState.OnUpdateAsync();
+				await CurrentState.OnUpdateAsync();
 			}
 		}
 		catch (Exception ex)
@@ -49,10 +55,10 @@ public class AppEngine : IAppEngine
 		}
 		finally
 		{
-			// Unload any remaining active states.
-			while (_states.TryPop(out var state))
+			// Unload any remaining active states
+			while (HasState)
 			{
-				await state.OnUnloadAsync();
+				await LeaveStateAsync();
 			}
 
 			await DestroyAsync();

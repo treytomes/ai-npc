@@ -35,6 +35,7 @@
 		"libpython",
 		"libreadline",
 		"libsqlite",
+		"llmchat",
 		"logits",
 		"matplotlib",
 		"Mosaik",
