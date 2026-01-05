@@ -3,209 +3,229 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text;
 using Attribute = Terminal.Gui.Attribute;
 
+// Terminal.Gui v2-safe ChatHistoryView
+// - No reliance on nonexistent SetNeedsLayout / OnLayoutComplete
+// - Uses LayoutComplete event
+// - ScrollView owns content size
+// - Virtualized rendering
+
 public sealed class ChatHistoryView : FrameView
 {
-	private readonly ScrollView _scrollView;
-	private readonly View _contentView;
-	private readonly ColorScheme _baseScheme;
-	private readonly List<View> _messageViews = new();
+	private readonly ScrollView _scroll;
+	private readonly View _canvas;
+
+	private readonly List<MessageBlock> _blocks = new();
+	private ChatHistory? _pendingHistory;
+
+	private int _viewportWidth;
+	private bool _layoutDirty;
 
 	public ChatHistoryView() : base("Chat History")
 	{
-		X = 0;
-		Y = 0;
 		Width = Dim.Fill();
 		Height = Dim.Fill();
 
-		_baseScheme = new ColorScheme
+		ColorScheme = new ColorScheme
 		{
 			Normal = new Attribute(Color.White, Color.Blue),
-			Focus = new Attribute(Color.White, Color.Blue),
-			HotNormal = new Attribute(Color.White, Color.Blue),
-			HotFocus = new Attribute(Color.White, Color.Blue),
-			Disabled = new Attribute(Color.Gray, Color.Blue)
+			Focus = new Attribute(Color.White, Color.Blue)
 		};
 
-		ColorScheme = _baseScheme;
-
-		// Create scrollable container
-		_scrollView = new ScrollView
+		_scroll = new ScrollView
 		{
-			X = 0,
-			Y = 0,
 			Width = Dim.Fill(),
 			Height = Dim.Fill(),
 			ShowVerticalScrollIndicator = true,
 			ShowHorizontalScrollIndicator = false,
-			ColorScheme = _baseScheme
+			ColorScheme = ColorScheme
 		};
 
-		// Content view that will hold all messages
-		_contentView = new View
+		_canvas = new View
 		{
-			X = 0,
-			Y = 0,
 			Width = Dim.Fill(),
-			Height = Dim.Sized(0), // Will grow with content
-			ColorScheme = _baseScheme
+			Height = Dim.Fill(),
+			ColorScheme = ColorScheme
 		};
 
-		_scrollView.Add(_contentView);
-		Add(_scrollView);
+		_scroll.Add(_canvas);
+		Add(_scroll);
+
+		// v2 layout hook — THIS is the correct replacement
+		LayoutComplete += OnLayoutComplete;
 	}
 
+	// Public API
 	public void Render(ChatHistory history)
 	{
-		// Clear existing messages
-		_contentView.RemoveAll();
-		_messageViews.Clear();
+		_pendingHistory = history;
+		_layoutDirty = true;
+		SetNeedsDisplay();
+	}
 
-		int yPos = 0;
-		int maxWidth = Math.Max(20, Bounds.Width - 4); // Account for scrollbar
+	private void OnLayoutComplete(View.LayoutEventArgs args)
+	{
+		if (_pendingHistory is null)
+			return;
+
+		if (_scroll.Bounds.Width <= 0 || _scroll.Bounds.Height <= 0)
+			return;
+
+		var usableWidth = _scroll.Bounds.Width - 2; // scrollbar margin
+
+		// Only rebuild if width or history changed
+		if (!_layoutDirty && usableWidth == _viewportWidth)
+			return;
+
+		_viewportWidth = usableWidth;
+		BuildBlocks(_pendingHistory, usableWidth);
+		UpdateContentSize();
+		RenderVisible();
+		ScrollToBottom();
+
+		_pendingHistory = null;
+	}
+
+	private void BuildBlocks(ChatHistory history, int maxWidth)
+	{
+		_blocks.Clear();
+
+		int y = 0;
 
 		foreach (var msg in history)
 		{
-			// Create role header
-			var roleScheme = GetColorSchemeForRole(msg.Role);
-			var roleText = $"[{msg.Role.ToString().ToUpperInvariant()}]";
-			var timestamp = DateTime.Now.ToString("HH:mm:ss");
+			var header = $"[{msg.Role.ToString().ToUpperInvariant()}]  {DateTime.Now:HH:mm:ss}";
+			var headerHeight = 1;
 
-			var roleLabel = new Label
+			var contentLines = WordWrap(msg.Content ?? "[Empty message]", maxWidth - 2);
+			var height = headerHeight + contentLines.Count + 1;
+
+			_blocks.Add(new MessageBlock
 			{
-				X = 0,
-				Y = yPos,
-				Text = roleText,
-				ColorScheme = roleScheme
-			};
-			_contentView.Add(roleLabel);
+				Y = y,
+				Height = height,
+				Role = msg.Role,
+				Header = header,
+				Lines = contentLines
+			});
 
-			var timestampLabel = new Label
-			{
-				X = Pos.Right(roleLabel) + 1,
-				Y = yPos,
-				Text = timestamp,
-				ColorScheme = new ColorScheme
-				{
-					Normal = new Attribute(Color.Gray, Color.Blue)
-				}
-			};
-			_contentView.Add(timestampLabel);
-
-			yPos++;
-
-			// Add message content with word wrapping
-			var content = msg.Content ?? "[Empty message]";
-			var wrappedLines = WordWrap(content, maxWidth - 2);
-
-			foreach (var line in wrappedLines)
-			{
-				var contentLabel = new Label
-				{
-					X = 1,
-					Y = yPos,
-					Text = line,
-					Width = Dim.Fill(),
-					ColorScheme = _baseScheme
-				};
-				_contentView.Add(contentLabel);
-				yPos++;
-			}
-
-			// Add spacing between messages
-			yPos += 1;
+			y += height;
 		}
-
-		// Update content view height
-		_contentView.Height = Dim.Sized(yPos);
-
-		// THIS IS REQUIRED
-		_scrollView.ContentSize = new Size(
-			_scrollView.Bounds.Width,
-			yPos
-		);
-
-
-		// Scroll to bottom
-		ScrollToBottom();
-
-		// Force redraw
-		SetNeedsDisplay();
+		_layoutDirty = false;
 	}
 
-	public void ScrollToBottom()
+	private void UpdateContentSize()
 	{
-		if (_contentView.Bounds.Height > _scrollView.Bounds.Height)
+		var totalHeight = _blocks.Count == 0 ? 0 : _blocks[^1].Y + _blocks[^1].Height;
+		_scroll.ContentSize = new Size(_viewportWidth, totalHeight);
+	}
+
+	public override void OnDrawContent(Rect bounds)
+	{
+		base.OnDrawContent(bounds);
+		RenderVisible();
+	}
+
+	private void RenderVisible()
+	{
+		_canvas.RemoveAll();
+
+		var viewTop = _scroll.ContentOffset.Y;
+		var viewBottom = viewTop + _scroll.Bounds.Height;
+
+		foreach (var block in _blocks)
 		{
-			_scrollView.ContentOffset = new Point(
-				0,
-				Math.Max(0, _scrollView.ContentSize.Height - _scrollView.Bounds.Height)
-			);
+			if (block.Y + block.Height < viewTop)
+				continue;
+			if (block.Y > viewBottom)
+				break;
+
+			DrawBlock(block);
 		}
 	}
 
-	private ColorScheme GetColorSchemeForRole(AuthorRole role)
+	private void DrawBlock(MessageBlock block)
 	{
-		var foreground = Color.White;
-		var background = Color.Cyan;
-		if (role.Equals(AuthorRole.System)) foreground = Color.BrightYellow;
-		if (role.Equals(AuthorRole.User)) foreground = Color.BrightCyan;
-		if (role.Equals(AuthorRole.Assistant)) foreground = Color.BrightGreen;
-		if (role.Equals(AuthorRole.Tool)) foreground = Color.Magenta;
+		var scheme = GetScheme(block.Role);
+
+		var header = new Label(block.Header)
+		{
+			X = 0,
+			Y = block.Y,
+			ColorScheme = scheme
+		};
+		_canvas.Add(header);
+
+		var y = block.Y + 1;
+		foreach (var line in block.Lines)
+		{
+			_canvas.Add(new Label(line)
+			{
+				X = 1,
+				Y = y++,
+				ColorScheme = ColorScheme
+			});
+		}
+	}
+
+	private void ScrollToBottom()
+	{
+		if (_scroll.ContentSize.Height > _scroll.Bounds.Height)
+		{
+			_scroll.ContentOffset = new Point(0, _scroll.ContentSize.Height - _scroll.Bounds.Height);
+		}
+	}
+
+	private static ColorScheme GetScheme(AuthorRole role)
+	{
+		var fg = Color.White;
+		if (role.Equals(AuthorRole.System)) fg = Color.BrightYellow;
+		if (role.Equals(AuthorRole.User)) fg = Color.BrightCyan;
+		if (role.Equals(AuthorRole.Assistant)) fg = Color.BrightGreen;
+		if (role.Equals(AuthorRole.Tool)) fg = Color.Magenta;
 
 		return new ColorScheme
 		{
-			Normal = new Attribute(foreground, background),
-			Focus = new Attribute(foreground, background),
-			HotNormal = new Attribute(foreground, background),
-			HotFocus = new Attribute(foreground, background)
+			Normal = new Attribute(fg, Color.Blue)
 		};
 	}
 
-	private List<string> WordWrap(string text, int maxWidth)
+	private static List<string> WordWrap(string text, int width)
 	{
-		if (string.IsNullOrWhiteSpace(text) || maxWidth <= 0)
-			return new List<string> { text ?? "" };
+		if (string.IsNullOrWhiteSpace(text) || width <= 0)
+			return new() { text ?? string.Empty };
 
-		var lines = new List<string>();
-		var paragraphs = text.Split('\n');
-
-		foreach (var paragraph in paragraphs)
+		var result = new List<string>();
+		foreach (var paragraph in text.Split('\n'))
 		{
-			if (string.IsNullOrWhiteSpace(paragraph))
-			{
-				lines.Add("");
-				continue;
-			}
-
 			var words = paragraph.Split(' ');
-			var currentLine = new StringBuilder();
+			var line = new StringBuilder();
 
 			foreach (var word in words)
 			{
-				if (currentLine.Length > 0 && currentLine.Length + word.Length + 1 > maxWidth)
+				if (line.Length > 0 && line.Length + word.Length + 1 > width)
 				{
-					lines.Add(currentLine.ToString().Trim());
-					currentLine.Clear();
+					result.Add(line.ToString());
+					line.Clear();
 				}
 
-				if (currentLine.Length > 0)
-					currentLine.Append(' ');
-				currentLine.Append(word);
+				if (line.Length > 0)
+					line.Append(' ');
+				line.Append(word);
 			}
 
-			if (currentLine.Length > 0)
-				lines.Add(currentLine.ToString().Trim());
+			if (line.Length > 0)
+				result.Add(line.ToString());
 		}
 
-		return lines.Any() ? lines : new List<string> { "" };
+		return result;
 	}
 
-	public new void Clear()
+	private sealed class MessageBlock
 	{
-		_contentView.RemoveAll();
-		_messageViews.Clear();
-		_contentView.Height = Dim.Sized(0);
-		SetNeedsDisplay();
-		base.Clear();
+		public int Y;
+		public int Height;
+		public AuthorRole Role;
+		public string Header = string.Empty;
+		public List<string> Lines = new();
 	}
 }
