@@ -5,14 +5,21 @@ namespace Adventure.LLM.Training;
 
 internal sealed class NanoTransformerWrapper : IDisposable
 {
-	private static readonly string[] TOKENS = [
-		"H-1.0", "H-0.5", "H0.0", "H0.5", "H1.0",
-		"LEFT", "STAY", "RIGHT"
-	];
+	private static readonly string[] TOKENS =
+	{
+		"PAD",
+		"HOT_LEFT",
+		"HOT_RIGHT",
+		"NO_HEAT",
+		"ACTION",
+		"LEFT",
+		"RIGHT"
+	};
 
-	private static readonly int VOCAB = TOKENS.Length;
-
+	private const int PAD = 0;
+	private const int VOCAB = 7;
 	private const int D_MODEL = 12;
+	private const int MAX_SEQ = 6;
 
 	private readonly IPythonEnvironmentManager _envManager;
 	private PyObject? _model;
@@ -20,11 +27,13 @@ internal sealed class NanoTransformerWrapper : IDisposable
 	private PyObject? _nn;
 	private PyObject? _math;
 	private PyObject? _nanoDecoderClass;
-	private Dictionary<string, int> _stoi = new();
-	private Dictionary<int, string> _itos = new();
+
+	private readonly Dictionary<string, int> _stoi = new();
+	private readonly Dictionary<int, string> _itos = new();
+	private readonly Random _random = new();
+
 	private bool _initialized;
 	private bool _disposed;
-	private Random _random = new Random();
 
 	public NanoTransformerWrapper()
 	{
@@ -36,17 +45,16 @@ internal sealed class NanoTransformerWrapper : IDisposable
 		if (_initialized) return;
 
 		if (!await _envManager.SetupEnvironmentAsync())
-			throw new InvalidOperationException("Failed to setup Python environment");
+			throw new InvalidOperationException("Python environment setup failed");
 
-		var packageManager = new PythonFactory()
+		var pkg = new PythonFactory()
 			.GetPackageManager(_envManager.GetPythonHome()!);
 
-		if (!await packageManager.IsPackageInstalledAsync("torch"))
-			await packageManager.InstallPackageAsync("torch");
+		if (!await pkg.IsPackageInstalledAsync("torch"))
+			await pkg.InstallPackageAsync("torch");
 
 		_envManager.Initialize();
 
-		// Build the string-to-index and index-to-string mappings in C#
 		for (int i = 0; i < TOKENS.Length; i++)
 		{
 			_stoi[TOKENS[i]] = i;
@@ -56,260 +64,161 @@ internal sealed class NanoTransformerWrapper : IDisposable
 		using (Py.GIL())
 		using (var scope = Py.CreateScope())
 		{
-			// Import required modules
 			_torch = Py.Import("torch");
 			_nn = _torch.GetAttr("nn");
 			_math = Py.Import("math");
 
-			// Set modules in scope
 			scope.Set("torch", _torch);
 			scope.Set("nn", _nn);
 			scope.Set("math", _math);
-
-			// Create Python dictionaries from C# dictionaries
-			using var pyStoiDict = new PyDict();
-			foreach (var kvp in _stoi)
-			{
-				using var key = new PyString(kvp.Key);
-				using var value = new PyInt(kvp.Value);
-				pyStoiDict[key] = value;
-			}
-
-			using var pyItosDict = new PyDict();
-			foreach (var kvp in _itos)
-			{
-				using var key = new PyInt(kvp.Key);
-				using var value = new PyString(kvp.Value);
-				pyItosDict[key] = value;
-			}
-
-			// Set all variables in Python scope
-			scope.Set("TOKENS", TOKENS);
 			scope.Set("VOCAB", VOCAB);
 			scope.Set("D_MODEL", D_MODEL);
-			scope.Set("stoi", pyStoiDict);
-			scope.Set("itos", pyItosDict);
+			scope.Set("PAD", PAD);
 
-			// Execute model definition
-			scope.Exec(GetModelArchitecture());
+			scope.Exec(GetModelCode());
 
-			// Get reference to model class
 			_nanoDecoderClass = scope.Get("NanoDecoder");
+			_model = _nanoDecoderClass.Invoke(new PyInt(D_MODEL));
 
-			// Create model instance
-			using var dModelArg = new PyInt(D_MODEL);
-			_model = _nanoDecoderClass.Invoke(dModelArg);
-
-			// Calculate and print parameter count
-			int paramCount = CalculateParameterCount();
-			Console.WriteLine($"Parameters: {paramCount}");
+			Console.WriteLine($"Parameters: {CountParameters()}");
 		}
 
 		_initialized = true;
 	}
 
-	private int CalculateParameterCount()
+	private int CountParameters()
 	{
 		using (Py.GIL())
 		{
-			using var parameters = _model!.GetAttr("parameters");
-			using var paramsGenerator = parameters.Invoke();
-
-			int totalParams = 0;
-
-			// Iterate through all parameters
-			using var iter = PyIter.GetIter(paramsGenerator);
-			while (iter.MoveNext())
+			int total = 0;
+			using var ps = _model!.GetAttr("parameters").Invoke();
+			using var it = PyIter.GetIter(ps);
+			while (it.MoveNext())
 			{
-				var param = iter.Current;
-				using (param)
-				{
-					using var numel = param.GetAttr("numel");
-					using var numelResult = numel.Invoke();
-					totalParams += numelResult.As<int>();
-				}
+				using var p = it.Current;
+				total += p.GetAttr("numel").Invoke().As<int>();
 			}
-
-			return totalParams;
+			return total;
 		}
 	}
 
-	private (int[] tokens, int label) GenerateExample()
+	// -------------------------------------------------------
+	// DATA GENERATION
+	// -------------------------------------------------------
+
+	private (int[] seq, int label) GenerateDelayedExample()
 	{
-		// Generate random heat values
-		var heats = new double[3];
-		for (int i = 0; i < 3; i++)
-		{
-			heats[i] = _random.NextDouble() * 2 - 1; // Range: -1.0 to 1.0
-		}
+		bool left = _random.Next(2) == 0;
+		int delay = _random.Next(1, 4);
 
-		// Convert to tokens
-		var tokens = new int[3];
-		for (int i = 0; i < 3; i++)
+		var tokens = new List<int>
 		{
-			string token = HeatToToken(heats[i]);
-			tokens[i] = _stoi[token];
-		}
+			_stoi[left ? "HOT_LEFT" : "HOT_RIGHT"]
+		};
 
-		// Find best action (highest heat)
-		int best = 0;
-		double maxHeat = heats[0];
-		for (int i = 1; i < 3; i++)
-		{
-			if (heats[i] > maxHeat)
-			{
-				maxHeat = heats[i];
-				best = i;
-			}
-		}
+		for (int i = 0; i < delay; i++)
+			tokens.Add(_stoi["NO_HEAT"]);
 
-		return (tokens, best);
+		tokens.Add(_stoi["ACTION"]);
+
+		while (tokens.Count < MAX_SEQ)
+			tokens.Add(PAD);
+
+		int label = left ? 0 : 1;
+		return (tokens.ToArray(), label);
 	}
 
-	public void Train(int steps = 3000, int batchSize = 32)
+	// -------------------------------------------------------
+	// TRAINING
+	// -------------------------------------------------------
+
+	public void Train(int steps = 4000, int batchSize = 32)
 	{
 		using (Py.GIL())
 		{
-			// Get optimizer and loss function
-			using var optimModule = _torch!.GetAttr("optim");
-			using var adamClass = optimModule.GetAttr("Adam");
-			using var parameters = _model!.GetAttr("parameters");
-			using var paramsResult = parameters.Invoke();
+			using var optim = _torch!.GetAttr("optim").GetAttr("Adam");
+			using var parms = _model!.GetAttr("parameters").Invoke();
 
-			// Create optimizer with learning rate
-			using var lr = new PyFloat(0.003);
-			using var kwargs = new PyDict();
-			kwargs["lr"] = lr;
-			using var optimizer = adamClass.Invoke(new PyTuple([paramsResult]), kwargs);
+			using var opt = optim.Invoke(
+				new PyTuple(new[] { parms }),
+				new PyDict { ["lr"] = new PyFloat(3e-3) }
+			);
 
-			// Get loss function
-			using var crossEntropyLoss = _nn!.GetAttr("CrossEntropyLoss");
-			using var lossFn = crossEntropyLoss.Invoke();
+			using var lossFn = _nn!.GetAttr("CrossEntropyLoss").Invoke();
 
-			// Training loop
-			for (int step = 0; step < steps; step++)
+			for (int step = 1; step <= steps; step++)
 			{
-				// Generate batch
-				var xBatch = new List<int[]>();
-				var yBatch = new List<int>();
+				var xb = new PyList();
+				var yb = new PyList();
 
 				for (int i = 0; i < batchSize; i++)
 				{
-					var (tokens, label) = GenerateExample();
-					xBatch.Add(tokens);
-					yBatch.Add(label);
+					var (seq, label) = GenerateDelayedExample();
+					var row = new PyList();
+					foreach (var t in seq)
+						row.Append(new PyInt(t));
+
+					xb.Append(row);
+					yb.Append(new PyInt(label));
 				}
 
-				// Convert to Python tensors
-				using var xList = new PyList();
-				foreach (var tokens in xBatch)
-				{
-					using var tokenList = new PyList();
-					foreach (var token in tokens)
-					{
-						tokenList.Append(new PyInt(token));
-					}
-					xList.Append(tokenList);
-				}
+				using var x = _torch.GetAttr("tensor").Invoke(xb);
+				using var y = _torch.GetAttr("tensor").Invoke(yb);
 
-				using var yList = new PyList();
-				foreach (var label in yBatch)
-				{
-					yList.Append(new PyInt(label));
-				}
-
-				using var tensorFunc = _torch.GetAttr("tensor");
-				using var x = tensorFunc.Invoke(xList);
-				using var y = tensorFunc.Invoke(yList);
-
-				// Forward pass
 				using var logits = _model.Invoke(x);
-				using var loss = lossFn.Invoke(new PyTuple([logits, y]));
+				using var loss = lossFn.Invoke(new PyTuple(new[] { logits, y }));
 
-				// Backward pass
-				using var zeroGrad = optimizer.GetAttr("zero_grad");
-				zeroGrad.Invoke();
+				opt.GetAttr("zero_grad").Invoke();
+				loss.GetAttr("backward").Invoke();
+				opt.GetAttr("step").Invoke();
 
-				using var backward = loss.GetAttr("backward");
-				backward.Invoke();
-
-				using var stepMethod = optimizer.GetAttr("step");
-				stepMethod.Invoke();
-
-				// Optional: Print progress every 500 steps
-				if ((step + 1) % 500 == 0)
+				if (step % 500 == 0)
 				{
-					using var item = loss.GetAttr("item");
-					using var lossValue = item.Invoke();
-					Console.WriteLine($"Step {step + 1}/{steps}, Loss: {lossValue.As<float>():F4}");
+					float l = loss.GetAttr("item").Invoke().As<float>();
+					Console.WriteLine($"Step {step}: Loss = {l:F4}");
 				}
 			}
-
-			Console.WriteLine("Training complete!");
 		}
 	}
 
-	public string Predict(double[] heats)
+	// -------------------------------------------------------
+	// INFERENCE
+	// -------------------------------------------------------
+
+	public string Predict(bool heatLeft, int delay)
 	{
-		if (!_initialized)
-			throw new InvalidOperationException("Call InitializeAsync first");
-
-		if (heats.Length != 3)
-			throw new ArgumentException("Expected exactly 3 heat values");
-
 		using (Py.GIL())
 		{
-			// Convert heats to tokens in C#
-			var tokenIndices = new int[3];
-			for (int i = 0; i < 3; i++)
+			var seq = new List<int>
 			{
-				string token = HeatToToken(heats[i]);
-				tokenIndices[i] = _stoi[token];
-			}
+				_stoi[heatLeft ? "HOT_LEFT" : "HOT_RIGHT"]
+			};
 
-			// Create Python tensor from token indices
-			using var pyList = new PyList();
-			using var innerList = new PyList();
-			foreach (var idx in tokenIndices)
-			{
-				innerList.Append(new PyInt(idx));
-			}
-			pyList.Append(innerList);
+			for (int i = 0; i < delay; i++)
+				seq.Add(_stoi["NO_HEAT"]);
 
-			// Convert to tensor and run through model
-			using var tensorFunc = _torch!.GetAttr("tensor");
-			using var x = tensorFunc.Invoke(pyList);
+			seq.Add(_stoi["ACTION"]);
+			while (seq.Count < MAX_SEQ)
+				seq.Add(PAD);
 
-			// Get model prediction
+			var outer = new PyList();
+			var inner = new PyList();
+			foreach (var t in seq)
+				inner.Append(new PyInt(t));
+			outer.Append(inner);
+
+			using var x = _torch!.GetAttr("tensor").Invoke(outer);
 			using var logits = _model!.Invoke(x);
+			using var pred = _torch.GetAttr("argmax").Invoke(logits);
 
-			// Get argmax
-			using var argmaxFunc = _torch.GetAttr("argmax");
-			using var prediction = argmaxFunc.Invoke(logits);
-			using var itemFunc = prediction.GetAttr("item");
-			using var result = itemFunc.Invoke();
-
-			int actionIndex = result.As<int>();
-			return new[] { "LEFT", "STAY", "RIGHT" }[actionIndex];
+			int idx = pred.GetAttr("item").Invoke().As<int>();
+			return idx == 0 ? "LEFT" : "RIGHT";
 		}
-	}
-
-	private static string HeatToToken(double heat)
-	{
-		return heat switch
-		{
-			< -0.75 => "H-1.0",
-			< -0.25 => "H-0.5",
-			< 0.25 => "H0.0",
-			< 0.75 => "H0.5",
-			_ => "H1.0"
-		};
 	}
 
 	public void Dispose()
 	{
 		if (_disposed) return;
-
 		if (PythonEngine.IsInitialized)
 		{
 			using (Py.GIL())
@@ -321,50 +230,46 @@ internal sealed class NanoTransformerWrapper : IDisposable
 				_nanoDecoderClass?.Dispose();
 			}
 		}
-
 		_envManager.Shutdown();
 		_disposed = true;
 	}
 
-	// ---------------------------------------------------------------------
-	// Model Architecture (pure Python class definitions)
-	// ---------------------------------------------------------------------
-	private static string GetModelArchitecture() => @"
-# Tiny decoder transformer
+	// -------------------------------------------------------
+	// PYTHON MODEL
+	// -------------------------------------------------------
+
+	private static string GetModelCode() => @"
 class DecoderBlock(nn.Module):
-    def __init__(self, d_model):
+    def __init__(self, d):
         super().__init__()
-        self.qkv = nn.Linear(d_model, d_model * 3, bias=False)
-        self.proj = nn.Linear(d_model, d_model, bias=False)
+        self.qkv = nn.Linear(d, d * 3, bias=False)
+        self.proj = nn.Linear(d, d, bias=False)
         self.ff = nn.Sequential(
-            nn.Linear(d_model, d_model * 2),
+            nn.Linear(d, d * 2),
             nn.ReLU(),
-            nn.Linear(d_model * 2, d_model)
+            nn.Linear(d * 2, d)
         )
-        self.ln1 = nn.LayerNorm(d_model)
-        self.ln2 = nn.LayerNorm(d_model)
+        self.ln1 = nn.LayerNorm(d)
+        self.ln2 = nn.LayerNorm(d)
 
     def forward(self, x):
         B, T, C = x.shape
         q, k, v = self.qkv(x).chunk(3, dim=-1)
-
         att = (q @ k.transpose(-2, -1)) / math.sqrt(C)
         mask = torch.tril(torch.ones(T, T))
         att = att.masked_fill(mask == 0, -1e9)
         att = att.softmax(dim=-1)
-
         x = x + self.proj(att @ v)
         x = self.ln1(x)
         x = x + self.ff(x)
-        x = self.ln2(x)
-        return x
+        return self.ln2(x)
 
 class NanoDecoder(nn.Module):
-    def __init__(self, d_model):
+    def __init__(self, d):
         super().__init__()
-        self.embed = nn.Embedding(VOCAB, d_model)
-        self.block = DecoderBlock(d_model)
-        self.head = nn.Linear(d_model, 3)
+        self.embed = nn.Embedding(VOCAB, d, padding_idx=PAD)
+        self.block = DecoderBlock(d)
+        self.head = nn.Linear(d, 2)
 
     def forward(self, x):
         x = self.embed(x)
