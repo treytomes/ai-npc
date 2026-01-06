@@ -9,25 +9,6 @@
 		xmlns:views="using:llmchat.Views"
         Icon="/Assets/avalonia-logo.ico"
         Title="llmchat">
-
-	<Grid RowDefinitions="Auto,*,Auto">
-        <!-- Header -->
-        <TextBlock
-            Text="{Binding Title}"
-            FontSize="20"
-            FontWeight="Bold"
-            Margin="12"/>
-
-        <!-- Chat history -->
-        <views:ChatHistoryView
-            Grid.Row="1"
-            Margin="12"
-            DataContext="{Binding Chat}" />
-
-        <!-- Message input -->
-        <views:MessageInputView
-            Grid.Row="2"
-            Margin="12"
-            DataContext="{Binding MessageInput}" />
-	</Grid>
+	
+	<views:ChatView DataContext="{Binding Chat}" />
 </Window>

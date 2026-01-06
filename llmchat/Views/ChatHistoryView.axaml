@@ -8,6 +8,7 @@
 
 	<Grid>
 		<ListBox
+		    x:Name="MessagesList"
 			ItemsSource="{Binding Messages}"
 			Background="Transparent"
 			BorderThickness="0"
@@ -35,7 +36,6 @@
 					<views:ChatMessageView/>
 				</DataTemplate>
 			</ListBox.ItemTemplate>
-
 		</ListBox>
 
 		<Border

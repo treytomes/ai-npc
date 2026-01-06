@@ -1,3 +1,4 @@
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -34,6 +35,11 @@ public sealed class ChatHistoryViewModel : ViewModelBase
 	{
 		get => _isToastVisible;
 		private set => SetProperty(ref _isToastVisible, value);
+	}
+
+	public void AddMessage(ChatMessageContent message)
+	{
+		Messages.Add(new ChatMessageViewModel(message));
 	}
 
 	public async void ShowToast(string message)
