@@ -2,5 +2,12 @@
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    public string Greeting { get; } = "Welcome to Avalonia!";
+	public string Title => "llmchat";
+
+	public ChatHistoryViewModel Chat { get; }
+
+	public MainWindowViewModel()
+	{
+		Chat = ChatHistoryViewModel.CreateSample();
+	}
 }

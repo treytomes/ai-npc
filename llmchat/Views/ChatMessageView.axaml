@@ -1,0 +1,71 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:llmchat.ViewModels"
+    x:Class="llmchat.Views.ChatMessageView"
+    x:DataType="vm:ChatMessageViewModel">
+
+    <Border
+        Classes.role-user="{Binding IsUser}"
+        Classes.role-assistant="{Binding IsAssistant}"
+        Classes.role-system="{Binding IsSystem}"
+        Classes.role-tool="{Binding IsTool}"
+        CornerRadius="6"
+        BorderThickness="1"
+        Padding="8"
+        Margin="6">
+
+        <DockPanel>
+
+            <!-- Header -->
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto">
+                <TextBlock
+                    Text="{Binding RoleLabel}"
+                    FontWeight="Bold"
+                    VerticalAlignment="Center"/>
+
+                <Button
+                    Grid.Column="1"
+                    Content="{Binding ExpandGlyph}"
+                    Command="{Binding ToggleExpandedCommand}"
+                    Width="24"
+                    Height="24"
+                    ToolTip.Tip="Expand / collapse message"/>
+            </Grid>
+
+            <!-- Collapsible Content -->
+            <StackPanel
+                Margin="0,6"
+                IsVisible="{Binding IsExpanded}"
+                Opacity="{Binding IsExpanded, Converter={StaticResource BoolToOpacityConverter}}">
+
+                <StackPanel.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity"
+                                          Duration="0:0:0.15"/>
+                    </Transitions>
+                </StackPanel.Transitions>
+
+                <!-- Message -->
+                <TextBlock
+                    Text="{Binding Content}"
+                    TextWrapping="Wrap"/>
+
+                <!-- Toolbar -->
+                <StackPanel
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="6"
+                    Margin="0,8,0,0">
+
+                    <Button Content="✏️" ToolTip.Tip="Edit message"/>
+                    <Button Content="📋" ToolTip.Tip="Copy to clipboard"/>
+                    <Button Content="📦" ToolTip.Tip="Archive message"/>
+                    <Button Content="🗑️" ToolTip.Tip="Delete message"/>
+                </StackPanel>
+
+            </StackPanel>
+
+        </DockPanel>
+    </Border>
+</UserControl>
