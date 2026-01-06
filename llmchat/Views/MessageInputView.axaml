@@ -1,0 +1,45 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:llmchat.ViewModels"
+    x:Class="llmchat.Views.MessageInputView"
+    x:DataType="vm:MessageInputViewModel">
+
+    <Border
+        CornerRadius="8"
+        BorderThickness="1"
+        Padding="8">
+
+        <DockPanel>
+
+            <!-- Send button -->
+            <Button
+                DockPanel.Dock="Right"
+                Content="➤"
+                Width="40"
+                Height="40"
+                Margin="8,0,0,0"
+                Command="{Binding SendCommand}"
+                ToolTip.Tip="Send (Shift+Enter)" />
+
+            <!-- Expanding editor -->
+			<TextBox AcceptsReturn="True"
+                TextWrapping="Wrap"
+                MinHeight="40"
+                MaxHeight="160"
+		         Text="{Binding Text, Mode=TwoWay}">
+				<TextBox.KeyBindings>
+                    <!-- Enter = Send -->
+                    <KeyBinding
+                        Gesture="Enter"
+                        Command="{Binding SendCommand}" />
+
+                    <!-- Shift+Enter = newline -->
+                    <KeyBinding
+                        Gesture="Shift+Enter"
+                        Command="{x:Null}" />
+                </TextBox.KeyBindings>
+			</TextBox>
+        </DockPanel>
+    </Border>
+</UserControl>
