@@ -1,4 +1,5 @@
 using Adventure;
+using llmchat.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -79,6 +80,7 @@ public sealed class Bootstrap
 				services.Configure<AppSettings>(context.Configuration);
 
 				services.AddSingleton<HttpClient>();
+				services.AddSingleton<IClipboardService, ClipboardService>();
 
 				// ViewModels
 				services.AddSingleton<ViewModels.MainWindowViewModel>();

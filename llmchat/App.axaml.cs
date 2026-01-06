@@ -6,42 +6,47 @@ using System.Linq;
 using Avalonia.Markup.Xaml;
 using llmchat.ViewModels;
 using llmchat.Views;
+using llmchat.Services;
 
 namespace llmchat;
 
 public partial class App : Application
 {
-    public override void Initialize()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
+	public static IClipboardService ClipboardService { get; private set; } = null!;
 
-    public override void OnFrameworkInitializationCompleted()
-    {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
-            // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
-            DisableAvaloniaDataAnnotationValidation();
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = new MainWindowViewModel(),
-            };
-        }
+	public override void Initialize()
+	{
+		AvaloniaXamlLoader.Load(this);
+	}
 
-        base.OnFrameworkInitializationCompleted();
-    }
+	public override void OnFrameworkInitializationCompleted()
+	{
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+		{
+			// Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
+			// More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
+			DisableAvaloniaDataAnnotationValidation();
+			desktop.MainWindow = new MainWindow
+			{
+				DataContext = new MainWindowViewModel(),
+			};
+		}
 
-    private void DisableAvaloniaDataAnnotationValidation()
-    {
-        // Get an array of plugins to remove
-        var dataValidationPluginsToRemove =
-            BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
+		ClipboardService = new ClipboardService();
 
-        // remove each entry found
-        foreach (var plugin in dataValidationPluginsToRemove)
-        {
-            BindingPlugins.DataValidators.Remove(plugin);
-        }
-    }
+		base.OnFrameworkInitializationCompleted();
+	}
+
+	private void DisableAvaloniaDataAnnotationValidation()
+	{
+		// Get an array of plugins to remove
+		var dataValidationPluginsToRemove =
+			BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
+
+		// remove each entry found
+		foreach (var plugin in dataValidationPluginsToRemove)
+		{
+			BindingPlugins.DataValidators.Remove(plugin);
+		}
+	}
 }

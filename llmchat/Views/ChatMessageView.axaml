@@ -10,6 +10,7 @@
         Classes.role-assistant="{Binding IsAssistant}"
         Classes.role-system="{Binding IsSystem}"
         Classes.role-tool="{Binding IsTool}"
+		Classes.archived="{Binding IsArchived}"
         CornerRadius="6"
         BorderThickness="1"
         Padding="8"
@@ -18,19 +19,35 @@
         <DockPanel>
 
             <!-- Header -->
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto">
-                <TextBlock
-                    Text="{Binding RoleLabel}"
-                    FontWeight="Bold"
-                    VerticalAlignment="Center"/>
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+				<TextBlock
+					Grid.Column="0"
+					Text="{Binding RoleLabel}"
+					FontWeight="Bold"
+					VerticalAlignment="Center"/>
 
-                <Button
-                    Grid.Column="1"
-                    Content="{Binding ExpandGlyph}"
-                    Command="{Binding ToggleExpandedCommand}"
-                    Width="24"
-                    Height="24"
-                    ToolTip.Tip="Expand / collapse message"/>
+				<Border
+					Grid.Column="1"
+					IsVisible="{Binding IsArchived}"
+					Background="#884444"
+					CornerRadius="4"
+					Padding="6,2"
+					VerticalAlignment="Center">
+
+					<TextBlock
+						Text="ARCHIVED"
+						FontSize="10"
+						FontWeight="Bold"
+						Foreground="White"/>
+				</Border>
+
+				<Button
+					Grid.Column="2"
+					Content="{Binding ExpandGlyph}"
+					Command="{Binding ToggleExpandedCommand}"
+					Width="28"
+					Height="28"
+					ToolTip.Tip="Expand / collapse message"/>
             </Grid>
 
             <!-- Collapsible Content -->
@@ -47,22 +64,49 @@
                 </StackPanel.Transitions>
 
                 <!-- Message -->
-                <TextBlock
-                    Text="{Binding Content}"
-                    TextWrapping="Wrap"/>
+				
+				<!-- Read mode -->
+				<TextBlock
+					IsVisible="{Binding !IsEditing}"
+					Text="{Binding Content}"
+					TextWrapping="Wrap"/>
+
+				<!-- Edit mode -->
+				<TextBox
+					IsVisible="{Binding IsEditing}"
+					Text="{Binding EditBuffer}"
+					AcceptsReturn="True"
+					TextWrapping="Wrap"
+					MinHeight="80"/>
+
 
                 <!-- Toolbar -->
-                <StackPanel
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="6"
-                    Margin="0,8,0,0">
 
-                    <Button Content="✏️" ToolTip.Tip="Edit message"/>
-                    <Button Content="📋" ToolTip.Tip="Copy to clipboard"/>
-                    <Button Content="📦" ToolTip.Tip="Archive message"/>
-                    <Button Content="🗑️" ToolTip.Tip="Delete message"/>
-                </StackPanel>
+				<!-- Normal toolbar -->
+				<StackPanel
+					IsVisible="{Binding !IsEditing}"
+					Orientation="Horizontal"
+					HorizontalAlignment="Right"
+					Spacing="6"
+					Margin="0,8,0,0">
+
+					<Button Content="✏️" Width="28" Height="28" Padding="4" HorizontalContentAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding EditCommand}" ToolTip.Tip="Edit"/>
+					<Button Content="📋" Width="28" Height="28" Padding="4" HorizontalContentAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding CopyCommand}" ToolTip.Tip="Copy"/>
+					<Button Content="📦" Width="28" Height="28" Padding="4" HorizontalContentAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding ToggleArchiveCommand}" ToolTip.Tip="Archive"/>
+					<Button Content="🗑️" Width="28" Height="28" Padding="4" HorizontalContentAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding DeleteCommand}" ToolTip.Tip="Delete"/>
+				</StackPanel>
+
+				<!-- Edit toolbar -->
+				<StackPanel
+					IsVisible="{Binding IsEditing}"
+					Orientation="Horizontal"
+					HorizontalAlignment="Right"
+					Spacing="6"
+					Margin="0,8,0,0">
+
+					<Button Content="💾" Width="28" Height="28" Padding="4" HorizontalContentAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding SaveEditCommand}" ToolTip.Tip="Save"/>
+					<Button Content="❌" Width="28" Height="28" Padding="4" HorizontalContentAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding CancelEditCommand}" ToolTip.Tip="Cancel"/>
+				</StackPanel>
 
             </StackPanel>
 

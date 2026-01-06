@@ -20,5 +20,6 @@
 
 	<Application.Resources>
 		<converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
+		<converters:ToastMarginConverter x:Key="ToastMarginConverter"/>
 	</Application.Resources>
 </Application>

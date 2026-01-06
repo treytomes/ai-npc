@@ -1,67 +1,76 @@
 <Styles xmlns="https://github.com/avaloniaui">
 
-  <!-- USER -->
-  <Style Selector="Border.role-user">
-    <Setter Property="Background" Value="#1E3A5F"/>
-    <Setter Property="BorderBrush" Value="#3B82F6"/>
-  </Style>
+	<!-- USER -->
+	<Style Selector="Border.role-user">
+		<Setter Property="Background" Value="#1E3A5F"/>
+		<Setter Property="BorderBrush" Value="#3B82F6"/>
+	</Style>
 
-  <Style Selector="Border.role-user TextBlock">
-    <Setter Property="Foreground" Value="White"/>
-  </Style>
+	<Style Selector="Border.role-user TextBlock">
+		<Setter Property="Foreground" Value="White"/>
+	</Style>
 
-  <Style Selector="Border.role-user Button">
-    <Setter Property="Background" Value="#2563EB"/>
-    <Setter Property="BorderBrush" Value="#60A5FA"/>
-    <Setter Property="Foreground" Value="White"/>
-  </Style>
+	<Style Selector="Border.role-user Button">
+		<Setter Property="Background" Value="#2563EB"/>
+		<Setter Property="BorderBrush" Value="#60A5FA"/>
+		<Setter Property="Foreground" Value="White"/>
+	</Style>
 
-  <!-- ASSISTANT -->
-  <Style Selector="Border.role-assistant">
-    <Setter Property="Background" Value="#1F2937"/>
-    <Setter Property="BorderBrush" Value="#10B981"/>
-  </Style>
+	<!-- ASSISTANT -->
+	<Style Selector="Border.role-assistant">
+		<Setter Property="Background" Value="#1F2937"/>
+		<Setter Property="BorderBrush" Value="#10B981"/>
+	</Style>
 
-  <Style Selector="Border.role-assistant TextBlock">
-    <Setter Property="Foreground" Value="#D1FAE5"/>
-  </Style>
+	<Style Selector="Border.role-assistant TextBlock">
+		<Setter Property="Foreground" Value="#D1FAE5"/>
+	</Style>
 
-  <Style Selector="Border.role-assistant Button">
-    <Setter Property="Background" Value="#047857"/>
-    <Setter Property="BorderBrush" Value="#34D399"/>
-    <Setter Property="Foreground" Value="White"/>
-  </Style>
+	<Style Selector="Border.role-assistant Button">
+		<Setter Property="Background" Value="#047857"/>
+		<Setter Property="BorderBrush" Value="#34D399"/>
+		<Setter Property="Foreground" Value="White"/>
+	</Style>
 
-  <!-- SYSTEM -->
-  <Style Selector="Border.role-system">
-    <Setter Property="Background" Value="#2E1065"/>
-    <Setter Property="BorderBrush" Value="#A855F7"/>
-  </Style>
+	<!-- SYSTEM -->
+	<Style Selector="Border.role-system">
+		<Setter Property="Background" Value="#2E1065"/>
+		<Setter Property="BorderBrush" Value="#A855F7"/>
+	</Style>
 
-  <Style Selector="Border.role-system TextBlock">
-    <Setter Property="Foreground" Value="#F5D0FE"/>
-  </Style>
+	<Style Selector="Border.role-system TextBlock">
+		<Setter Property="Foreground" Value="#F5D0FE"/>
+	</Style>
 
-  <Style Selector="Border.role-system Button">
-    <Setter Property="Background" Value="#7E22CE"/>
-    <Setter Property="BorderBrush" Value="#C084FC"/>
-    <Setter Property="Foreground" Value="White"/>
-  </Style>
+	<Style Selector="Border.role-system Button">
+		<Setter Property="Background" Value="#7E22CE"/>
+		<Setter Property="BorderBrush" Value="#C084FC"/>
+		<Setter Property="Foreground" Value="White"/>
+	</Style>
 
-  <!-- TOOL -->
-  <Style Selector="Border.role-tool">
-    <Setter Property="Background" Value="#0F172A"/>
-    <Setter Property="BorderBrush" Value="#38BDF8"/>
-  </Style>
+	<!-- TOOL -->
+	<Style Selector="Border.role-tool">
+		<Setter Property="Background" Value="#0F172A"/>
+		<Setter Property="BorderBrush" Value="#38BDF8"/>
+	</Style>
 
-  <Style Selector="Border.role-tool TextBlock">
-    <Setter Property="Foreground" Value="#E0F2FE"/>
-  </Style>
+	<Style Selector="Border.role-tool TextBlock">
+		<Setter Property="Foreground" Value="#E0F2FE"/>
+	</Style>
 
-  <Style Selector="Border.role-tool Button">
-    <Setter Property="Background" Value="#0284C7"/>
-    <Setter Property="BorderBrush" Value="#7DD3FC"/>
-    <Setter Property="Foreground" Value="White"/>
-  </Style>
+	<Style Selector="Border.role-tool Button">
+		<Setter Property="Background" Value="#0284C7"/>
+		<Setter Property="BorderBrush" Value="#7DD3FC"/>
+		<Setter Property="Foreground" Value="White"/>
+	</Style>
+
+	<Style Selector="Border.archived">
+		<Setter Property="Opacity" Value="0.75"/>
+		<Setter Property="BorderBrush" Value="#AA6666"/>
+	</Style>
+
+	<Style Selector="Border.archived TextBlock">
+		<Setter Property="Opacity" Value="0.85"/>
+	</Style>
 
 </Styles>

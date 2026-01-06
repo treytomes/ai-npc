@@ -1,18 +1,64 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="using:llmchat.Views"
-        	 xmlns:vm="using:llmchat.ViewModels"
-             x:Class="llmchat.Views.ChatHistoryView"
-			 x:DataType="vm:ChatHistoryViewModel">
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:llmchat.ViewModels"
+    xmlns:views="using:llmchat.Views"
+    x:Class="llmchat.Views.ChatHistoryView"
+    x:DataType="vm:ChatHistoryViewModel">
 
-	<ScrollViewer>
-		<ItemsControl ItemsSource="{Binding Messages}">
-			<ItemsControl.ItemTemplate>
+	<Grid>
+		<ListBox
+			ItemsSource="{Binding Messages}"
+			Background="Transparent"
+			BorderThickness="0"
+			HorizontalAlignment="Stretch">
+
+			<ListBox.ItemsPanel>
+				<ItemsPanelTemplate>
+					<VirtualizingStackPanel />
+				</ItemsPanelTemplate>
+			</ListBox.ItemsPanel>
+
+			<!-- Style ListBoxItem instead -->
+			<ListBox.Styles>
+				<Style Selector="ListBoxItem">
+					<Setter Property="Padding" Value="0"/>
+					<Setter Property="BorderThickness" Value="0"/>
+					<Setter Property="Background" Value="Transparent"/>
+					<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+					<Setter Property="FocusAdorner" Value="{x:Null}"/>
+				</Style>
+			</ListBox.Styles>
+
+			<ListBox.ItemTemplate>
 				<DataTemplate>
-					<views:ChatMessageView
-						DataContext="{Binding}" />
+					<views:ChatMessageView/>
 				</DataTemplate>
-			</ItemsControl.ItemTemplate>
-		</ItemsControl>
-	</ScrollViewer>
+			</ListBox.ItemTemplate>
+
+		</ListBox>
+
+		<Border
+			IsVisible="{Binding IsToastVisible}"
+			Opacity="{Binding IsToastVisible, Converter={StaticResource BoolToOpacityConverter}}"
+			Margin="{Binding IsToastVisible, Converter={StaticResource ToastMarginConverter}}"
+			Background="#CC333333"
+			CornerRadius="6"
+			Padding="10"
+			HorizontalAlignment="Center"
+			VerticalAlignment="Bottom"
+			ZIndex="10">
+
+			<Border.Transitions>
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+					<ThicknessTransition Property="Margin" Duration="0:0:0.2"/>
+				</Transitions>
+			</Border.Transitions>
+
+			<TextBlock
+				Text="{Binding ToastMessage}"
+				Foreground="White"/>
+		</Border>
+	</Grid>
 </UserControl>

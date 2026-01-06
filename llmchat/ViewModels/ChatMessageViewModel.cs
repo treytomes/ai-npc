@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.SemanticKernel;
@@ -7,43 +9,113 @@ namespace llmchat.ViewModels;
 
 public sealed class ChatMessageViewModel : ViewModelBase
 {
+	public event Action<string>? ToastRequested;
+
 	private bool _isExpanded = true;
+	private bool _isArchived;
+	private bool _isEditing;
+	private string _content;
+	private string _editBuffer = string.Empty;
 
 	public ChatMessageViewModel(ChatMessageContent message)
-		: base()
 	{
 		Role = message.Role;
-		Content = message.Content ?? string.Empty;
+		_content = message.Content ?? string.Empty;
+
 		ToggleExpandedCommand = new RelayCommand(() => IsExpanded = !IsExpanded);
+		CopyCommand = new AsyncRelayCommand(CopyToClipboardAsync);
+		DeleteCommand = new RelayCommand(() => DeleteRequested?.Invoke(this));
+		ToggleArchiveCommand = new RelayCommand(() => IsArchived = !IsArchived);
+		EditCommand = new RelayCommand(StartEdit);
+		SaveEditCommand = new RelayCommand(SaveEdit);
+		CancelEditCommand = new RelayCommand(CancelEdit);
 	}
+
+	// ----- State -----
 
 	public bool IsExpanded
 	{
 		get => _isExpanded;
-		set => SetProperty(ref _isExpanded, value);
+		set
+		{
+			SetProperty(ref _isExpanded, value);
+			OnPropertyChanged(nameof(ExpandGlyph));
+		}
+	}
+
+	public bool IsArchived
+	{
+		get => _isArchived;
+		set => SetProperty(ref _isArchived, value);
+	}
+
+	public bool IsEditing
+	{
+		get => _isEditing;
+		private set => SetProperty(ref _isEditing, value);
 	}
 
 	public AuthorRole Role { get; }
 
-	public string Content { get; }
+	public string Content
+	{
+		get => _content;
+		private set => SetProperty(ref _content, value);
+	}
+
+	public string EditBuffer
+	{
+		get => _editBuffer;
+		set => SetProperty(ref _editBuffer, value);
+	}
+
+	// ----- Derived -----
 
 	public string RoleLabel => Role.Label;
-
-	public string RoleClass => RoleLabel switch
-	{
-		"user" => "role-user",
-		"assistant" => "role-assistant",
-		"system" => "role-system",
-		"tool" => "role-tool",
-		_ => "role-unknown"
-	};
-
+	public string ExpandGlyph => IsExpanded ? "▼" : "▶";
 	public bool IsUser => Role == AuthorRole.User;
 	public bool IsAssistant => Role == AuthorRole.Assistant;
 	public bool IsSystem => Role == AuthorRole.System;
 	public bool IsTool => Role == AuthorRole.Tool;
 
-	public string ExpandGlyph => IsExpanded ? "▼" : "▶";
+	// ----- Commands -----
 
 	public ICommand ToggleExpandedCommand { get; }
+	public ICommand CopyCommand { get; }
+	public ICommand DeleteCommand { get; }
+	public ICommand ToggleArchiveCommand { get; }
+	public ICommand EditCommand { get; }
+	public ICommand SaveEditCommand { get; }
+	public ICommand CancelEditCommand { get; }
+
+	// ----- Events -----
+
+	public event Action<ChatMessageViewModel>? DeleteRequested;
+
+	// ----- Command handlers -----
+
+	private async Task CopyToClipboardAsync()
+	{
+		// TODO: I'd rather inject IClipboardService into the constructor, but this works.
+		await App.ClipboardService.SetTextAsync(Content);
+		ToastRequested?.Invoke("Copied to clipboard");
+	}
+
+	private void StartEdit()
+	{
+		EditBuffer = Content;
+		IsEditing = true;
+	}
+
+	private void SaveEdit()
+	{
+		Content = EditBuffer;
+		IsEditing = false;
+	}
+
+	private void CancelEdit()
+	{
+		EditBuffer = string.Empty;
+		IsEditing = false;
+	}
 }
