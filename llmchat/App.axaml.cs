@@ -1,12 +1,12 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
 using llmchat.ViewModels;
 using llmchat.Views;
 using llmchat.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace llmchat;
 
@@ -28,7 +28,7 @@ public partial class App : Application
 			DisableAvaloniaDataAnnotationValidation();
 			desktop.MainWindow = new MainWindow
 			{
-				DataContext = new MainWindowViewModel(),
+				DataContext = Bootstrap.Host.Services.GetRequiredService<MainWindowViewModel>(),
 			};
 		}
 

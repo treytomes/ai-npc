@@ -47,6 +47,10 @@
 					Command="{Binding ToggleExpandedCommand}"
 					Width="28"
 					Height="28"
+					Padding="4"
+					HorizontalContentAlignment="Center"
+					HorizontalAlignment="Center"
+					VerticalAlignment="Center"
 					ToolTip.Tip="Expand / collapse message"/>
             </Grid>
 

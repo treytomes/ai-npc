@@ -81,6 +81,7 @@ public sealed class Bootstrap
 
 				services.AddSingleton<HttpClient>();
 				services.AddSingleton<IClipboardService, ClipboardService>();
+				services.AddSingleton<IChatHistoryRepository, ChatHistoryRepository>();
 
 				// ViewModels
 				services.AddSingleton<ViewModels.MainWindowViewModel>();

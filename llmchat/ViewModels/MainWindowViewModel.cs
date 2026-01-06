@@ -1,4 +1,6 @@
-﻿namespace llmchat.ViewModels;
+﻿using llmchat.Services;
+
+namespace llmchat.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
@@ -6,8 +8,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	public ChatHistoryViewModel Chat { get; }
 
-	public MainWindowViewModel()
+	public MainWindowViewModel(IChatHistoryRepository repo)
 	{
-		Chat = ChatHistoryViewModel.CreateSample();
+		Chat = new ChatHistoryViewModel(repo.CreateSample());
 	}
 }
