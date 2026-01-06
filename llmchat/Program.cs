@@ -1,11 +1,28 @@
-﻿using Adventure;
+﻿using Avalonia;
+using System;
 
 namespace llmchat;
 
-internal static class Program
+sealed class Program
 {
-	public static async Task Main(params string[] args)
+	// Initialization code. Don't use any Avalonia, third-party APIs or any
+	// SynchronizationContext-reliant code before AppMain is called: things aren't initialized
+	// yet and stuff might break.
+	[STAThread]
+	public static void Main(string[] args)
 	{
-		await new Bootstrap().Start<AppSettings, TerminalGuiAppEngine, MainAppState>(args);
+		// Build host + DI + logging
+		var exitCode = Bootstrap.Start(args);
+		if (exitCode != 0)
+			return;
+
+		BuildAvaloniaApp()
+			.StartWithClassicDesktopLifetime(args);
 	}
+
+	public static AppBuilder BuildAvaloniaApp()
+		=> AppBuilder.Configure<App>()
+			.UsePlatformDetect()
+			.WithInterFont()
+			.LogToTrace();
 }
