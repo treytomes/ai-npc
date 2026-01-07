@@ -1,9 +1,11 @@
-using Adventure;
+using Adventure.LLM;
+using Adventure.LLM.Ollama;
 using llmchat.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
@@ -31,9 +33,10 @@ public sealed class Bootstrap
 		rootCommand.AddOption(configFileOption);
 		rootCommand.AddOption(debugOption);
 
-		rootCommand.SetHandler((configFile, debug) =>
+		rootCommand.SetHandler(async (configFile, debug) =>
 		{
 			Host = CreateHost(configFile, debug);
+			await Host.StartAsync();
 		}, configFileOption, debugOption);
 
 		return rootCommand.Invoke(args);
@@ -78,6 +81,14 @@ public sealed class Bootstrap
 			.ConfigureServices((context, services) =>
 			{
 				services.Configure<AppSettings>(context.Configuration);
+
+				services.AddSingleton(provider =>
+				{
+					var settings = provider.GetRequiredService<IOptions<AppSettings>>();
+					return new OllamaProps(settings.Value.OllamaUrl, settings.Value.ModelId);
+				});
+
+				services.AddLLM();
 
 				services.AddSingleton<HttpClient>();
 				services.AddSingleton<IClipboardService, ClipboardService>();

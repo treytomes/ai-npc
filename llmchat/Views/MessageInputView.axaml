@@ -23,11 +23,12 @@
                 ToolTip.Tip="Send (Shift+Enter)" />
 
             <!-- Expanding editor -->
-			<TextBox AcceptsReturn="True"
+			<TextBox
+				AcceptsReturn="True"
                 TextWrapping="Wrap"
                 MinHeight="40"
                 MaxHeight="160"
-		         Text="{Binding Text, Mode=TwoWay}">
+		        Text="{Binding Text, Mode=TwoWay}">
 				<TextBox.KeyBindings>
                     <!-- Enter = Send -->
                     <KeyBinding

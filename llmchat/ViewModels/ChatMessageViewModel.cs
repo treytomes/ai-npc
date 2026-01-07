@@ -9,13 +9,24 @@ namespace llmchat.ViewModels;
 
 public sealed class ChatMessageViewModel : ViewModelBase
 {
+	#region Events
+
 	public event Action<string>? ToastRequested;
+	public event Action<ChatMessageViewModel>? DeleteRequested;
+
+	#endregion
+
+	#region Fields
 
 	private bool _isExpanded = true;
 	private bool _isArchived;
 	private bool _isEditing;
 	private string _content;
 	private string _editBuffer = string.Empty;
+
+	#endregion
+
+	#region Constructors
 
 	public ChatMessageViewModel(ChatMessageContent message)
 	{
@@ -30,6 +41,10 @@ public sealed class ChatMessageViewModel : ViewModelBase
 		SaveEditCommand = new RelayCommand(SaveEdit);
 		CancelEditCommand = new RelayCommand(CancelEdit);
 	}
+
+	#endregion
+
+	#region Properties
 
 	// ----- State -----
 
@@ -88,9 +103,14 @@ public sealed class ChatMessageViewModel : ViewModelBase
 	public ICommand SaveEditCommand { get; }
 	public ICommand CancelEditCommand { get; }
 
-	// ----- Events -----
+	#endregion
 
-	public event Action<ChatMessageViewModel>? DeleteRequested;
+	#region Methods
+
+	public void Append(string text)
+	{
+		Content += text;
+	}
 
 	// ----- Command handlers -----
 
@@ -118,4 +138,6 @@ public sealed class ChatMessageViewModel : ViewModelBase
 		EditBuffer = string.Empty;
 		IsEditing = false;
 	}
+
+	#endregion
 }

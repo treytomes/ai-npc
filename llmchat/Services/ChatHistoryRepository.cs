@@ -25,4 +25,9 @@ public class ChatHistoryRepository : IChatHistoryRepository
 
 		return history;
 	}
+
+	public ChatHistory CreateEmpty()
+	{
+		return new ChatHistory();
+	}
 }

@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using Avalonia.Controls;
 using System;
 
 namespace llmchat;
@@ -16,11 +17,14 @@ sealed class Program
 		if (exitCode != 0)
 			return;
 
-		BuildAvaloniaApp()
-			.StartWithClassicDesktopLifetime(args);
+		BuildAvaloniaApp(Bootstrap.Host.Services)
+			.StartWithClassicDesktopLifetime(args, lifetime =>
+			{
+				lifetime.ShutdownMode = ShutdownMode.OnMainWindowClose;
+			});
 	}
 
-	public static AppBuilder BuildAvaloniaApp()
+	public static AppBuilder BuildAvaloniaApp(IServiceProvider services)
 		=> AppBuilder.Configure<App>()
 			.UsePlatformDetect()
 			.WithInterFont()

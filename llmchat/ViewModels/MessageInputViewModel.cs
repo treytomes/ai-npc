@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.Input;
-using OllamaSharp.Models.Chat;
 using System;
 using System.Windows.Input;
 
@@ -14,27 +13,28 @@ public sealed class MessageInputViewModel : ViewModelBase
 
 	public MessageInputViewModel()
 	{
-		SendCommand = new RelayCommand(ExecuteSend, CanExecuteSend);
+		SendCommand = new RelayCommand(ExecuteSend, () => !string.IsNullOrWhiteSpace(Text));
 	}
 
 	public string Text
 	{
 		get => _text;
-		set => SetProperty(ref _text, value);
+		set
+		{
+			if (SetProperty(ref _text, value))
+			{
+				(SendCommand as RelayCommand)!.NotifyCanExecuteChanged();
+			}
+		}
 	}
 
 	public ICommand SendCommand { get; }
-	public bool CanSend => !string.IsNullOrWhiteSpace(Text);
 
 	private void ExecuteSend()
 	{
-		if (!CanSend) return;
-
 		var message = Text.Trim();
 		Text = string.Empty;
 
 		SendRequested?.Invoke(message);
 	}
-
-	private bool CanExecuteSend() => CanSend;
 }

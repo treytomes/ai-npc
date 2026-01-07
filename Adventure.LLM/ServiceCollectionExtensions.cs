@@ -31,37 +31,28 @@ public static class ServiceCollectionExtensions
 		services.AddSingleton<OllamaProcessManager>();
 		services.AddSingleton<ILlmManager, OllamaLlmManager>();
 
-		services.AddSingleton<IChatClient>(sp =>
-		{
-			var llmManager = sp.GetRequiredService<ILlmManager>();
-			// llmManager.InitializeAsync().GetAwaiter().GetResult();
-			return llmManager.CreateChatClient().GetAwaiter().GetResult();
-		});
+		// Holds the initialized client
+		services.AddSingleton<ChatClientHolder>();
 
+		// Async initializer
+		services.AddHostedService<ChatClientInitializer>();
+
+		// Kernel
 		services.AddSingleton<Kernel>(sp =>
 		{
-			var llmManager = sp.GetRequiredService<ILlmManager>();
-			// llmManager.InitializeAsync().GetAwaiter().GetResult();
-
 			var props = sp.GetRequiredService<OllamaProps>();
+			var holder = sp.GetRequiredService<ChatClientHolder>();
+
+			if (holder.Client is null)
+			{
+				throw new InvalidOperationException("Chat client has not been initialized yet.");
+			}
 
 			var builder = Kernel.CreateBuilder();
-			builder.Services.AddTransient<IChatCompletionService>(_ =>
-				new ChatClientCompletionService(llmManager.CreateChatClient().GetAwaiter().GetResult(), props.ModelId));
 
-			// // Add renderer chat client
-			// builder.AddChatClientChatCompletion(
-			// 	_ => llmManager.CreateChatClient().GetAwaiter().GetResult(),
-			// 	"renderer"
-			// );
+			builder.Services.AddSingleton<IChatCompletionService>(
+				new ChatClientCompletionService(holder.Client, props.ModelId));
 
-			// // Add validator chat client
-			// builder.AddChatClientChatCompletion(
-			// 	_ => llmManager.CreateChatClient().GetAwaiter().GetResult(),
-			// 	"validator"
-			// );
-
-			// Add any other services you need.
 			builder.Services.AddLogging();
 
 			return builder.Build();
